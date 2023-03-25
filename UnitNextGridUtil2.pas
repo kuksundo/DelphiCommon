@@ -8,7 +8,9 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils,
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
-procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false);
+procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsFromValue: Boolean=false);
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
@@ -59,7 +61,7 @@ begin
   end;
 end;
 
-procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean; AIsIgnoreSaveFile: Boolean);
 var
   LnxTextColumn: TnxTextColumn;
   LNxComboBoxColumn: TNxComboBoxColumn;
@@ -71,7 +73,7 @@ var
   procedure SetTextColumn(ATitle, AName: string);
   begin
     LnxTextColumn := TnxTextColumn(AGrid.Columns.Add(TnxTextColumn, ATitle));
-    LnxTextColumn.Name := AName;
+    LnxTextColumn.Name := RemoveSpaceBetweenStrings(AName);
     LnxTextColumn.Editing := True;
     LnxTextColumn.Header.Alignment := taCenter;
     LnxTextColumn.Alignment := taCenter;
@@ -87,10 +89,13 @@ begin
       ClearRows;
       Columns.Clear;
 
-      LnxIncrementColumn := Columns.Add(TnxIncrementColumn,'No');
-      LnxIncrementColumn.Alignment := taCenter;
-      LnxIncrementColumn.Header.Alignment := taCenter;
-      LnxIncrementColumn.Width := 30;
+      if not AIsIgnoreSaveFile then
+      begin
+        LnxIncrementColumn := Columns.Add(TnxIncrementColumn,'No');
+        LnxIncrementColumn.Alignment := taCenter;
+        LnxIncrementColumn.Header.Alignment := taCenter;
+        LnxIncrementColumn.Width := 30;
+      end;
 
   //    with TDocVariantData(ADoc) do
   //    begin
@@ -110,12 +115,53 @@ begin
   finally
     //NextGrid Column을 추가하면 TForm 선언부에 ColumnName: ColumnType 이 추가 되므로
     //Column 자동 생성 후 아래 파일 내용을 복사하여 TForm에 추가해 주어야 함
-    LStrList.SaveToFile('c:\temp\NextGridTextColumnList.txt');
+    if not AIsIgnoreSaveFile then
+    begin
+      LStrList.SaveToFile('c:\temp\NextGridTextColumnList.txt');
+      ShowMessage('c:\temp\NextGridTextColumnList.txt is saved.' + #13#10 +
+        'NextGrid Column을 추가하면 TForm 선언부에 ColumnName: ColumnType 이 추가 되므로' + #13#10 +
+        'Column 자동 생성 후 아래 파일 내용을 복사하여 TForm에 추가해 주어야 함.');
+    end;
+
     LStrList.Free;
-    ShowMessage('c:\temp\NextGridTextColumnList.txt is saved.' + #13#10 +
-      'NextGrid Column을 추가하면 TForm 선언부에 ColumnName: ColumnType 이 추가 되므로' + #13#10 +
-      'Column 자동 생성 후 아래 파일 내용을 복사하여 TForm에 추가해 주어야 함.');
   end;
+end;
+
+procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+var
+  i,j: integer;
+  LCellValue, LColName: string;
+begin
+  with AGrid do
+  begin
+    ClearRows;
+    j := AGrid.AddRow();
+
+    for i := 0 to TDocVariantData(ADoc).Count - 1 do
+    begin
+      LColName := TDocVariantData(ADoc).Names[i];
+
+      if AIsFromValue then
+        LCellValue := TDocVariantData(ADoc).Values[i]
+      else
+        LCellValue := LColName;
+
+      AGrid.CellsByName[LColName, j] := LCellValue;
+    end;//for
+  end;//with
+end;
+
+procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsFromValue: Boolean=false);
+var
+  i: integer;
+  LDoc: variant;
+begin
+  for i := Low(ADynAry) to High(ADynAry) do
+  begin
+    LDoc := _JSON(ADynAry[i]);
+
+    AddNextGridRowFromVariant(AGrid, LDoc, AIsFromValue);
+  end;//for
 end;
 
 //ADoc는 한개의 레코드에 대한 Json 임
