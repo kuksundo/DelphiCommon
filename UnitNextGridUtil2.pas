@@ -9,7 +9,10 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils,
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false);
+//ADoc Name이 Grid의 Column Name임
 procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+//ADoc Name이 Grid의 Cell Data 임
+procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsFromValue: Boolean=false);
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
@@ -149,6 +152,24 @@ begin
       AGrid.CellsByName[LColName, j] := LCellValue;
     end;//for
   end;//with
+end;
+
+procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+var
+  i, j: integer;
+begin
+  with AGrid do
+  begin
+    j := AddRow;
+
+    for i := 0 to TDocVariantData(ADoc).Count - 1 do
+    begin
+      if AIsFromValue then
+        CellsByName[i, j] := TDocVariantData(ADoc).Values[i]
+      else
+        CellsByName[i, j] := TDocVariantData(ADoc).Names[i];
+    end;
+  end;
 end;
 
 procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsFromValue: Boolean=false);
