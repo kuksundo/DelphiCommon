@@ -85,6 +85,7 @@ var
     LStrList.Add(AName + ':' + 'TnxTextColumn;');
   end;
 begin
+//
   LStrList := TStringList.Create;
   try
     with AGrid do
