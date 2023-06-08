@@ -8,15 +8,24 @@ uses
   UnitEnumHelper;
 
 type
-  PJHPFileRec = ^TJHPFileRec;
-
-  TJHPFileRec = Packed Record
-    fFilename,
-    fFilePath: RawUTF8;
-    fDocFormat: integer;
+  PSQLGSFileRec = ^TSQLGSFileRec;
+  TSQLGSFileRec = Packed Record
+    fFilename: RawUTF8;
+    fGSDocType: integer;//TGSDocType;
     fFileSize: integer;
     fData: RawByteString;
   end;
+
+  TSQLGSFileRecs = array of TSQLGSFileRec;
+
+  PJHPFileRec = ^TJHPFileRec;
+  TJHPFileRec = Packed Record
+    fFilename: RawUTF8;
+    fDocFormat: integer;
+    fFileSize: integer;
+    fData: RawByteString;
+    fFilePath: RawUTF8;
+  end;
 
   TJHPFileRecs = array of TJHPFileRec;
 
@@ -30,10 +39,34 @@ const
 var
   g_JHPFileFormat: TLabelledEnum<TJHPFileFormat>;
 
+function MakeGSFileRecs2JSON(ASQLGSFiles: TSQLGSFileRecs): RawUTF8;
 function MakeJHPFileRecs2JSON(AJHPFiles: TJHPFileRecs): RawUTF8;
 function GetJHPFileFormatFromFileName(const AFileName: string): TJHPFileFormat;
 
 implementation
+
+//VDR File¿¡¸¸ »ç¿ëµÊ
+function MakeGSFileRecs2JSON(ASQLGSFiles: TSQLGSFileRecs): RawUTF8;
+var
+  LRow: integer;
+  LSQLGSFileRec: TSQLGSFileRec;
+  LUtf8: RawUTF8;
+  LVar: variant;
+  LDynUtf8File: TRawUTF8DynArray;
+  LDynArrFile: TDynArray;
+begin
+  LDynArrFile.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8File);
+
+  for LRow := Low(ASQLGSFiles) to High(ASQLGSFiles) do
+  begin
+    LSQLGSFileRec := ASQLGSFiles[LRow];
+    LUtf8 := RecordSaveJson(LSQLGSFileRec, TypeInfo(TSQLGSFileRec));
+    LDynArrFile.Add(LUtf8);
+  end;
+
+  LVar := _JSON(LDynArrFile.SaveToJSON);
+  Result := LVar;
+end;
 
 function MakeJHPFileRecs2JSON(AJHPFiles: TJHPFileRecs): RawUTF8;
 var
@@ -75,11 +108,11 @@ begin
   if POS('.PDF', LExt) <> 0 then
     result := gfkPDF
   else
-  if LExt = '.PJH' then
-    result := gfkPJH
-  else
   if LExt = '.PJH2' then
-    result := gfkPJH2;
+    result := gfkPJH2
+  else
+//  if LExt = '.PJH' then
+    result := gfkPJH
 end;
 
 //initialization
