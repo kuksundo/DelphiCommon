@@ -40,9 +40,12 @@ Type
 
     constructor Create(AOwner: TForm; AQureyInterval: integer; ATimeOut: integer=3000);
     destructor Destroy; override;
-    function LoiadComPortFromFile(AIniFileName: string=''): Boolean;
+    function LoadCommPortFromFile(AIniFileName: string=''): Boolean;
     procedure SaveComPortToFile(AIniFileName: string);
-    function InitComPort(APortName, ABaudRate: string; ADataBit: string='8'; AStopBit: string='1'; AParity: String='None'): Boolean;
+    function InitCommPort(APortName, ABaudRate: string; ADataBit: string='8'; AStopBit: string='1'; AParity: String='None'): Boolean;
+    function InitCommPortFromPort(AComPort: TComPort): Boolean;
+    procedure SetCommPort2Dest(ADestComPort: TComPort);
+    function ResetCommport: Boolean;
 
     procedure SendQuery;
     procedure SendBufClear;
@@ -99,7 +102,7 @@ begin
   end;
 end;
 
-function TSerialCommThread.InitComPort(APortName, ABaudRate: string;
+function TSerialCommThread.InitCommPort(APortName, ABaudRate: string;
   ADataBit: string; AStopBit: string; AParity: String): Boolean;
 begin
   Result := False;
@@ -123,7 +126,20 @@ begin
   Result := True;
 end;
 
-function TSerialCommThread.LoiadComPortFromFile(AIniFileName: string): Boolean;
+function TSerialCommThread.InitCommPortFromPort(AComPort: TComPort): Boolean;
+begin
+  if Assigned(AComPort) then
+  begin
+    InitCommPort(AComport.Port,
+                 BaudRateToStr(AComport.BaudRate),
+                 DataBitsToStr(AComport.DataBits),
+                 StopBitsToStr(AComport.StopBits));
+  end
+  else
+    ShowMessage('TComport is not assigned!');
+end;
+
+function TSerialCommThread.LoadCommPortFromFile(AIniFileName: string): Boolean;
 begin
   Result := False;
 
@@ -181,6 +197,20 @@ begin
   finally
     SendCopyData2(FOwner.Handle, 'RxFalse', 0);
   end;
+end;
+
+function TSerialCommThread.ResetCommport: Boolean;
+begin
+  with FComport do
+  begin
+    if Connected then
+      Close;
+
+    //통신포트를 오픈한다
+    Open;
+    Sleep(100);
+    ClearBuffer(True,True);
+  end;//with
 end;
 
 procedure TSerialCommThread.SaveComPortToFile(AIniFileName: string);
@@ -280,6 +310,19 @@ begin
 
     InternalSendQuery(FSendCommandList.Strings[i],i);
   end;//for
+end;
+
+procedure TSerialCommThread.SetCommPort2Dest(ADestComPort: TComPort);
+begin
+  with ADestComPort do
+  begin
+    FlowControl.ControlDTR := dtrEnable;
+    Port := FComPort.Port;
+    BaudRate := FComPort.BaudRate;
+    StopBits := FComPort.StopBits;
+    DataBits := FComPort.DataBits;
+    Parity.Bits := FComPort.Parity.Bits;
+  end;
 end;
 
 procedure TSerialCommThread.SetQueryInterval(Value: integer);
