@@ -2,7 +2,9 @@ unit UnitSerialCommThread;
 
 interface
 
-uses Windows, classes, Forms, SysUtils, Dialogs, Messages, MyKernelObject4GpSharedMem, CPort,
+uses Windows, classes, Forms, SysUtils, Dialogs, Messages,
+  mormot.core.variants, mormot.core.os,
+  MyKernelObject4GpSharedMem, CPort,
   UnitCopyData;
 
 const
@@ -16,20 +18,24 @@ Type
     FOwner: TForm;
     FComPort: TComPort;
     FQueryInterval: integer;//Query 간격(mSec)
-    FStopComm: Boolean;//통신 일시 중지 = True
+    FSuspendCommThread: Boolean;//통신 일시 중지 = True
     FTimeOut: integer;//통신 Send후 다음 Send까지 Timeout 시간(mSec) - INFINITE
     FCommMode: TCommMode;
     FSendBuf: array[0..255] of byte;//cmBin Mode에서 사용하는 송신 버퍼
     FBufStr: String;//cmChar Mode에서 사용되는 수신버퍼
     FRepeatCount: integer;//반복회수
 
-    FEventHandle: TEvent;//Send한 후 Receive할때까지 Wait하는 Event
+    FSendEvent, //Send하는 Event
+    FReceiveEvent: TEvent;//Send한 후 Receive할때까지 Wait하는 Event
     FSendCommandList: TStringList;//반복적으로 보내는 명령 리스트
     FWriteCommandList: TStringList;//Write 명령 리스트
     FSendCommandOnce: string;//한번만 보내는 명령
+    FConfigFileName: string;
+    FIsCommportInitialized: Boolean;//Commport 초기화 완료되면 True
+    FUseSendEvent: Boolean;
 
     procedure OnReceiveComm(Sender: TObject; Count: Integer);
-    procedure SetStopComm(Value: Boolean);
+    procedure SetSuspendCommThread(Value: Boolean);
     procedure SetTimeOut(Value: integer);
     procedure SetQueryInterval(Value: integer);
   protected
@@ -40,18 +46,25 @@ Type
 
     constructor Create(AOwner: TForm; AQureyInterval: integer; ATimeOut: integer=3000);
     destructor Destroy; override;
-    function LoadCommPortFromFile(AIniFileName: string=''): Boolean;
-    procedure SaveComPortToFile(AIniFileName: string);
+//    function LoadCommPortFromFile(AIniFileName: string=''): Boolean;
+//    procedure SaveComPortToFile(AIniFileName: string);
+    procedure SaveSerialCommConfig2File(AFileName: string);
+    function LoadSerialCommConfigFromFile(AFileName: string): Boolean;
+
     function InitCommPort(APortName, ABaudRate: string; ADataBit: string='8'; AStopBit: string='1'; AParity: String='None'): Boolean;
     function InitCommPortFromPort(AComPort: TComPort): Boolean;
     procedure SetCommPort2Dest(ADestComPort: TComPort);
     function ResetCommport: Boolean;
 
     procedure SendQuery;
+    procedure SendString(AString: string);
     procedure SendBufClear;
   published
+    property ConfigFileName: string read FConfigFileName write FConfigFileName;
     property CommPort: TComPort read FComPort write FComPort;
-    property StopComm: Boolean read FStopComm write SetStopComm;
+    property SuspendCommThread: Boolean read FSuspendCommThread write SetSuspendCommThread;
+    property IsCommportInitialized: Boolean read FIsCommportInitialized write FIsCommportInitialized;
+    property UseSendEvent: Boolean read FUseSendEvent write FUseSendEvent;
     property TimeOut: integer read FTimeOut write SetTimeOut;
     property QueryInterval: integer read FQueryInterval write SetQueryInterval;
     property RepeatCount: integer read FRepeatCount write FRepeatCount;
@@ -67,13 +80,17 @@ begin
   inherited Create(True);
 
   FOwner := AOwner;
-  FStopComm := False;
+  FSuspendCommThread := False;
   FTimeOut := ATimeOut; //3초 기다린 후에 계속 명령을 전송함(Default = INFINITE)
-  FComport := nil;
+  FComport := TComport.Create(nil);
+  FComport.OnRxChar := OnReceiveComm;
 
-  FEventHandle := TEvent.Create('',False);
+  FSendEvent := TEvent.Create('',False);
+  FReceiveEvent := TEvent.Create('',False);
   FSendCommandList := TStringList.Create;
   FWriteCommandList := TStringList.Create;
+
+  FUseSendEvent := True;
 
 //  Resume;
 end;
@@ -83,7 +100,8 @@ begin
   if Assigned(FComport) then
     FComport.Free;
 
-  FEventHandle.Free;
+  FSendEvent.Free;
+  FReceiveEvent.Free;
   FWriteCommandList.Free;
   FSendCommandList.Free;
 
@@ -94,11 +112,16 @@ procedure TSerialCommThread.Execute;
 begin
   while not terminated do
   begin
-    if FStopComm then
+    if FSuspendCommThread then
       Suspend;
 
-//    Sleep(FQueryInterval);
-    SendQuery();
+    if FUseSendEvent then
+    begin
+      if FSendEvent.Wait(FTimeOut) then
+        SendQuery();
+    end
+    else
+      SendQuery();
   end;
 end;
 
@@ -109,7 +132,7 @@ begin
 
   if not Assigned(FComport) then
   begin
-    FComport.Create(nil);
+    FComport := TComport.Create(nil);
     FComport.OnRxChar := OnReceiveComm;
   end;
 
@@ -123,6 +146,7 @@ begin
     Parity.Bits := StrToParity(AParity);
   end;
 
+  FIsCommportInitialized := True;
   Result := True;
 end;
 
@@ -139,26 +163,56 @@ begin
     ShowMessage('TComport is not assigned!');
 end;
 
-function TSerialCommThread.LoadCommPortFromFile(AIniFileName: string): Boolean;
+//function TSerialCommThread.LoadCommPortFromFile(AIniFileName: string): Boolean;
+//begin
+//  Result := False;
+//
+//  if not Assigned(FComport) then
+//  begin
+//    FComport.Create(nil);
+//    FComport.OnRxChar := OnReceiveComm;
+//  end;
+//
+//  if AIniFileName = '' then
+//    AIniFileName := ChangeFileExt(Application.ExeName, '.ini');
+//
+//  if FileExists(AIniFileName) then
+//  begin
+//    FComport.LoadSettings(stIniFile, AIniFileName);
+//    Result := True;
+//  end
+//  else
+//    ShowMessage('File not found : ' + AIniFIleName);
+//end;
+
+function TSerialCommThread.LoadSerialCommConfigFromFile(
+  AFileName: string): Boolean;
+var
+  LDoc: TDocvariantData;
+  LRawString: RawbyteString;
 begin
   Result := False;
 
-  if not Assigned(FComport) then
+  if not FileExists(AFileName) then
+    exit;
+
+  LRawString := StringFromFile(AFileName);
+
+  if LRawString <> '' then
   begin
-    FComport.Create(nil);
-    FComport.OnRxChar := OnReceiveComm;
+    LDoc.InitJson(LRawString);
+
+    FComPort.Port := LDoc.Value['PORT'];
+    FComPort.BaudRate := TBaudRate(LDoc.Value['BAUDRATE']);
+    FComPort.DataBits := TDataBits(LDoc.Value['DATABIT']);
+    FComPort.StopBits := TStopBits(LDoc.Value['STOPBIT']);
+    FComPort.Parity.Bits := TParityBits(LDoc.Value['PARITY']);
+    FComPort.FlowControl.FlowControl := TFlowControl(LDoc.Value['FLOWCONTROL']);
+
+    FIsCommportInitialized := True;
   end;
 
-  if AIniFileName = '' then
-    AIniFileName := ChangeFileExt(Application.ExeName, '.ini');
-
-  if FileExists(AIniFileName) then
-  begin
-    FComport.LoadSettings(stIniFile, AIniFileName);
-    Result := True;
-  end
-  else
-    ShowMessage('File not found : ' + AIniFIleName);
+  Result := True;
 end;
 
 procedure TSerialCommThread.OnReceiveComm(Sender: TObject; Count: Integer);
@@ -183,7 +237,7 @@ begin
 
       FOwner.Hint := FBufStr;
       FBufStr := '';
-      SendMessage(FOwner.Handle, WM_RECEIVESTRINGFROMCOMM, 0, 0);
+      PostMessage(FOwner.Handle, WM_RECEIVESTRINGFROMCOMM, 0, 0);
     end
     else
     if FCommMode = cmBin then
@@ -213,9 +267,25 @@ begin
   end;//with
 end;
 
-procedure TSerialCommThread.SaveComPortToFile(AIniFileName: string);
+//procedure TSerialCommThread.SaveComPortToFile(AIniFileName: string);
+//begin
+//  FComport.StoreSettings(stIniFile, AIniFileName);
+//end;
+
+procedure TSerialCommThread.SaveSerialCommConfig2File(AFileName: string);
+var
+  LDoc: TDocvariantdata;
 begin
-  FComport.StoreSettings(stIniFile, AIniFileName);
+  LDoc.Init();
+
+  LDoc.AddValue('PORT',  FComPort.Port);
+  LDoc.AddValue('BAUDRATE',  Ord(FComPort.BaudRate));
+  LDoc.AddValue('DATABIT',  Ord(FComPort.DataBits));
+  LDoc.AddValue('STOPBIT',  Ord(FComPort.StopBits));
+  LDoc.AddValue('PARITY',  Ord(FComPort.Parity.Bits));
+  LDoc.AddValue('FLOWCONTROL',  Ord(FComPort.FlowControl.FlowControl));
+
+  FileFromString(LDoc.ToJson, AFileName);
 end;
 
 procedure TSerialCommThread.SendBufClear;
@@ -231,12 +301,12 @@ var
   var
     Li: integer;
   begin
-    if StopComm then
+    if SuspendCommThread then
       exit;
 
     SendCopyData2(FOwner.Handle, ' ', 1);
     //SystemBase사의 컨버터에서는 Send시에 RTS를 High로 해야함
-    FComport.SetRTS(True);
+//    FComport.SetRTS(True);
     //Char Mode인 경우
     if FCommMode = cmChar then
     begin
@@ -254,7 +324,7 @@ var
     end;
 
     FOwner.Tag := Aindex;
-    FComport.SetRTS(False);
+//    FComport.SetRTS(False);
     Sleep(FQueryInterval);
 
 //    if FEventHandle.Wait(FTimeOut) then
@@ -266,7 +336,7 @@ var
 begin
   //Thread가 Suspend되면 종료시에 Resume을 한번 해 주므로
   //종료시에 이 루틴이 실행되지 않게 하기 위함
-  if FStopComm then
+  if FSuspendCommThread then
     exit;
 
   if FWriteCommandList.Count > 0 then
@@ -312,6 +382,14 @@ begin
   end;//for
 end;
 
+procedure TSerialCommThread.SendString(AString: string);
+begin
+  FSendCommandOnce := AString+#10;
+
+  if FUseSendEvent then
+    FSendEvent.Signal;
+end;
+
 procedure TSerialCommThread.SetCommPort2Dest(ADestComPort: TComPort);
 begin
   with ADestComPort do
@@ -331,13 +409,13 @@ begin
     FQueryInterval := Value;
 end;
 
-procedure TSerialCommThread.SetStopComm(Value: Boolean);
+procedure TSerialCommThread.SetSuspendCommThread(Value: Boolean);
 begin
-  if FStopComm <> Value then
+  if FSuspendCommThread <> Value then
   begin
-    FStopComm := Value;
+    FSuspendCommThread := Value;
 
-    if FStopComm then
+    if FSuspendCommThread then
       //Suspend
     else
       if Suspended then
