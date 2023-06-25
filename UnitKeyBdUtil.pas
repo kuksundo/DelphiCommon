@@ -4,6 +4,8 @@ interface
 
 Uses SysUtils, Windows, Messages;
 
+function GetCharFromVKey(vkey: Word): string;
+function GetVKeyFromChar(AChar: string): Cardinal;
 function KeyToString(aCode: Cardinal): string;
 function StringToKey(S: string): Cardinal;
 
@@ -11,6 +13,31 @@ procedure SendAltNChar(AChar: Char);
 
 
 implementation
+
+function GetCharFromVKey(vkey: Word): string;
+var
+  keystate: TKeyboardState;
+  retcode: Integer;
+begin
+//  Win32Check(GetKeyboardState(keystate));
+  SetLength(Result, 2);
+  retcode := ToAsciiEx(vkey,
+    MapVirtualKey(vkey, 0),
+    keystate, @Result[1],
+    0,0);
+  case retcode of
+    0: Result := ''; // no character
+    1: SetLength(Result, 1);
+    2:;
+    else
+      Result := ''; // retcode < 0 indicates a dead key
+  end;
+end;
+
+function GetVKeyFromChar(AChar: string): Cardinal;
+begin
+  Result := MapVirtualKey(Ord(AChar[1]), 0);
+end;
 
 function KeyToString(aCode: Cardinal): string;
 begin
