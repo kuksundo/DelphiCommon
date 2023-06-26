@@ -21,11 +21,13 @@ type
 
     property IniFileName : String read FIniFileName write FIniFileName;
 
-    procedure Save(AFileName: string = '');
-    procedure Load(AFileName: string = '');
+    class procedure Save(AFileName: string; obj: TObject);
+    class procedure Load(AFileName: string = '');
 
-    procedure LoadConfig2Form(AForm: TForm; ASettings: TObject); virtual;
-    procedure LoadConfigForm2Object(AForm: TForm; ASettings: TObject); virtual;
+    class function GetIniAttribute(Obj : TRttiObject) : IniValueAttribute;
+
+    class procedure LoadConfig2Form(AForm: TForm; ASettings: TObject); virtual;
+    class procedure LoadConfigForm2Object(AForm: TForm; ASettings: TObject); virtual;
 
     class procedure LoadObject2Form(AForm, ASettings: TObject; AIsForm: Boolean);virtual;
     class procedure LoadForm2Object(AForm, ASettings: TObject; AIsForm: Boolean);virtual;
@@ -58,16 +60,32 @@ begin
   FIniFileName := AFileName;
 end;
 
-procedure TINIConfigBase.Load(AFileName: string);
+class function TINIConfigBase.GetIniAttribute(
+  Obj: TRttiObject): IniValueAttribute;
+var
+ Attr: TCustomAttribute;
 begin
-  if AFileName = '' then
-    AFileName := FIniFileName;
+ for Attr in Obj.GetAttributes do
+ begin
+    if Attr is IniValueAttribute then
+    begin
+      exit(IniValueAttribute(Attr));
+    end;
+ end;
 
-  TIniPersist.Load(AFileName, Self);
+ result := nil;
+end;
+
+class procedure TINIConfigBase.Load(AFileName: string);
+begin
+//  if AFileName = '' then
+//    AFileName := FIniFileName;
+
+//  TIniPersist.Load(AFileName, Self);
 end;
 
 //Component의 Hint에 값이 저장되는 필드명이 저장되어 있어야 함
-procedure TINIConfigBase.LoadConfig2Form(AForm: TForm; ASettings: TObject);
+class procedure TINIConfigBase.LoadConfig2Form(AForm: TForm; ASettings: TObject);
 var
   ctx, ctx2 : TRttiContext;
   objType, objType2 : TRttiType;
@@ -134,7 +152,7 @@ begin
  end;
 end;
 
-procedure TINIConfigBase.LoadConfigForm2Object(AForm: TForm; ASettings: TObject);
+class procedure TINIConfigBase.LoadConfigForm2Object(AForm: TForm; ASettings: TObject);
 var
   ctx, ctx2 : TRttiContext;
   objType, objType2 : TRttiType;
@@ -177,7 +195,10 @@ begin
       begin
         for Prop2 in objType2.GetProperties do
         begin
-          IniValue := TIniPersist.GetIniAttribute(Prop2);
+          if Prop2.Name = '' then
+            exit;
+
+          IniValue := GetIniAttribute(Prop2);
 
           if Assigned(IniValue) then
           begin
@@ -370,13 +391,13 @@ begin
   end;
 end;
 
-procedure TINIConfigBase.Save(AFileName: string);
+class procedure TINIConfigBase.Save(AFileName: string; obj: TObject);
 begin
-  if AFileName = '' then
-    AFileName := FIniFileName;
+//  if AFileName = '' then
+//    AFileName := FIniFileName;
 
   // This saves the properties to the INI
-  TIniPersist.Save(AFileName ,Self);
+  TIniPersist.Save(AFileName ,obj);
 end;
 
 end.
