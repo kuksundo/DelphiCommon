@@ -5,6 +5,8 @@
     2) Config Form의 내용을 Ini에 Save 시 호출:
       FSettings.LoadConfigForm2Object(AForm, FSettings);
   2. Control.Tag를 1부터 중복되지 않게 입력함
+  3. Config Class Unit에 반드시 IniPersist를 Uses절에 포함 해야 함
+     (포함하지 않으면 Compile은 되지만 GetProperties 호출 시 FASttrubuteGetter=nil로 반환 됨)
 }
 unit UnitConfigIniClass2;
 
@@ -21,8 +23,8 @@ type
 
     property IniFileName : String read FIniFileName write FIniFileName;
 
-    class procedure Save(AFileName: string; obj: TObject);
-    class procedure Load(AFileName: string = '');
+    procedure Save(AFileName: string; obj: TObject=nil);
+    procedure Load(AFileName: string = '');
 
     class function GetIniAttribute(Obj : TRttiObject) : IniValueAttribute;
 
@@ -76,12 +78,12 @@ begin
  result := nil;
 end;
 
-class procedure TINIConfigBase.Load(AFileName: string);
+procedure TINIConfigBase.Load(AFileName: string);
 begin
-//  if AFileName = '' then
-//    AFileName := FIniFileName;
+  if AFileName = '' then
+    AFileName := FIniFileName;
 
-//  TIniPersist.Load(AFileName, Self);
+  TIniPersist.Load(AFileName, Self);
 end;
 
 //Component의 Hint에 값이 저장되는 필드명이 저장되어 있어야 함
@@ -391,10 +393,13 @@ begin
   end;
 end;
 
-class procedure TINIConfigBase.Save(AFileName: string; obj: TObject);
+procedure TINIConfigBase.Save(AFileName: string; obj: TObject);
 begin
-//  if AFileName = '' then
-//    AFileName := FIniFileName;
+  if AFileName = '' then
+    AFileName := FIniFileName;
+
+  if obj = nil then
+    obj := Self;
 
   // This saves the properties to the INI
   TIniPersist.Save(AFileName ,obj);
