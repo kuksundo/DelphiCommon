@@ -79,6 +79,8 @@ constructor TSerialCommThread.Create(AOwner: TForm; AQureyInterval: integer; ATi
 begin
   inherited Create(True);
 
+  FreeOnTerminate := True;
+
   FOwner := AOwner;
   FSuspendCommThread := False;
   FTimeOut := ATimeOut; //3초 기다린 후에 계속 명령을 전송함(Default = INFINITE)
@@ -89,7 +91,6 @@ begin
   FReceiveEvent := TEvent.Create('',False);
   FSendCommandList := TStringList.Create;
   FWriteCommandList := TStringList.Create;
-
   FUseSendEvent := True;
 
 //  Resume;
