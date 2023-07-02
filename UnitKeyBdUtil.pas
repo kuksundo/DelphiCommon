@@ -2,7 +2,7 @@ unit UnitKeyBdUtil;
 //KeyBoard 관련 함수는 DelphiDabbleer/Sendkey32.pas를 참조 할 것.
 interface
 
-Uses SysUtils, Windows, Messages;
+Uses System.SysUtils, Windows, Messages;
 
 function GetCharFromVKey(vkey: Word): string;
 function GetVKeyFromChar(AChar: string): Cardinal;
@@ -19,12 +19,19 @@ var
   keystate: TKeyboardState;
   retcode: Integer;
 begin
-//  Win32Check(GetKeyboardState(keystate));
+  Result := '';
+  Win32Check(GetKeyboardState(keystate));
+{$IFDEF UNICODE}
+  SetLength(Result, 256);
+  ZeroMemory(@Result[1], SizeOf(Result));
+  retcode := ToUnicode(vkey, MapVirtualKey(vkey, 0), keystate, @Result[1], Length(Result), 0);
+{$ELSE}
   SetLength(Result, 2);
   retcode := ToAsciiEx(vkey,
     MapVirtualKey(vkey, 0),
     keystate, @Result[1],
     0,0);
+{$ENDIF}
   case retcode of
     0: Result := ''; // no character
     1: SetLength(Result, 1);
