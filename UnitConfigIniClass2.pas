@@ -23,7 +23,7 @@ type
 
     property IniFileName : String read FIniFileName write FIniFileName;
 
-    procedure Save(AFileName: string; obj: TObject=nil);
+    procedure Save(AFileName: string = ''; obj: TObject=nil);
     procedure Load(AFileName: string = '');
 
     class function GetIniAttribute(Obj : TRttiObject) : IniValueAttribute;
