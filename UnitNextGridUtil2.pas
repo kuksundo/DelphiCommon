@@ -4,7 +4,7 @@ interface
 
 uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils,
     Variants, Dialogs, Forms, Excel2010,
-    NxColumnClasses, NxColumns, NxGrid, NxCells,
+    NxColumnClasses, NxColumns, NxGrid, NxCells, ArrayHelper,
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
@@ -13,17 +13,20 @@ procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromV
 procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 //ADoc Name이 Grid의 Cell Data 임
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
-procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsFromValue: Boolean=false);
+procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsAddColumn: Boolean=false);
+procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean=false);
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): variant;
+function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
 function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): string;
 procedure NextGridScrollToRow(AGrid: TNextGrid; ARow: integer=-1);
 procedure DeleteSelectedRow(ANextGrid: TNextGrid);
 procedure DeleteCurrentRow(ANextGrid: TNextGrid);
 procedure MoveRowDown(ANextGrid: TNextGrid);
 procedure MoveRowUp(ANextGrid: TNextGrid);
+procedure ShowOrHideAllColumn4NextGrid(ANextGrid: TNextGrid; AIsShow: Boolean);
 
 implementation
 
@@ -138,7 +141,7 @@ var
 begin
   with AGrid do
   begin
-    ClearRows;
+//    ClearRows;
     j := AGrid.AddRow();
 
     for i := 0 to TDocVariantData(ADoc).Count - 1 do
@@ -173,7 +176,7 @@ begin
   end;
 end;
 
-procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsFromValue: Boolean=false);
+procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsAddColumn: Boolean);
 var
   i: integer;
   LDoc: variant;
@@ -182,8 +185,32 @@ begin
   begin
     LDoc := _JSON(ADynAry[i]);
 
-    AddNextGridRowFromVariant(AGrid, LDoc, AIsFromValue);
+    if AIsAddColumn then
+    begin
+      if i = Low(ADynAry) then
+        AddNextGridColumnFromVariant(AGrid, LDoc, False);
+    end;
+
+    AddNextGridRowFromVariant(AGrid, LDoc, True);
   end;//for
+end;
+
+//ADoc는 TRawUTF8DynArray에 대한 Json 임
+//ADoc Name이 Grid의 Column Name임
+//AIsUsePosFunc : True = Pos함수를 사용하여 LCompName이 Column Name에 포함되어 있으면 처리
+procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean);
+var
+  LUtf8: RawUTF8;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+begin
+  if ADoc = null then
+    exit;
+
+  LUtf8 := ADoc;
+  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+  LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
+  AddNextGridRowsFromVariant(AGrid, LDynUtf8, AIsAddColumn);
 end;
 
 //ADoc는 한개의 레코드에 대한 Json 임
@@ -299,6 +326,36 @@ begin
   Result := LDynArr.SaveToJSON;
 end;
 
+//{ColumnName: Cell Value} 형식으로 저장됨
+function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
+var
+  i, j: integer;
+  LColumnName: string;
+  LUtf8: RawUTF8;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+  LV: variant;
+begin
+  TDocVariant.New(Result);
+  TDocVariant.New(LV);
+  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+
+  for i := 0 to AGrid.RowCount - 1 do
+  begin
+    for j := 0 to AColIndexAry.Count - 1 do
+    begin
+      LColumnName := AGrid.Columns.Item[AColIndexAry[j]].Name;
+
+      TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
+    end;
+
+    LUtf8 := LV;
+    LDynArr.Add(LUtf8);
+  end;
+
+  Result := LDynArr.SaveToJSON;
+end;
+
 function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean): string;
 var
   i, j: integer;
@@ -362,6 +419,17 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 begin
   ANextGrid.MoveRow(ANextGrid.SelectedRow, ANextGrid.SelectedRow - 1);
   ANextGrid.SelectedRow := ANextGrid.SelectedRow - 1;
+end;
+
+procedure ShowOrHideAllColumn4NextGrid(ANextGrid: TNextGrid; AIsShow: Boolean);
+var
+  j: integer;
+  LColumnName: string;
+begin
+  for j := 0 to ANextGrid.Columns.Count - 1 do
+  begin
+    ANextGrid.Columns.Item[j].Visible := AIsShow;
+  end;//for
 end;
 
 end.

@@ -42,6 +42,7 @@ var
 function MakeGSFileRecs2JSON(ASQLGSFiles: TSQLGSFileRecs): RawUTF8;
 function MakeJHPFileRecs2JSON(AJHPFiles: TJHPFileRecs): RawUTF8;
 function GetJHPFileFormatFromFileName(const AFileName: string): TJHPFileFormat;
+function GetFileExtFromFileFormat(AFileFormat:TJHPFileFormat; AIsSenondFormat: Boolean=False): string;
 
 implementation
 
@@ -113,6 +114,22 @@ begin
   else
 //  if LExt = '.PJH' then
     result := gfkPJH
+end;
+
+function GetFileExtFromFileFormat(AFileFormat:TJHPFileFormat; AIsSenondFormat: Boolean): string;
+begin
+  Result := '';
+
+  case AFileFormat of
+    gfkWORD, gfkPJH: Result := 'doc';
+    gfkPDF: Result := 'pdf';
+    gfkPPT, gfkPJH2: begin
+      if AIsSenondFormat then
+        Result := 'pjh2'
+      else
+        Result := 'ppt';
+    end;
+  end;
 end;
 
 //initialization
