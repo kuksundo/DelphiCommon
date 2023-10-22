@@ -2,7 +2,7 @@ unit UnitNextGridUtil2;
 
 interface
 
-uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils,
+uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types,
     Variants, Dialogs, Forms, Excel2010,
     NxColumnClasses, NxColumns, NxGrid, NxCells, ArrayHelper,
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode;
@@ -27,6 +27,7 @@ procedure DeleteCurrentRow(ANextGrid: TNextGrid);
 procedure MoveRowDown(ANextGrid: TNextGrid);
 procedure MoveRowUp(ANextGrid: TNextGrid);
 procedure ShowOrHideAllColumn4NextGrid(ANextGrid: TNextGrid; AIsShow: Boolean);
+function GetRowFromMouseDown(ANextGrid: TNextGrid; APoint: TPoint): integer;
 
 implementation
 
@@ -430,6 +431,44 @@ begin
   begin
     ANextGrid.Columns.Item[j].Visible := AIsShow;
   end;//for
+end;
+
+function GetRowFromMouseDown(ANextGrid: TNextGrid; APoint: TPoint): integer;
+var
+  LRowNo,
+  LRowY,
+  LRowWithHeight: integer;
+  LRowRect: TRect;
+  i: integer;
+begin
+  Result := -1;
+
+  with ANextGrid do
+  begin
+    LRowNo := 0;
+
+    for i := 0 to RowCount - 1 do
+    begin
+      LRowRect := GetRowRect(LRowNo);
+
+      if PtInRect(LRowRect, APoint) then
+      begin
+         Result := LRowNo;
+         Break;
+      end
+      else
+      begin
+        LRowY := GetRowTop(LRowNo);//Row Top Point = Y
+
+        if LRowY > APoint.Y then //현재 row 보다 위쪽을 클릭한 경우 (Row Top Point > Mouse Point)
+          Break;
+
+        LRowWithHeight := (APoint.Y - LRowY) div RowSize;
+        LRowNo := LRowNo + LRowWithHeight;
+      end;
+    end;
+
+  end;
 end;
 
 end.
