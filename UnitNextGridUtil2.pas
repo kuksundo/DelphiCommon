@@ -5,7 +5,8 @@ interface
 uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types,
     Variants, Dialogs, Forms, Excel2010,
     NxColumnClasses, NxColumns, NxGrid, NxCells, ArrayHelper,
-    mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode;
+    mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode,
+    mormot.core.text;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false);
@@ -19,6 +20,8 @@ function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): variant;
+procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
+procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean=False);
 function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
 function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): string;
 procedure NextGridScrollToRow(AGrid: TNextGrid; ARow: integer=-1);
@@ -325,6 +328,76 @@ begin
   end;
 
   Result := LDynArr.SaveToJSON;
+end;
+
+procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
+var
+  LStrList: TStringList;
+  i, j: integer;
+  LColumnName: string;
+  LUtf8: RawUTF8;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+  LV: variant;
+begin
+  if ASaveFileName = '' then
+    exit;
+
+  LStrList := TStringList.Create;
+  try
+    TDocVariant.New(LV);
+    LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+
+    for i := 0 to AGrid.RowCount - 1 do
+    begin
+      for j := 0 to AGrid.Columns.Count - 1 do
+      begin
+        LColumnName := AGrid.Columns.Item[j].Name;
+
+        TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
+      end;
+
+      LUtf8 := LV;
+      LDynArr.Add(LUtf8);
+    end;
+
+    LV := LDynArr.SaveToJSON;
+    LStrList.Text := VariantToUtf8(LV);
+    LStrList.SaveToFile(ASaveFileName, TEncoding.UTF8);
+  finally
+    LStrList.Free;
+  end;
+end;
+
+procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean);
+var
+  LStrList: TStringList;
+  LStr: string;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+  LUtf8: RawUTF8;
+  LDoc: variant;
+  i: integer;
+begin
+  LStrList := TStringList.Create;
+  try
+    LStrList.LoadFromFile(AFileName, TEncoding.UTF8);
+
+    LStr := LStrList.Text;
+    LUtf8 := StringToUtf8(LStr);
+
+    LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+    LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
+
+    for i := 0 to LDynArr.Count - 1 do
+    begin
+      LDoc := _JSON(LDynUtf8[i]);
+      GetListFromVariant2NextGrid(AGrid, LDoc, True);
+    end;
+
+  finally
+    LStrList.Free;
+  end;
 end;
 
 //{ColumnName: Cell Value} 형식으로 저장됨

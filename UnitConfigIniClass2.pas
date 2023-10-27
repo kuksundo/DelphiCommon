@@ -12,7 +12,7 @@ unit UnitConfigIniClass2;
 
 interface
 
-uses SysUtils, Vcl.Controls, Forms, Rtti, TypInfo, IniPersist, AdvGroupBox;
+uses SysUtils, Vcl.Controls, Classes, Forms, Rtti, TypInfo, IniPersist, AdvGroupBox;
 
 type
   TINIConfigBase = class (TObject)
@@ -23,8 +23,9 @@ type
 
     property IniFileName : String read FIniFileName write FIniFileName;
 
-    procedure Save(AFileName: string = ''; obj: TObject=nil);
     procedure Load(AFileName: string = '');
+    procedure Save(AFileName: string = ''; obj: TObject=nil);
+    procedure Save2CsvFile(AFileName: string = ''; obj: TObject=nil);
 
     class function GetIniAttribute(Obj : TRttiObject) : IniValueAttribute;
 
@@ -108,11 +109,17 @@ begin
     for i := 0 to AForm.ComponentCount - 1 do
     begin
       LControl := TControl(AForm.Components[i]);
+
+      //TMenuItem이 Form 에 존재한 경우 LControl.Hint에서 에러 남(For문 빠져 나가버림)
+      if not LControl.ClassType.InheritsFrom(TControl) then
+        Continue;
+
       LStr := LControl.Hint; //Caption 또는 Text 또는 Value
-      LTagNo := LControl.Tag;
 
       if LStr = '' then
         Continue;
+
+      LTagNo := LControl.Tag;
 
       objType := ctx.GetType(LControl.ClassInfo);
 
@@ -175,11 +182,17 @@ begin
     for i := 0 to AForm.ComponentCount - 1 do
     begin
       LControl := TControl(AForm.Components[i]);
+
+      //TMenuItem이 Form 에 존재한 경우 LControl.Hint에서 에러 남(For문 빠져 나가버림)
+      if not LControl.ClassType.InheritsFrom(TControl) then
+        Continue;
+
       LStr := LControl.Hint; //Caption 또는 Text 또는 Value 또는 Checked
-      LTagNo := LControl.Tag;
 
       if LStr = '' then
         Continue;
+
+      LTagNo := LControl.Tag;
 
       objType := ctx.GetType(LControl.ClassInfo);
 
@@ -267,11 +280,16 @@ begin
           else
             LControl := TControl(TFrame(AForm).Components[i]);
 
+          //TMenuItem이 Form 에 존재한 경우 LControl.Hint에서 에러 남(For문 빠져 나가버림)
+          if not LControl.ClassType.InheritsFrom(TControl) then
+            Continue;
+
           LStr := LControl.Hint; //Caption 또는 Text 또는 Value 또는 Checked
-          LTagNo := LControl.Tag;
 
           if LStr = '' then
             Continue;
+
+          LTagNo := LControl.Tag;
 
           if IniValue.TagNo = LTagNo then
           begin
@@ -296,6 +314,7 @@ begin
 
               SetValue2(Prop2, Value);
 
+              //SetValue시 Prop와 Value의 Data Type이 동일해야 함
               Prop2.SetValue(ASettings, Value);
               break;
             end;
@@ -328,7 +347,7 @@ begin
     if AIsForm then
       LCount := TForm(AForm).ComponentCount
     else
-      LCount := TFrame(AForm).ComponentCount;
+      LCount := TControl(AForm).ComponentCount;
 
     objType2 := ctx2.GetType(ASettings.ClassInfo);
 
@@ -351,11 +370,16 @@ begin
           else
             LControl := TControl(TFrame(AForm).Components[i]);
 
+          //TMenuItem이 Form 에 존재한 경우 LControl.Hint에서 에러 남(For문 빠져 나가버림)
+          if not LControl.ClassType.InheritsFrom(TControl) then
+            Continue;
+
           LStr := LControl.Hint; //Caption 또는 Text 또는 Value
-          LTagNo := LControl.Tag;
 
           if LStr = '' then
             Continue;
+
+          LTagNo := LControl.Tag;
 
           if IniValue.TagNo = LTagNo then
           begin
@@ -375,7 +399,7 @@ begin
             begin
               Value := Prop2.GetValue(ASettings);
               SetValue2(Prop, Value);
-  //              Data := TIniPersist.GetValue(Value);
+              //SetValue시 Prop와 Value의 Data Type이 동일해야 함
               if LControl.ClassType = TAdvGroupBox then
                 Prop.SetValue(TAdvGroupBox(LControl).CheckBox, Value)
               else
@@ -388,8 +412,8 @@ begin
       end;
     end;
   finally
-    ctx.Free;
     ctx2.Free;
+    ctx.Free;
   end;
 end;
 
@@ -403,6 +427,36 @@ begin
 
   // This saves the properties to the INI
   TIniPersist.Save(AFileName ,obj);
+end;
+
+procedure TINIConfigBase.Save2CsvFile(AFileName: string; obj: TObject);
+var
+  ctx : TRttiContext;
+  objType : TRttiType;
+  Prop  : TRttiProperty;
+  Value : TValue;
+  Data : String;
+//  IniValue : IniValueAttribute;
+//  Field : TRttiField;
+begin
+  if AFileName = '' then
+    AFileName := FIniFileName;
+
+  if obj = nil then
+    obj := Self;
+
+  ctx := TRttiContext.Create;
+  try
+    objType := ctx.GetType(Obj.ClassInfo);
+
+    for Prop in objType.GetProperties do
+    begin
+      Value := Prop.GetValue(Obj);
+      Data := GetValue(Value);
+    end;
+  finally
+    ctx.Free;
+  end;
 end;
 
 end.
