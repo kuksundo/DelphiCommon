@@ -34,6 +34,9 @@ type
 
     class procedure LoadObject2Form(AForm, ASettings: TObject; AIsForm: Boolean);virtual;
     class procedure LoadForm2Object(AForm, ASettings: TObject; AIsForm: Boolean);virtual;
+
+    class procedure SetTagNo2ComponentFromForm(AForm: TObject); virtual;
+    class procedure GetValueFromTagNo(var AValue: TValue; const ATagNo: integer); virtual;
   end;
 
 implementation
@@ -77,6 +80,39 @@ begin
  end;
 
  result := nil;
+end;
+
+class procedure TINIConfigBase.GetValueFromTagNo(var AValue: TValue; const ATagNo: integer);
+var
+ I : Integer;
+ LKind: TTypeKind;
+begin
+  LKind := aValue.Kind;
+
+  case LKind of
+    tkWChar,
+    tkLString,
+    tkWString,
+    tkString,
+    tkChar,
+    tkUString : aValue := IntToStr(ATagNo);
+    tkInteger : aValue := ATagNo;
+    tkInt64  : aValue := ATagNo;
+    tkFloat  : aValue := ATagNo;
+    tkEnumeration: begin
+      if ATagNo = 0 then
+        aValue := False
+      else
+        aValue := True;
+    end;
+//    tkSet: begin
+//      i :=  StringToSet(aValue.TypeInfo,aData);
+//      TValue.Make(@i, aValue.TypeInfo, aValue);
+//    end;
+//    tkClass: begin
+//    end;
+    else raise Exception.Create('Type not Supported');
+  end;
 end;
 
 procedure TINIConfigBase.Load(AFileName: string);
@@ -454,6 +490,66 @@ begin
       Value := Prop.GetValue(Obj);
       Data := GetValue(Value);
     end;
+  finally
+    ctx.Free;
+  end;
+end;
+
+class procedure TINIConfigBase.SetTagNo2ComponentFromForm(AForm: TObject);
+var
+  ctx: TRttiContext;
+  objType: TRttiType;
+  Prop: TRttiProperty;
+  Value: TValue;
+  LControl: TControl;
+  LObj: TObject;
+  i, LCount, LTagNo: integer;
+  LValueFieldName: string;
+begin
+  ctx := TRttiContext.Create;
+  try
+    LCount := TForm(AForm).ComponentCount;
+
+    for i := 0 to LCount - 1 do
+    begin
+      LControl := TControl(TForm(AForm).Components[i]);
+
+      //TMenuItem이 Form 에 존재한 경우 LControl.Hint에서 에러 남(For문 빠져 나가버림)
+      if not LControl.ClassType.InheritsFrom(TControl) then
+        Continue;
+
+      LValueFieldName := LControl.Hint; //Caption 또는 Text 또는 Value
+
+      if LValueFieldName = '' then
+        Continue;
+
+      LTagNo := LControl.Tag;
+
+      if 0 <> LTagNo then
+      begin
+        objType := ctx.GetType(LControl.ClassInfo);
+
+        if LValueFieldName = 'TAdvGroupBox' then  //TAdvGroupBox일 경우
+        begin
+          objType := ctx.GetType(TAdvGroupBox(LControl).CheckBox.ClassInfo);
+          LValueFieldName := 'Checked';
+        end;
+
+        Prop := objType.GetProperty(LValueFieldName);
+
+        if Assigned(Prop) then
+        begin
+          Value := Prop.GetValue(LControl);
+          GetValueFromTagNo(Value, LTagNo);
+
+          //SetValue시 Prop와 Value의 Data Type이 동일해야 함
+          if LControl.ClassType = TAdvGroupBox then
+            Prop.SetValue(TAdvGroupBox(LControl).CheckBox, Value)
+          else
+            Prop.SetValue(LControl, Value);
+        end;
+      end;
+    end;//for
   finally
     ctx.Free;
   end;
