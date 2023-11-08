@@ -12,6 +12,8 @@ procedure MakeAlphaOnRect2Bitmap(ABitmap: TBitmap; ARect: TRect; AAlpha: Byte);
 procedure MakeAlphaOnRect2Canvas(ACanvas: TCanvas; ARect: TRect; AAlpha: Byte);
 procedure CopyParentImage2Canvas(AControl: TControl; ADest: TCanvas);
 procedure CopyControlImage2Canvas(AControl: TControl; ADest: TCanvas);
+procedure SetAlpha2Bitmap(ABitmap: TBitmap);
+procedure ReSetAlpha2Bitmap(ABitmap: TBitmap);
 
 implementation
 
@@ -30,8 +32,7 @@ begin
   if ARect.Right > ABitmap.Width then
     ARect.Right := ABitmap.Width;
 
-  ABitmap.AlphaFormat := afDefined;
-  ABitmap.PixelFormat := pf32bit;
+  SetAlpha2Bitmap(ABitmap);
 
   for Row := ARect.Top to ARect.Bottom - 1 do
   begin
@@ -169,6 +170,18 @@ end;
 procedure CopyControlImage2Canvas(AControl: TControl; ADest: TCanvas);
 begin
 
+end;
+
+procedure SetAlpha2Bitmap(ABitmap: TBitmap);
+begin
+  ABitmap.AlphaFormat := afDefined;
+  ABitmap.PixelFormat := pf32bit;
+//  ABitmap.HandleType :=  bmDIB;
+end;
+
+procedure ReSetAlpha2Bitmap(ABitmap: TBitmap);
+begin
+  ABitmap.AlphaFormat := afIgnored;
 end;
 
 end.
