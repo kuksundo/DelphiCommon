@@ -24,7 +24,7 @@ type
     FgpEL: TGpSharedEventListener;
 
     constructor Create(const ASMName: string; ANameSpace: string = ''; AEventName: string='');
-    destructor Destroy;
+    destructor Destroy; override;
 
 //    procedure GpSEEventReceivedNotify(Sender: TObject;
 //      producerHandle: TGpSEHandle; const producerName, eventName,
@@ -44,7 +44,7 @@ type
     procedure FinalgpSM4Listener(const AEventName: string);
 
     function RecvDataFromgpSM: string;
-    procedure SendData2gpSM(const AEventName, AData: string);
+    function SendData2gpSM(const AEventName, AData: string): cardinal;
   end;
 
 implementation
@@ -100,13 +100,13 @@ end;
 destructor TJHP_gpShM.Destroy;
 begin
   if Assigned(FgpEP) then
-    FgpEP.Free;
+    FreeAndNil(FgpEP);
 
   if Assigned(FgpEL) then
-    FgpEL.Free;
+    FreeAndNil(FgpEL);
 
   if Assigned(FgpSM) then
-    FgpSM.Free;
+    FreeAndNil(FgpSM);
 end;
 
 procedure TJHP_gpShM.FinalgpSMEvent(const ANameSpace, AEventName: string; AgpKinds: TgpKinds);
@@ -128,13 +128,13 @@ end;
 procedure TJHP_gpShM.FinalgpSM4Listener(const AEventName: string);
 begin
   if Assigned(FgpEL) then
-    FgpEL.Free;
+    FreeAndNil(FgpEL);
 end;
 
 procedure TJHP_gpShM.FinalgpSM4Producer(const AEventName: string);
 begin
   if Assigned(FgpEP) then
-    FgpEP.Free;
+    FreeAndNil(FgpEP);
 end;
 
 function TJHP_gpShM.InitgpSMEvent(const ANameSpace, AEventName: string; AgpKinds: TgpKinds;
@@ -200,10 +200,11 @@ begin
   end;
 end;
 
-procedure TJHP_gpShM.SendData2gpSM(const AEventName, AData: string);
+function TJHP_gpShM.SendData2gpSM(const AEventName, AData: string): cardinal;
 var
   LStrList: TStringList;
 begin
+  Result := 0;
   LStrList := TStringList.Create;
   try
     LStrList.Add(IntToStr(GetCurrentProcessId));
@@ -218,7 +219,7 @@ begin
     if FgpSM.Acquired then
       FgpSM.ReleaseMemory;
 
-    FgpEP.BroadcastEvent(AEventName,
+    Result := FgpEP.BroadcastEvent(AEventName,
               FormatDateTime('hh:mm:ss.zzz', Now));
 //    FgpEP.PublishEvent(AEventName);
   finally
