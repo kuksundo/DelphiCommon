@@ -31,6 +31,9 @@ procedure MoveRowDown(ANextGrid: TNextGrid);
 procedure MoveRowUp(ANextGrid: TNextGrid);
 procedure ShowOrHideAllColumn4NextGrid(ANextGrid: TNextGrid; AIsShow: Boolean);
 function GetRowFromMouseDown(ANextGrid: TNextGrid; APoint: TPoint): integer;
+//AFindFromRow부터 검색 시작, Column[AColIdx]의 내용 중에 AFindText가 있으면 RowNo 반환
+function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
+  const AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false): integer;
 
 implementation
 
@@ -542,6 +545,38 @@ begin
     end;
 
   end;
+end;
+
+function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
+  const AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false): integer;
+var
+  i: integer;
+  LStr: string;
+begin
+  Result := -1;
+
+  if AIgnoreCase then
+    AFindText := UpperCase(AFindText);
+
+  if AFindFromRow > ANextGrid.RowCount - 1 then
+    AFindFromRow := 0;
+
+  for i := AFindFromRow to ANextGrid.RowCount - 1 do
+  begin
+    LStr := ANextGrid.Cell[AColIdx, i].AsString;
+
+    if AIgnoreCase then
+      LStr := UpperCase(LStr);
+
+    if PosEx(AFindText, LStr) > 0 then
+    begin
+      Result := i;
+      AFindFromRow := i + 1;
+      Exit;
+    end
+    else
+      AFindFromRow := 0;
+  end;//for
 end;
 
 end.
