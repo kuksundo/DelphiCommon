@@ -15,7 +15,7 @@ implementation
 var
   ILog: ISynLog;
 
-  ILog := TSQLLog.Enter;
+  ILog := TSynLog.Enter;
   ILog.Log(sllInfo,LStr);
 }
 procedure InitSynLog(ALogFile: string);
@@ -23,20 +23,20 @@ begin
   with TSynLog.Family do begin
 //    Level := LOG_VERBOSE;
 //    Level := [sllException,sllExceptionOS];
-    Level := [sllEnter];
+    Level := [sllInfo,sllError,sllException,sllExceptionOS];//sllEnter
 //    EchoToConsole := LOG_VERBOSE; // log all events to the console
 //    PerThreadLog := true;
-//    PerThreadLog := ptOneFilePerThread;
+//    PerThreadLog := ptOneFilePerThread; //ptIdentifiedInOnFile
 //    HighResolutionTimeStamp := true;
 //    AutoFlushTimeOut := 5;
-//    OnArchive := EventArchiveSynLZ;
-//    OnArchive := EventArchiveZip;
 //    CustomFileName := ExeVersion.ProgramName;
     NoEnvironmentVariable := True;
+//    OnArchive := EventArchiveSynLZ; EventArchiveZip;
     ArchiveAfterDays := 1; // archive after one day
 //    ArchivePath := '\\Remote\WKS2302\Archive\Logs'; // or any path
     if ALogFile = '' then
-      ALogFile := 'C:\Temp\Logs\';
+      ALogFile := 'C:\Temp\Logs\' + Executable.ProgramName;
+
     DestinationPath := ExtractFilePath(ALogFile);//ExeVersion.ProgramFilePath+'log'
     EnsureDirectoryExists(DestinationPath);
 //    EchoCustom := aMyClass.Echo; // register third-party logger
@@ -48,6 +48,14 @@ begin
   end;
 end;
 
+{
+아래 함수를 Family.EchoCustom := aMyClass.Echo로 설정하여 Customizing 할 수 있음
+procedur TMyClass.Echo(Sender: TTextWriter; Level: TSynLogLevel; const Text: RawUTF8);
+begin
+  if Level in LOG_STACKTRACE then //filter error
+   writeln(Text);
+end;
+}
 procedure DoLog(Amsg: string; ALogDate: Boolean = False;
   AMsgLevel: TSynLogInfo = sllEnter);
 var
@@ -57,7 +65,9 @@ begin
     AMsg := DateTimeToStr(now) + ':: ' + AMsg;
 
   ILog := TSynLog.Enter;
-  ILog.Log(AMsgLevel, Amsg);
+
+  if AMsgLevel in TSynLog.Family.Level then
+    ILog.Log(AMsgLevel, Amsg);
 end;
 
 end.
