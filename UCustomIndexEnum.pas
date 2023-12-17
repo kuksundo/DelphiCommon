@@ -45,6 +45,7 @@ Type
     function IsExistStrInArray(AStr: string): Boolean;
     function ToTypeFromSubString(AType: string): T;
 
+    //FCustomIndexMode = True일때 전용 함수들
     function ToStringByCustomIndex(const AIndex: integer): string;
     function ToTypeByCustomIndex(const AIndex: integer): T;
     function ToCustomIndex(AType: T): integer; overload;
