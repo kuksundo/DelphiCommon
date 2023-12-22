@@ -23,7 +23,7 @@ type
     FgpEP: TGpSharedEventProducer;
     FgpEL: TGpSharedEventListener;
 
-    constructor Create(const ASMName: string; ANameSpace: string = ''; AEventName: string='');
+    constructor Create(const ASMName: string; ANameSpace: string = ''; AEventName: string=''; AMemSize: integer=gp_SHARED_MAX_SIZE);
     destructor Destroy; override;
 
 //    procedure GpSEEventReceivedNotify(Sender: TObject;
@@ -45,6 +45,7 @@ type
 
     function RecvDataFromgpSM: string;
     function SendData2gpSM(const AEventName, AData: string): cardinal;
+    function SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
   end;
 
 implementation
@@ -72,13 +73,13 @@ begin
   end;
 end;
 
-constructor TJHP_gpShM.Create(const ASMName: string; ANameSpace: string = ''; AEventName: string='');
+constructor TJHP_gpShM.Create(const ASMName: string; ANameSpace: string; AEventName: string; AMemSize: integer);
 begin
   FSMName := ASMName;
   FNameSpace := ANameSpace;
   FEventName := AEventName;
 
-  FgpSM := TGpSharedMemory.Create(ASMName, 0, gp_SHARED_MAX_SIZE);
+  FgpSM := TGpSharedMemory.Create(ASMName, 0, AMemSize); //gp_SHARED_MAX_SIZE
 end;
 
 procedure TJHP_gpShM.DeleteEventName4gpSMListener(const AEventName: string);
@@ -225,6 +226,23 @@ begin
   finally
     LStrList.Free;
   end;
+end;
+
+function TJHP_gpShM.SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
+begin
+  Result := 0;
+
+  if FgpSM.AcquireMemory(True, INFINITE) <> nil then
+  begin
+    if FgpSM.IsWriting then
+      FgpSM.AsStream.Write(ARec, ARecSize);
+  end;
+
+  if FgpSM.Acquired then
+    FgpSM.ReleaseMemory;
+
+  Result := FgpEP.BroadcastEvent(AEventName,
+            FormatDateTime('hh:mm:ss.zzz', Now));
 end;
 
 end.

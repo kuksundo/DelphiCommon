@@ -30,6 +30,8 @@ type
     class procedure FromJson(const AJson: String; var ARec: T; AIsRemoveFirstChar: Boolean=False);
     class function ToJson(const ARec: T) : String;
     class function ToVariant(const ARec: T) : variant;
+    class function GetSize(ARec: T): integer;
+    class function GetFieldSize(ARec: T; AField: TRttiField): integer;
   end;
 
 function ParamByNameAsString(
@@ -915,6 +917,38 @@ begin
   end;
 end;
 
+class function TRecordHlpr<T>.GetFieldSize(ARec: T; AField: TRttiField): integer;
+begin
+  case AField.FieldType.TypeKind of
+    tkLString,
+    tkWString,
+    tkString,
+    tkUString : Result := Length(AField.GetValue(@ARec).AsString);
+  else
+    Result := SizeOf(AField.GetValue(@ARec).DataSize);
+//      tkInteger :
+//      tkInt64  : aValue := StrToInt64Def(aValue.AsString, 0);
+//      tkFloat  : aValue := StrToFloat(aValue.AsString);
+//      tkEnumeration: begin
+//        LStr := aValue.AsString;
+//        i := StrToIntDef(LStr,0);
+//
+//        if i = 0 then
+//          if (SysUtils.UpperCase(LStr) = 'TRUE') or (SysUtils.UpperCase(LStr) = 'FALSE') then
+//            i := Ord(StrToBoolDef(LStr, False));
+//
+//          LStr := System.TypInfo.GetEnumName(aValue.TypeInfo,i);
+//          aValue := TValue.FromOrdinal(aValue.TypeInfo,GetEnumValue(aValue.TypeInfo,LStr));
+//      end;
+//      tkSet: begin
+//        LStr := aValue.AsString;
+//        i :=  StringToSet(aValue.TypeInfo,LStr);
+//        TValue.Make(@i, aValue.TypeInfo, aValue);
+//      end;
+//      else raise Exception.Create('Type not Supported');
+  end;
+end;
+
 class function TRecordHlpr<T>.GetFields(const ARec: T): string;
 var
   LContext: TRttiContext;
@@ -929,6 +963,23 @@ begin
     LType := LField.FieldType;
     Result := Result + '|' + Format('Field: %s, Type: %s, Value: %s',
       [LField.Name, LField.FieldType.Name, LField.GetValue(@ARec).AsString]);
+  end;
+end;
+
+class function TRecordHlpr<T>.GetSize(ARec: T): integer;
+var
+  LContext: TRttiContext;
+  LType: TRttiType;
+  LField: TRttiField;
+  LDataSize: integer;
+begin
+  Result := 0;
+  LContext := TRttiContext.Create;
+
+  for LField in LContext.GetType(TypeInfo(T)).GetFields do
+  begin
+    LDataSize := GetFieldSize(ARec, LField);
+    Result := Result + LDataSize;
   end;
 end;
 
