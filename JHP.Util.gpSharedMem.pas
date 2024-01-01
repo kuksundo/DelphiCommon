@@ -79,7 +79,17 @@ begin
   FNameSpace := ANameSpace;
   FEventName := AEventName;
 
-  FgpSM := TGpSharedMemory.Create(ASMName, 0, AMemSize); //gp_SHARED_MAX_SIZE
+  try
+    FgpSM := TGpSharedMemory.Create(ASMName, 0, AMemSize); //gp_SHARED_MAX_SIZE
+  except
+    if not Assigned(FgpSM) then
+    begin
+      if ERROR_ALREADY_EXISTS = GetLastError() then
+      begin
+
+      end;
+    end;
+  end;
 end;
 
 procedure TJHP_gpShM.DeleteEventName4gpSMListener(const AEventName: string);
