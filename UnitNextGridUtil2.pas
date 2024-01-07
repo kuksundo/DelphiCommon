@@ -9,7 +9,8 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types
     mormot.core.text;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
-procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false);
+procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
+  AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
 //ADoc Name이 Grid의 Column Name임
 procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 //ADoc Name이 Grid의 Cell Data 임
@@ -74,7 +75,8 @@ begin
   end;
 end;
 
-procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean; AIsIgnoreSaveFile: Boolean);
+procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
+  AIsFromValue: Boolean; AIsIgnoreSaveFile: Boolean; AAddIncCol: Boolean);
 var
   LnxTextColumn: TnxTextColumn;
   LNxComboBoxColumn: TNxComboBoxColumn;
@@ -103,7 +105,7 @@ begin
       ClearRows;
       Columns.Clear;
 
-      if not AIsIgnoreSaveFile then
+      if AAddIncCol then
       begin
         LnxIncrementColumn := Columns.Add(TnxIncrementColumn,'No');
         LnxIncrementColumn.Alignment := taCenter;
