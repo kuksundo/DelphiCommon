@@ -18,6 +18,7 @@ type
     FSMName,
     FNameSpace,
     FEventName: string;
+    FMemSize: integer;
   public
     FgpSM: TGpSharedMemory;
     FgpEP: TGpSharedEventProducer;
@@ -46,6 +47,8 @@ type
     function RecvDataFromgpSM: string;
     function SendData2gpSM(const AEventName, AData: string): cardinal;
     function SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
+
+    procedure GetshMMInfo(var ASMName, ANameSpace, AEventName: string; var AMemSize: integer);
   end;
 
 implementation
@@ -78,6 +81,7 @@ begin
   FSMName := ASMName;
   FNameSpace := ANameSpace;
   FEventName := AEventName;
+  FMemSize := AMemSize;
 
   try
     FgpSM := TGpSharedMemory.Create(ASMName, 0, AMemSize); //gp_SHARED_MAX_SIZE
@@ -134,6 +138,15 @@ begin
 
   if gpListener in AgpKinds then
     FinalgpSM4Listener(AEventName);
+end;
+
+procedure TJHP_gpShM.GetshMMInfo(var ASMName, ANameSpace, AEventName: string;
+  var AMemSize: integer);
+begin
+  ASMName := FSMName;
+  ANameSpace := FNameSpace;
+  AEventName := FEventName;
+  AMemSize := FMemSize;
 end;
 
 procedure TJHP_gpShM.FinalgpSM4Listener(const AEventName: string);
