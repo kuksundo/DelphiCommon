@@ -32,6 +32,17 @@ type
     class function ToVariant(const ARec: T) : variant;
     class function GetSize(ARec: T): integer;
     class function GetFieldSize(ARec: T; AField: TRttiField): integer;
+    class function ToArrayString(const ARec: T): TArray<string>;
+    class function ToArrayInteger(const ARec: T): TArray<integer>;
+    class function GetTypeKind(const ARec: T): TTypeKind;
+  end;
+
+  TRecordHlpr2<T,S> = class
+  {Usage:
+    LArray := TRecordHlpr2<TStockChegeolRec, String>.ToArray(LKWRealTypeStockInfoRec.FStockChegeolRec);
+  }
+  public
+    class function ToArray(const ARec: T): TArray<S>;
   end;
 
 function ParamByNameAsString(
@@ -975,12 +986,37 @@ var
 begin
   Result := 0;
   LContext := TRttiContext.Create;
-
-  for LField in LContext.GetType(TypeInfo(T)).GetFields do
-  begin
-    LDataSize := GetFieldSize(ARec, LField);
-    Result := Result + LDataSize;
+  try
+    for LField in LContext.GetType(TypeInfo(T)).GetFields do
+    begin
+      LDataSize := GetFieldSize(ARec, LField);
+      Result := Result + LDataSize;
+    end;
+  finally
+    LContext.Free;
   end;
+end;
+
+class function TRecordHlpr<T>.GetTypeKind(const ARec: T): TTypeKind;
+var
+  LContext: TRttiContext;
+begin
+  LContext := TRttiContext.Create;
+  try
+    Result := LContext.GetType(TypeInfo(T)).TypeKind;
+  finally
+    LContext.Free;
+  end;
+end;
+
+class function TRecordHlpr<T>.ToArrayInteger(const ARec: T): TArray<integer>;
+begin
+  TRecordHlpr2<T, integer>.ToArray(ARec);
+end;
+
+class function TRecordHlpr<T>.ToArrayString(const ARec: T): TArray<string>;
+begin
+  TRecordHlpr2<T, string>.ToArray(ARec);
 end;
 
 class function TRecordHlpr<T>.ToJson(const ARec: T): String;
@@ -1192,6 +1228,45 @@ begin
     RttiType    := RttiContext.GetType(AObj.ClassType);
     RttiMethod  := RttiType.GetMethod(AMethodName);
     Result      := RttiMethod.Invoke(AObj,AArgs);
+  end;
+end;
+
+{ TRecordHlpr2<T, S> }
+
+class function TRecordHlpr2<T, S>.ToArray(const ARec: T): TArray<S>;
+var
+  LIdx: integer;
+  LValue    : TValue;
+  LContext  : TRttiContext;
+//  LRecord   : TRttiRecordType;
+  LField    : TRttiField;
+  LFields: TArray<TRttiField>;
+  LKind: TTypeKind;
+  LStrData, LFieldName  : String;
+begin
+  LContext := TRttiContext.Create;
+  try
+//    LRecord := LContext.GetType(TypeInfo(T)).AsRecord;
+    LFields := LContext.GetType(TypeInfo(T)).GetFields;
+
+    SetLength(Result, High(LFields));
+    LIdx := 0;
+
+    for LField in LFields do
+    begin
+      LFieldName := LField.Name;
+      LValue := LField.GetValue(@ARec);
+
+//      if LField.FieldType.TypeKind = tkString then
+        Result[LIdx] := LValue.AsType<S>;
+//      else
+//      if LField.FieldType.TypeKind = tkInteger then
+//        Result[LIdx] := LValue.AsInteger;
+
+      Inc(LIdx);
+    end;
+  finally
+    LContext.Free;
   end;
 end;
 
