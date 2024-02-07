@@ -2,7 +2,7 @@ unit JHP.BaseConfigCollect;
 
 interface
 
-uses Winapi.Windows, classes, SysUtils, Forms, Registry,//, AsyncCalls, AsyncCallsHelper
+uses Winapi.Windows, classes, SysUtils, Forms, Registry, System.zip//, AsyncCalls, AsyncCallsHelper
   UnitRttiUtil2, UnitStreamUtil, mormot.core.base, mormot.core.json;
 
 type
@@ -18,6 +18,9 @@ type
     function SaveToJSONFile(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
     function LoadFromJSONFile2(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
     function SaveToJSONFile2(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
+
+    function LoadFromZipFile(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
+    function SaveToZipFile(AFileName: string; APassPhrase: string=''; AIsEncrypt: Boolean=False): integer; virtual;
 //    function LoadFromSqliteFile(ADBFileName: string; AEngParamKind: TEngParamListItemKind = eplikNull): integer; virtual;
 //    function SaveToSqliteFile(ADBFileName: string; AItemIndex: integer=-1): integer; virtual;
 //    function LoadFromSqliteFile4Secure(ADBFileName: string; AEngParamKind: TEngParamListItemKind = eplikNull): integer; virtual;
@@ -520,6 +523,75 @@ begin
       LStrList.Free;
     end;
   end;
+end;
+
+function LoadFromZipFile(AFileName: string; APassPhrase: string; AIsEncrypt: Boolean): integer;
+var
+  Zip: TZipFile;
+  i: Integer;
+  LZipStream: TFileStream;
+  LDFMFileName: string;
+  LocalHeader: TZipHeader;
+
+  LStrList: TStringList;
+  LValid: Boolean;
+  LRaw: RawByteString;
+  LString: RawUTF8;
+  Fs: TFileStream;
+  LMemStream: TMemoryStream;
+begin
+  Result := -1;
+
+  if not TZipFile.IsValid(AFileName) then
+    exit;
+
+  LZipStream := TFileStream.Create(AFileName, fmOpenRead);
+  try
+    Zip := TZipFile.Create;
+    try
+      Zip.Open(LZipStream, zmRead);
+
+      for i := 0 to Zip.FileCount - 1 do
+      begin
+        LDFMFileName := Zip.FileNames[i];
+
+        if AFileName = LDFMFileName then
+        begin
+          Zip.Read(i, TStream(LMemStream), LocalHeader);
+        end;
+      end;
+    finally
+      Zip.Free;
+    end;
+  finally
+    LZipStream.Free;
+  end;
+
+  LStrList := TStringList.Create;
+  try
+    if AIsEncrypt then
+    begin
+      LRaw := StringFromFile(AFileName);
+      LRaw := DecryptString_Syn2(LRaw, APassPhrase);
+      LStrList.Text := UTF8ToString(LRaw);
+    end
+    else
+    begin
+      LStrList.LoadFromFile(AFileName);
+    end;
+
+    SetLength(LString, Length(LStrList.Text));
+    LString := StringToUTF8(LStrList.Text);
+    JSONToObject(Self, PUTF8Char(LString), LValid, nil, [j2oIgnoreUnknownProperty]);
+    Result := 0;
+  finally
+    LStrList.Free;
+  end;
+end;
+
+function SaveToZipFile(AFileName: string; APassPhrase: string; AIsEncrypt: Boolean): integer;
+begin
+
 end;
 
 function TpjhBase.SaveToRegistry(RootKey: HKEY; const Key, Name: string;

@@ -1011,12 +1011,12 @@ end;
 
 class function TRecordHlpr<T>.ToArrayInteger(const ARec: T): TArray<integer>;
 begin
-  TRecordHlpr2<T, integer>.ToArray(ARec);
+  Result := TRecordHlpr2<T, integer>.ToArray(ARec);
 end;
 
 class function TRecordHlpr<T>.ToArrayString(const ARec: T): TArray<string>;
 begin
-  TRecordHlpr2<T, string>.ToArray(ARec);
+  Result := TRecordHlpr2<T, string>.ToArray(ARec);
 end;
 
 class function TRecordHlpr<T>.ToJson(const ARec: T): String;
@@ -1241,8 +1241,8 @@ var
 //  LRecord   : TRttiRecordType;
   LField    : TRttiField;
   LFields: TArray<TRttiField>;
-  LKind: TTypeKind;
-  LStrData, LFieldName  : String;
+//  LKind: TTypeKind;
+//  LStrData, LFieldName  : String;
 begin
   LContext := TRttiContext.Create;
   try
@@ -1254,7 +1254,7 @@ begin
 
     for LField in LFields do
     begin
-      LFieldName := LField.Name;
+//      LFieldName := LField.Name;
       LValue := LField.GetValue(@ARec);
 
 //      if LField.FieldType.TypeKind = tkString then
