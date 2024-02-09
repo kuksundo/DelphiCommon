@@ -365,7 +365,6 @@ begin
       finally
         LMemStream.Free;
       end;
-
     end
     else
     begin
@@ -456,6 +455,9 @@ begin
   Result := -1;
 
   if not FileExists(AZipFileName) then
+    exit;
+
+  if not TZipFile.IsValid(AZipFileName) then
     exit;
 
   LZipStream := TFileStream.Create(AZipFileName, fmOpenRead);
@@ -671,6 +673,7 @@ var
   LStr: RawUTF8;
   LFileName: string;
 begin
+  Result := -1;
   LStrList := TStringList.Create;
   LSrcStream := TMemoryStream.Create;
   LDestStream := TMemoryStream.Create;
@@ -684,7 +687,12 @@ begin
 
   try
     if FileExists(AZipFileName) then
-      Zip.Open(AZipFileName, zmReadWrite)
+    begin
+      if TZipFile.IsValid(AZipFileName) then
+        Zip.Open(AZipFileName, zmReadWrite)
+      else
+        exit;
+    end
     else
       Zip.Open(AZipFileName, zmWrite);
 
@@ -706,6 +714,7 @@ begin
     LFileName := ExtractFileName(AFileName);
     Zip.Add(LDestStream, LFileName);
     Zip.Close;
+    Result := 1;
   finally
     Zip.Free;
     LSrcStream.Free;
