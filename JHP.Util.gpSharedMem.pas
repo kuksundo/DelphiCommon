@@ -45,6 +45,7 @@ type
     procedure FinalgpSM4Listener(const AEventName: string);
 
     function RecvDataFromgpSM: string;
+    function RecvJsonDataFromgpShMM(var AData: string): integer;
     function SendData2gpSM(const AEventName, AData: string): cardinal;
     function SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
 
@@ -197,6 +198,13 @@ begin
   finally
     LStrList.Free;
   end;
+end;
+
+function TJHP_gpShM.RecvJsonDataFromgpShMM(var AData: string): integer;
+begin
+  Result := -1;
+  AData := RecvDataFromgpSM();
+  Result := Length(AData);
 end;
 
 function TJHP_gpShM.InitgpSM4Listener(const ANameSpace,
