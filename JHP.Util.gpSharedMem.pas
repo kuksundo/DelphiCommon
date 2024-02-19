@@ -10,6 +10,12 @@ const
   gp_SHARED_MAX_SIZE = 20000000;
 
 type
+  TGpShMMInfo = record
+    FName,
+    FNameSpace,
+    FEventName: string;
+  end;
+
   TgpKind = (gkProducer, gpListener, gpBoth);
   TgpKinds = set of TgpKind;
 
@@ -24,7 +30,8 @@ type
     FgpEP: TGpSharedEventProducer;
     FgpEL: TGpSharedEventListener;
 
-    constructor Create(const ASMName: string; ANameSpace: string = ''; AEventName: string=''; AMemSize: integer=gp_SHARED_MAX_SIZE);
+    constructor Create(const ASMName: string; ANameSpace: string = ''; AEventName: string=''; AMemSize: integer=gp_SHARED_MAX_SIZE); overload;
+    constructor Create(const AGpShMMInfo: TGpShMMInfo; AMemSize: integer=gp_SHARED_MAX_SIZE); overload;
     destructor Destroy; override;
 
 //    procedure GpSEEventReceivedNotify(Sender: TObject;
@@ -33,13 +40,15 @@ type
     function InitgpSMEvent(const ANameSpace, AEventName: string; AgpKinds: TgpKinds; AGpEventRecvNotify: TGpSEEventReceivedNotify=nil): integer;
     procedure FinalgpSMEvent(const ANameSpace, AEventName: string; AgpKinds: TgpKinds);
 
-    function InitgpSM4Producer(const ANameSpace, AEventName: string): integer;
+    function InitgpSM4Producer(const ANameSpace, AEventName: string): integer; overload;
+    function InitgpSM4Producer(): integer; overload;
     procedure AddEventName2gpSMProducer(const AEventName: string);
     procedure DeleteEventName4gpSMProducer(const AEventName: string);
     procedure FinalgpSM4Producer(const AEventName: string);
 
     function InitgpSM4Listener(const ANameSpace, AEventName: string;
-      AGpEventRecvNotify: TGpSEEventReceivedNotify): integer;
+      AGpEventRecvNotify: TGpSEEventReceivedNotify): integer; overload;
+    function InitgpSM4Listener(AGpEventRecvNotify: TGpSEEventReceivedNotify): integer; overload;
     procedure AddEventName2gpSMListener(const AEventName: string);
     procedure DeleteEventName4gpSMListener(const AEventName: string);
     procedure FinalgpSM4Listener(const AEventName: string);
@@ -75,6 +84,12 @@ begin
     FgpEP.PublishedEvents.Add(AEventName);
     FgpEP.Active := True;
   end;
+end;
+
+constructor TJHP_gpShM.Create(const AGpShMMInfo: TGpShMMInfo;
+  AMemSize: integer);
+begin
+  Create(AGpShMMInfo.FName, AGpShMMInfo.FNameSpace, AGpShMMInfo.FEventName, AMemSize);
 end;
 
 constructor TJHP_gpShM.Create(const ASMName: string; ANameSpace: string; AEventName: string; AMemSize: integer);
@@ -216,6 +231,17 @@ begin
   FgpEL.MonitoredEvents.Add(AEventName);
   FgpEL.OnEventReceived := AGpEventRecvNotify;
   FgpEL.Active := True;
+end;
+
+function TJHP_gpShM.InitgpSM4Listener(
+  AGpEventRecvNotify: TGpSEEventReceivedNotify): integer;
+begin
+  InitgpSM4Listener(FNameSpace, FEventName, AGpEventRecvNotify);
+end;
+
+function TJHP_gpShM.InitgpSM4Producer: integer;
+begin
+  InitgpSM4Producer(FNameSpace, FEventName);
 end;
 
 function TJHP_gpShM.InitgpSM4Producer(const ANameSpace, AEventName: string): integer;
