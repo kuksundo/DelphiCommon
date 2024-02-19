@@ -35,6 +35,7 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 //AFindFromRow부터 검색 시작, Column[AColIdx]의 내용 중에 AFindText가 있으면 RowNo 반환
 function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
   const AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false): integer;
+function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 
 implementation
 
@@ -579,6 +580,15 @@ begin
     else
       AFindFromRow := 0;
   end;//for
+end;
+
+function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
+begin
+  for Result := 0 to ANextGrid.RowCount - 1 do
+  begin
+    if ANextGrid.Selected[Result] then
+      Break;
+  end;
 end;
 
 end.
