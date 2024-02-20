@@ -3,19 +3,15 @@ unit JHP.Util.gpSharedMem;
 interface
 
 uses Windows, Messages, SysUtils, classes, Generics.Collections,
-  GpSharedMemory, GpSharedEvents
+  mormot.core.json,
+  GpSharedMemory, GpSharedEvents,
+  JHP.Util.gpSharedMemType
 ;
 
 const
   gp_SHARED_MAX_SIZE = 20000000;
 
 type
-  TGpShMMInfo = record
-    FName,
-    FNameSpace,
-    FEventName: string;
-  end;
-
   TgpKind = (gkProducer, gpListener, gpBoth);
   TgpKinds = set of TgpKind;
 
@@ -59,6 +55,8 @@ type
     function SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
 
     procedure GetshMMInfo(var ASMName, ANameSpace, AEventName: string; var AMemSize: integer);
+    function GetJson4shMMInfoRecFromShMMName(const AShMMName: string;
+      ANameSpace: string=''; AEventName: string=''): string;
   end;
 
 implementation
@@ -154,6 +152,18 @@ begin
 
   if gpListener in AgpKinds then
     FinalgpSM4Listener(AEventName);
+end;
+
+function TJHP_gpShM.GetJson4shMMInfoRecFromShMMName(
+  const AShMMName: string; ANameSpace: string; AEventName: string): string;
+var
+  LGpShMMInfo: TGpShMMInfo;
+begin
+  LGpShMMInfo.FName := AShMMName;
+  LGpShMMInfo.FNameSpace := ANameSpace;
+  LGpShMMInfo.FEventName := AEventName;
+
+  Result := RecordSaveJson(LGpShMMInfo, TypeInfo(TGpShMMInfo));
 end;
 
 procedure TJHP_gpShM.GetshMMInfo(var ASMName, ANameSpace, AEventName: string;
