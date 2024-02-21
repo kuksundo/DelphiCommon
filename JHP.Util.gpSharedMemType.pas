@@ -8,6 +8,7 @@ type
     FNameSpace,
     FEventName: string;
     FMemSize: integer;
+    FJHP_gpShM: Pointer;
   end;
 
 implementation

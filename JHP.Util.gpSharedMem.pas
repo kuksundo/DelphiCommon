@@ -57,6 +57,8 @@ type
     procedure GetshMMInfo(var ASMName, ANameSpace, AEventName: string; var AMemSize: integer);
     function GetJson4shMMInfoRecFromShMMName(const AShMMName: string;
       ANameSpace: string=''; AEventName: string=''): string;
+    function GetshMMInfoRecFromShMMName(const AShMMName: string;
+      ANameSpace: string=''; AEventName: string=''): TGpShMMInfo;
   end;
 
 implementation
@@ -159,10 +161,7 @@ function TJHP_gpShM.GetJson4shMMInfoRecFromShMMName(
 var
   LGpShMMInfo: TGpShMMInfo;
 begin
-  LGpShMMInfo.FName := AShMMName;
-  LGpShMMInfo.FNameSpace := ANameSpace;
-  LGpShMMInfo.FEventName := AEventName;
-
+  LGpShMMInfo := GetshMMInfoRecFromShMMName(AShMMName, ANameSpace, AEventName);
   Result := RecordSaveJson(LGpShMMInfo, TypeInfo(TGpShMMInfo));
 end;
 
@@ -173,6 +172,14 @@ begin
   ANameSpace := FNameSpace;
   AEventName := FEventName;
   AMemSize := FMemSize;
+end;
+
+function TJHP_gpShM.GetshMMInfoRecFromShMMName(const AShMMName: string;
+  ANameSpace, AEventName: string): TGpShMMInfo;
+begin
+  Result.FName := AShMMName;
+  Result.FNameSpace := ANameSpace;
+  Result.FEventName := AEventName;
 end;
 
 procedure TJHP_gpShM.FinalgpSM4Listener(const AEventName: string);
