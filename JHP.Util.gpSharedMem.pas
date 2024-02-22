@@ -40,7 +40,8 @@ type
     function InitgpSM4Producer(): integer; overload;
     procedure AddEventName2gpSMProducer(const AEventName: string);
     procedure DeleteEventName4gpSMProducer(const AEventName: string);
-    procedure FinalgpSM4Producer(const AEventName: string);
+    procedure FinalgpSM4Producer(const AEventName: string); overload;
+    procedure FinalgpSM4Producer(); overload;
 
     function InitgpSM4Listener(const ANameSpace, AEventName: string;
       AGpEventRecvNotify: TGpSEEventReceivedNotify): integer; overload;
@@ -51,7 +52,8 @@ type
 
     function RecvDataFromgpSM: string;
     function RecvJsonDataFromgpShMM(var AData: string): integer;
-    function SendData2gpSM(const AEventName, AData: string): cardinal;
+    function SendData2gpSM(const AEventName, AData: string): cardinal; overload;
+    function SendData2gpSM(const AData: string): cardinal; overload;
     function SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
 
     procedure GetshMMInfo(var ASMName, ANameSpace, AEventName: string; var AMemSize: integer);
@@ -188,6 +190,11 @@ begin
     FreeAndNil(FgpEL);
 end;
 
+procedure TJHP_gpShM.FinalgpSM4Producer;
+begin
+  FinalgpSM4Producer(FEventName);
+end;
+
 procedure TJHP_gpShM.FinalgpSM4Producer(const AEventName: string);
 begin
   if Assigned(FgpEP) then
@@ -300,6 +307,11 @@ begin
   finally
     LStrList.Free;
   end;
+end;
+
+function TJHP_gpShM.SendData2gpSM(const AData: string): cardinal;
+begin
+  SendData2gpSM(FEventName, AData);
 end;
 
 function TJHP_gpShM.SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;

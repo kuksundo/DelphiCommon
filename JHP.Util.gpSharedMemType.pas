@@ -6,8 +6,11 @@ type
   TGpShMMInfo = record
     FName,
     FNameSpace,
-    FEventName: string;
-    FMemSize: integer;
+    FEventName,
+    FEngParamShMMName: string;
+    FMemSize,
+    FMainFormHandle,
+    FSubFormHandle: integer;
     FJHP_gpShM: Pointer;
   end;
 
