@@ -38,6 +38,7 @@ type
 
     function InitgpSM4Producer(const ANameSpace, AEventName: string): integer; overload;
     function InitgpSM4Producer(): integer; overload;
+    function InitgpSM4Producer(const AGpShMMInfo: TGpShMMInfo): integer; overload;
     procedure AddEventName2gpSMProducer(const AEventName: string);
     procedure DeleteEventName4gpSMProducer(const AEventName: string);
     procedure FinalgpSM4Producer(const AEventName: string); overload;
@@ -311,7 +312,7 @@ end;
 
 function TJHP_gpShM.SendData2gpSM(const AData: string): cardinal;
 begin
-  SendData2gpSM(FEventName, AData);
+  Result := SendData2gpSM(FEventName, AData);
 end;
 
 function TJHP_gpShM.SendRecord2gpSM<T>(const AEventName: string; ARec: T; ARecSize: integer): cardinal;
@@ -329,6 +330,11 @@ begin
 
   Result := FgpEP.BroadcastEvent(AEventName,
             FormatDateTime('hh:mm:ss.zzz', Now));
+end;
+
+function TJHP_gpShM.InitgpSM4Producer(const AGpShMMInfo: TGpShMMInfo): integer;
+begin
+  Result := InitgpSM4Producer(AGpShMMInfo.FNameSpace, AGpShMMInfo.FEventName);
 end;
 
 end.
