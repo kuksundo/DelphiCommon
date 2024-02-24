@@ -10,7 +10,8 @@ type
     FEngParamShMMName: string;
     FMemSize,
     FMainFormHandle,
-    FSubFormHandle: integer;
+    FSubFormHandle
+    : integer;
     FJHP_gpShM: Pointer;
   end;
 
