@@ -25,8 +25,6 @@ type
       end;
     }
     class function GetFields(const ARec: T): string;
-    procedure FromString(const FromValue: String);
-    function  ToString : String;
     class procedure FromJson(const AJson: String; var ARec: T; AIsRemoveFirstChar: Boolean=False);
     class function ToJson(const ARec: T) : String;
     class function ToVariant(const ARec: T) : variant;
@@ -35,6 +33,15 @@ type
     class function ToArrayString(const ARec: T): TArray<string>;
     class function ToArrayInteger(const ARec: T): TArray<integer>;
     class function GetTypeKind(const ARec: T): TTypeKind;
+    class function ToStringList(const ARec: T): TStringList;
+    //AFieldNameList : Field Name이 ';'로 구분됨
+    //AFieldNameList와 Name이 일치하는 Field만 반환함
+    class function ToStringListByFieldNames(const ARec: T; AFieldNameList: string): TStringList;
+    class function ToStringListByVariant(const ARec: T; AFieldNameList: variant): TStringList;
+
+    procedure FromString(const FromValue: String);
+    //반환값: field Name=value;name=value;...
+    function  ToString : String;
   end;
 
   TRecordHlpr2<T,S> = class
@@ -1043,6 +1050,122 @@ begin
       AValue := AField.GetValue(@Self);
       Result := Result + AFldName + '="' +
                 EscapeQuotes(AValue.ToString) + '";';
+    end;
+  finally
+    AContext.Free;
+  end;
+end;
+
+class function TRecordHlpr<T>.ToStringList(const ARec: T): TStringList;
+var
+  AContext  : TRttiContext;
+  AField    : TRttiField;
+  ARecord   : TRttiRecordType;
+  AFldName  : String;
+  AValue    : TValue;
+begin
+  Result := TStringList.Create;
+
+  AContext := TRttiContext.Create;
+  try
+    ARecord := AContext.GetType(TypeInfo(T)).AsRecord;
+
+    for AField in ARecord.GetFields do
+    begin
+      AFldName := AField.Name;
+      AValue := AField.GetValue(@ARec);
+      Result.Add(AFldName + '=' + AValue.ToString);
+    end;
+  finally
+    AContext.Free;
+  end;
+end;
+
+class function TRecordHlpr<T>.ToStringListByFieldNames(const ARec: T;
+  AFieldNameList: string): TStringList;
+var
+  AContext  : TRttiContext;
+  AField    : TRttiField;
+  ARecord   : TRttiRecordType;
+  AFldName  : String;
+  AValue    : TValue;
+  LStr: string;
+  I: Word;
+begin
+  Result := TStringList.Create;
+
+  if AFieldNameList = '' then
+    exit;
+
+  AContext := TRttiContext.Create;
+  try
+    ARecord := AContext.GetType(TypeInfo(T)).AsRecord;
+
+    while AFieldNameList <> '' do
+    begin
+      I:=Pos(';', AFieldNameList);
+
+      if I<>0 then
+      begin
+        LStr:=System.Copy(AFieldNameList,1,I-1);
+        System.Delete(AFieldNameList,1,I);
+      end else
+      begin
+        LStr := AFieldNameList;
+        AFieldNameList :='';
+      end;
+
+      for AField in ARecord.GetFields do
+      begin
+        AFldName := AField.Name;
+
+        if AFldName = LStr then
+        begin
+          AValue := AField.GetValue(@ARec);
+          Result.Add(AFldName + '=' + AValue.ToString);
+        end;
+      end;
+    end;
+  finally
+    AContext.Free;
+  end;
+end;
+
+class function TRecordHlpr<T>.ToStringListByVariant(const ARec: T;
+  AFieldNameList: variant): TStringList;
+var
+  AContext  : TRttiContext;
+  AField    : TRttiField;
+  ARecord   : TRttiRecordType;
+  AFldName  : String;
+  AValue    : TValue;
+  LStr: string;
+  i: Word;
+begin
+  Result := TStringList.Create;
+
+  if TDocVariantData(AFieldNameList).Count = 0 then
+    exit;
+
+  AContext := TRttiContext.Create;
+  try
+    ARecord := AContext.GetType(TypeInfo(T)).AsRecord;
+
+    for i := 0 to TDocVariantData(AFieldNameList).Count - 1 do
+    begin
+      LStr := TDocVariantData(AFieldNameList).Names[i];
+
+      for AField in ARecord.GetFields do
+      begin
+        AFldName := AField.Name;
+
+        if AFldName = LStr then
+        begin
+          AValue := AField.GetValue(@ARec);
+          Result.Add(AFldName + '=' + AValue.ToString);
+          Break;
+        end;
+      end;
     end;
   finally
     AContext.Free;

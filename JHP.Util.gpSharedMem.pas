@@ -9,7 +9,7 @@ uses Windows, Messages, SysUtils, classes, Generics.Collections,
 ;
 
 const
-  gp_SHARED_MAX_SIZE = 20000000;
+  gp_SHARED_MAX_SIZE = 50000000;
 
 type
   TgpKind = (gkProducer, gpListener, gpBoth);
