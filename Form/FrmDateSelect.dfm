@@ -11,6 +11,7 @@ object DateSelectF: TDateSelectF
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poMainFormCenter
   PixelsPerInch = 96
   TextHeight = 13
   object JvLabel5: TJvLabel
@@ -47,7 +48,6 @@ object DateSelectF: TDateSelectF
     Height = 41
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 333
   end
   object Panel2: TPanel
     Left = 0
@@ -56,8 +56,6 @@ object DateSelectF: TDateSelectF
     Height = 64
     Align = alBottom
     TabOrder = 1
-    ExplicitTop = 235
-    ExplicitWidth = 333
     object BitBtn1: TBitBtn
       Left = 48
       Top = 16
