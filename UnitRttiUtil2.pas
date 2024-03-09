@@ -25,6 +25,10 @@ type
       end;
     }
     class function GetFields(const ARec: T): string;
+    //필드명을 찾아서 값을 할당 함(String 값만 할당 가능함))
+    //AFieldNameList = Field1;Field2...
+    //AValueList = Value1;Value2...
+    class procedure SetFieldValueByName(var ARec: T; AFieldNameList, AValueList: string);
     class procedure FromJson(const AJson: String; var ARec: T; AIsRemoveFirstChar: Boolean=False);
     class function ToJson(const ARec: T) : String;
     class function ToVariant(const ARec: T) : variant;
@@ -1013,6 +1017,54 @@ begin
     Result := LContext.GetType(TypeInfo(T)).TypeKind;
   finally
     LContext.Free;
+  end;
+end;
+
+class procedure TRecordHlpr<T>.SetFieldValueByName(var ARec: T;
+  AFieldNameList, AValueList: string);
+var
+  LContext: TRttiContext;
+  LType: TRttiType;
+  LField: TRttiField;
+  LFieldName, LValue: string;
+  I: integer;
+begin
+  LContext := TRttiContext.Create;
+
+  while AFieldNameList <> ''  do
+  begin
+    I:=Pos(';', AFieldNameList);
+
+    if I<>0 then
+    begin
+      LFieldName:=System.Copy(AFieldNameList,1,I-1);
+      System.Delete(AFieldNameList,1,I);
+    end else
+    begin
+      LFieldName:=AFieldNameList;
+      AFieldNameList:='';
+    end;
+
+    I:=Pos(';', AValueList);
+
+    if I<>0 then
+    begin
+      LValue:=System.Copy(AValueList,1,I-1);
+      System.Delete(AValueList,1,I);
+    end else
+    begin
+      LValue:=AValueList;
+      AValueList:='';
+    end;
+
+    for LField in LContext.GetType(TypeInfo(T)).GetFields do
+    begin
+      if LField.Name = LFieldName then
+      begin
+        LField.SetValue(@ARec, TValue.From(LValue));
+        Break;
+      end;
+    end;
   end;
 end;
 
