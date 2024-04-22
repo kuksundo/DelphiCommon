@@ -15,7 +15,7 @@ Type
   TFunctionMode = (CM_DATA_READ, CM_CONFIG_READ, CM_DATA_WRITE, CM_CONFIG_WRITE, CM_CONFIG_WRITE_CONFIRM);
 
   TSerialCommThread = class(TThread)
-    FOwner: TForm;
+    FOwnerFormHandle: THandle;
     FComPort: TComPort;
     FQueryInterval: integer;//Query 간격(mSec)
     FSuspendCommThread: Boolean;//통신 일시 중지 = True
@@ -44,14 +44,15 @@ Type
     FIsConfirmAfterWrite: Boolean;//write function 실행 후 return값 확인할 경우  true
     FFunctionMode: TFunctionMode;
 
-    constructor Create(AOwner: TForm; AQureyInterval: integer; ATimeOut: integer=3000);
+    constructor Create(AFormHandle: THandle=0; AQureyInterval: integer=1000; ATimeOut: integer=3000);
     destructor Destroy; override;
 //    function LoadCommPortFromFile(AIniFileName: string=''): Boolean;
 //    procedure SaveComPortToFile(AIniFileName: string);
     procedure SaveSerialCommConfig2File(AFileName: string);
     function LoadSerialCommConfigFromFile(AFileName: string): Boolean;
 
-    function InitCommPort(APortName, ABaudRate: string; ADataBit: string='8'; AStopBit: string='1'; AParity: String='None'): Boolean;
+    function InitCommPort(APortName: string; ABaudRate: string='9600';
+      ADataBit: string='8'; AStopBit: string='1'; AParity: String='None'): Boolean;
     function InitCommPortFromPort(AComPort: TComPort): Boolean;
     procedure SetCommPort2Dest(ADestComPort: TComPort);
     function ResetCommport: Boolean;
@@ -59,6 +60,8 @@ Type
     procedure SendQuery;
     procedure SendString(AString: string);
     procedure SendBufClear;
+
+    procedure SetMainFormHandle(AHandle: THandle);
   published
     property ConfigFileName: string read FConfigFileName write FConfigFileName;
     property CommPort: TComPort read FComPort write FComPort;
@@ -75,13 +78,14 @@ implementation
 
 { TSerialCommThread }
 
-constructor TSerialCommThread.Create(AOwner: TForm; AQureyInterval: integer; ATimeOut: integer);
+constructor TSerialCommThread.Create(AFormHandle: THandle;
+  AQureyInterval: integer; ATimeOut: integer);
 begin
   inherited Create(True);
 
   FreeOnTerminate := True;
 
-  FOwner := AOwner;
+  FOwnerFormHandle := AOwner;
   FSuspendCommThread := False;
   FTimeOut := ATimeOut; //3초 기다린 후에 계속 명령을 전송함(Default = INFINITE)
   FComport := TComport.Create(nil);
@@ -131,7 +135,11 @@ function TSerialCommThread.InitCommPort(APortName, ABaudRate: string;
 begin
   Result := False;
 
-  if not Assigned(FComport) then
+  if Assigned(FComport) then
+  begin
+    FComport.Close;
+  end
+  else
   begin
     FComport := TComport.Create(nil);
     FComport.OnRxChar := OnReceiveComm;
@@ -153,15 +161,10 @@ end;
 
 function TSerialCommThread.InitCommPortFromPort(AComPort: TComPort): Boolean;
 begin
-  if Assigned(AComPort) then
-  begin
-    InitCommPort(AComport.Port,
-                 BaudRateToStr(AComport.BaudRate),
-                 DataBitsToStr(AComport.DataBits),
-                 StopBitsToStr(AComport.StopBits));
-  end
-  else
-    ShowMessage('TComport is not assigned!');
+  InitCommPort(AComport.Port,
+               BaudRateToStr(AComport.BaudRate),
+               DataBitsToStr(AComport.DataBits),
+               StopBitsToStr(AComport.StopBits));
 end;
 
 //function TSerialCommThread.LoadCommPortFromFile(AIniFileName: string): Boolean;
@@ -222,7 +225,7 @@ var
   LBufByte: Array[0..255] of Byte;
 begin
   try
-    SendCopyData2(FOwner.Handle, 'RxTrue', 0);
+    SendCopyData2(FOwnerFormHandle, 'RxTrue', 0);
 
     if FCommMode = cmChar then
     begin
@@ -236,9 +239,9 @@ begin
       if System.Pos(#13#10, FBufStr) = 0 then
         exit;
 
-      FOwner.Hint := FBufStr;
+      FOwnerFormHandle.Hint := FBufStr;
       FBufStr := '';
-      PostMessage(FOwner.Handle, WM_RECEIVESTRINGFROMCOMM, 0, 0);
+      PostMessage(FOwnerFormHandle, WM_RECEIVESTRINGFROMCOMM, 0, 0);
     end
     else
     if FCommMode = cmBin then
@@ -250,7 +253,7 @@ begin
 
     end;
   finally
-    SendCopyData2(FOwner.Handle, 'RxFalse', 0);
+    SendCopyData2(FOwnerFormHandle, 'RxFalse', 0);
   end;
 end;
 
@@ -305,14 +308,14 @@ var
     if SuspendCommThread then
       exit;
 
-    SendCopyData2(FOwner.Handle, ' ', 1);
+    SendCopyData2(FOwnerFormHandle.Handle, ' ', 1);
     //SystemBase사의 컨버터에서는 Send시에 RTS를 High로 해야함
 //    FComport.SetRTS(True);
     //Char Mode인 경우
     if FCommMode = cmChar then
     begin
       FComPort.Writestr(ACommand);
-      SendCopyData2(FOwner.Handle, ACommand, 1);
+      SendCopyData2(FOwnerFormHandle, ACommand, 1);
     end
     else if FCommMode = cmBin then// Bin Mode인 경우
     begin
@@ -321,10 +324,10 @@ var
 
 //      FComport.Write(FSendBuf[0], SendLength);
 //      SendBufClear();
-//      SendCopyData2(FOwner.Handle, tmpStr, 1);
+//      SendCopyData2(FOwnerFormHandle.Handle, tmpStr, 1);
     end;
 
-    FOwner.Tag := Aindex;
+    FOwnerFormHandle.Tag := Aindex;
 //    FComport.SetRTS(False);
     Sleep(FQueryInterval);
 
@@ -355,7 +358,7 @@ begin
 
       while i < FWriteCommandList.Count do
       begin
-        SendCopyData2(FOwner.Handle, '=== Write Command ===', 1);
+        SendCopyData2(FOwnerFormHandle, '=== Write Command ===', 1);
         InternalSendQuery(FWriteCommandList.Strings[i],i);
         Inc(i);
 
@@ -370,7 +373,7 @@ begin
   if FSendCommandOnce <> '' then
   begin
     FFunctionMode := CM_CONFIG_READ;
-    SendCopyData2(FOwner.Handle, '=== Once Read Command ===', 1);
+    SendCopyData2(FOwnerFormHandle, '=== Once Read Command ===', 1);
     InternalSendQuery(FSendCommandOnce, -1);
     FSendCommandOnce := '';
   end;
@@ -402,6 +405,11 @@ begin
     DataBits := FComPort.DataBits;
     Parity.Bits := FComPort.Parity.Bits;
   end;
+end;
+
+procedure TSerialCommThread.SetMainFormHandle(AHandle: THandle);
+begin
+  FOwnerFormHandle := AHandle;
 end;
 
 procedure TSerialCommThread.SetQueryInterval(Value: integer);
