@@ -9,7 +9,7 @@ uses Windows, Winapi.Messages, System.SysUtils, System.SyncObjs, System.Classes,
   UnitSerialCommThread;
 
 type
-  TKiwoomTraderWorker = class(TWorker2)
+  TSerialCommWorker = class(TWorker2)
   private
     FSerialCommThread: TSerialCommThread;
     FOwnerFormHandle: THandle;
@@ -27,40 +27,40 @@ type
 
 implementation
 
-{ TKiwoomTraderWorker }
+{ TSerialCommWorker }
 
-procedure TKiwoomTraderWorker.CustomCreate;
+procedure TSerialCommWorker.CustomCreate;
 begin
   InitVar();
 end;
 
-destructor TKiwoomTraderWorker.Destroy;
+destructor TSerialCommWorker.Destroy;
 begin
   DestroyVar();
 
   inherited;
 end;
 
-procedure TKiwoomTraderWorker.DestroyVar;
+procedure TSerialCommWorker.DestroyVar;
 begin
 
 end;
 
-procedure TKiwoomTraderWorker.InitVar;
+procedure TSerialCommWorker.InitVar;
 begin
-  FSerialCommThread := TSerialCommThread.Create();
+//  FSerialCommThread := TSerialCommThread.Create();
 end;
 
-procedure TKiwoomTraderWorker.ProcessCommandProc(AMsg: TOmniMessage);
+procedure TSerialCommWorker.ProcessCommandProc(AMsg: TOmniMessage);
 begin
   case TFunctionMode(AMsg.MsgID) of
     CM_DATA_READ: begin
-      ProcessUserInfoRespond(AMsg);
+//      ProcessUserInfoRespond(AMsg);
     end;
   end;//case
 end;
 
-procedure TKiwoomTraderWorker.SetMainFormHandle(AHandle: THandle);
+procedure TSerialCommWorker.SetMainFormHandle(AHandle: THandle);
 begin
   FOwnerFormHandle := AHandle;
 end;

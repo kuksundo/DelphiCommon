@@ -27,7 +27,7 @@ Type
 
     FSendEvent, //Send하는 Event
     FReceiveEvent: TEvent;//Send한 후 Receive할때까지 Wait하는 Event
-    FSendCommandList: TStringList;//반복적으로 보내는 명령 리스트
+    FReadCommandList: TStringList;//반복적으로 보내는 명령 리스트
     FWriteCommandList: TStringList;//Write 명령 리스트
     FSendCommandOnce: string;//한번만 보내는 명령
     FConfigFileName: string;
@@ -85,7 +85,7 @@ begin
 
   FreeOnTerminate := True;
 
-  FOwnerFormHandle := AOwner;
+  FOwnerFormHandle := AFormHandle;
   FSuspendCommThread := False;
   FTimeOut := ATimeOut; //3초 기다린 후에 계속 명령을 전송함(Default = INFINITE)
   FComport := TComport.Create(nil);
@@ -93,7 +93,7 @@ begin
 
   FSendEvent := TEvent.Create('',False);
   FReceiveEvent := TEvent.Create('',False);
-  FSendCommandList := TStringList.Create;
+  FReadCommandList := TStringList.Create;
   FWriteCommandList := TStringList.Create;
   FUseSendEvent := True;
 
@@ -108,7 +108,7 @@ begin
   FSendEvent.Free;
   FReceiveEvent.Free;
   FWriteCommandList.Free;
-  FSendCommandList.Free;
+  FReadCommandList.Free;
 
   inherited;
 end;
@@ -239,7 +239,7 @@ begin
       if System.Pos(#13#10, FBufStr) = 0 then
         exit;
 
-      FOwnerFormHandle.Hint := FBufStr;
+//      FOwnerFormHandle.Hint := FBufStr;
       FBufStr := '';
       PostMessage(FOwnerFormHandle, WM_RECEIVESTRINGFROMCOMM, 0, 0);
     end
@@ -308,7 +308,7 @@ var
     if SuspendCommThread then
       exit;
 
-    SendCopyData2(FOwnerFormHandle.Handle, ' ', 1);
+    SendCopyData2(FOwnerFormHandle, ' ', 1);
     //SystemBase사의 컨버터에서는 Send시에 RTS를 High로 해야함
 //    FComport.SetRTS(True);
     //Char Mode인 경우
@@ -327,7 +327,7 @@ var
 //      SendCopyData2(FOwnerFormHandle.Handle, tmpStr, 1);
     end;
 
-    FOwnerFormHandle.Tag := Aindex;
+//    FOwnerFormHandle.Tag := Aindex;
 //    FComport.SetRTS(False);
     Sleep(FQueryInterval);
 
@@ -378,11 +378,11 @@ begin
     FSendCommandOnce := '';
   end;
 
-  for i := 0 to FSendCommandList.Count - 1 do
+  for i := 0 to FReadCommandList.Count - 1 do
   begin
     FFunctionMode := CM_DATA_READ;
 
-    InternalSendQuery(FSendCommandList.Strings[i],i);
+    InternalSendQuery(FReadCommandList.Strings[i],i);
   end;//for
 end;
 
