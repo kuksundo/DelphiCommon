@@ -9,6 +9,13 @@ uses Windows, Winapi.Messages, System.SysUtils, System.SyncObjs, System.Classes,
   UnitSerialCommThread;
 
 type
+  TCommCommandType = (cctConnect, cctDisConnect, cctSendString, cctSendByte,
+    cctRecvString, cctRecvByte);
+
+  TSerialCommCmdRec = packed record
+
+  end;
+
   TSerialCommWorker = class(TWorker2)
   private
     FSerialCommThread: TSerialCommThread;
@@ -16,7 +23,9 @@ type
 
     procedure CustomCreate; override;
   protected
-    procedure ProcessCommandProc(AMsg: TOmniMessage); override;
+    procedure ProcessCommandProc(const AMsg: TOmniMessage); override;
+    procedure ProcessConnectCmd(const AMsg: TOmniMessage);
+    procedure ProcessDisConnectCmd(const AMsg: TOmniMessage);
   public
     destructor Destroy(); override;
     procedure InitVar();
@@ -51,13 +60,30 @@ begin
 //  FSerialCommThread := TSerialCommThread.Create();
 end;
 
-procedure TSerialCommWorker.ProcessCommandProc(AMsg: TOmniMessage);
+procedure TSerialCommWorker.ProcessCommandProc(const AMsg: TOmniMessage);
 begin
-  case TFunctionMode(AMsg.MsgID) of
-    CM_DATA_READ: begin
+  case TCommCommandType(AMsg.MsgID) of
+    cctConnect: begin
+      ProcessConnectCmd(AMsg);
+    end;
+    cctDisConnect: begin
+      ProcessDisConnectCmd(AMsg);
+    end;
+    cctSendString, cctSendByte,
+    cctRecvString, cctRecvByte: begin
 //      ProcessUserInfoRespond(AMsg);
     end;
   end;//case
+end;
+
+procedure TSerialCommWorker.ProcessConnectCmd(const AMsg: TOmniMessage);
+begin
+
+end;
+
+procedure TSerialCommWorker.ProcessDisConnectCmd(const AMsg: TOmniMessage);
+begin
+
 end;
 
 procedure TSerialCommWorker.SetMainFormHandle(AHandle: THandle);
