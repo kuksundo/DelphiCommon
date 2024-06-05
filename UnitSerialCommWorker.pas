@@ -23,7 +23,7 @@ type
 
     procedure CustomCreate; override;
   protected
-    procedure ProcessCommandProc(const AMsg: TOmniMessage); override;
+    procedure ProcessCommandProc(AMsg: TOmniMessage); override;
     procedure ProcessConnectCmd(const AMsg: TOmniMessage);
     procedure ProcessDisConnectCmd(const AMsg: TOmniMessage);
   public
@@ -60,7 +60,7 @@ begin
 //  FSerialCommThread := TSerialCommThread.Create();
 end;
 
-procedure TSerialCommWorker.ProcessCommandProc(const AMsg: TOmniMessage);
+procedure TSerialCommWorker.ProcessCommandProc(AMsg: TOmniMessage);
 begin
   case TCommCommandType(AMsg.MsgID) of
     cctConnect: begin

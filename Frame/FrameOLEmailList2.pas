@@ -20,7 +20,7 @@ uses
   mormot.core.base, mormot.core.variants, mormot.core.os, mormot.core.buffers,
   UnitGAMasterRecord2, CommonData2, FrmEditEmailInfo2, UnitOLEmailRecord2,
   UnitStrategy4OLEmailInterface2, UnitOutlookIPCUtil2, UnitSTOMPClass, UnitMQData,
-  UnitGAServiceData;
+  UnitGAServiceData, UnitOLDataType;
 
 type
   TFrame2 = class(TFrame)
@@ -47,8 +47,6 @@ type
     panMailButtons: TPanel;
     btnStartProgram: TBitBtn;
     BitBtn1: TBitBtn;
-    btnCheckAll: TPngBitBtn;
-    btnToTray: TPngBitBtn;
     panProgress: TPanel;
     btnStop: TSpeedButton;
     Progress: TProgressBar;
@@ -458,12 +456,10 @@ begin
       //OutLook(WevSocket)에게 현재 Drop한 email list 요청
 {$IFDEF USE_MORMOT_WS}
       if SendReqOLEmailInfo_WS(LDroppedMailList, FWSInfoRec) then
-{$ELSE}
-  {$IFDEF USE_CROMIS_IPC}
+{$ENDIF}
+
+{$IFDEF USE_CROMIS_IPC}
       if SendReqOLEmailInfo_NamedPipe_Sync(LDroppedMailList, FWSInfoRec) then
-  {$ELSE}
-      if SendReqOLEmailInfo_WS(LDroppedMailList, FWSInfoRec) then
-  {$ENDIF}
 {$ENDIF}
       begin
         LJson := LDroppedMailList.Values['MailInfos'];
