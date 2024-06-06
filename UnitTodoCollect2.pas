@@ -120,8 +120,8 @@ Type
     property Items[Index: Integer]: TpjhTodoItem read GetItem  write SetItem; default;
   end;
 
-  TDeleteToDoListFromDB = procedure(ADB: TSQLRestClientURI; ApjhTodoItem: TpjhTodoItem);
-  TInsertOrUpdateToDoList2DB = procedure (ADB: TSQLRestClientURI; ApjhTodoItem: TpjhTodoItem; AIdAdd: Boolean);
+  TDeleteToDoListFromDB = procedure(ApjhTodoItem: TpjhTodoItem; ADB: TSQLRestClientURI=nil);
+  TInsertOrUpdateToDoList2DB = procedure (ApjhTodoItem: TpjhTodoItem; AIdAdd: Boolean; ADB: TSQLRestClientURI=nil);
 
 type
   // Helper class to allow sorting of a TCollection

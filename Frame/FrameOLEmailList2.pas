@@ -18,7 +18,8 @@ uses
   Cromis.Comm.Custom, Cromis.Comm.IPC, Cromis.Threading,
 {$ENDIF}
   mormot.core.base, mormot.core.variants, mormot.core.os, mormot.core.buffers,
-  UnitGAMasterRecord2, CommonData2, FrmEditEmailInfo2, UnitOLEmailRecord2,
+
+  UnitHiconisMasterRecord, CommonData2, FrmEditEmailInfo2, UnitOLEmailRecord2,
   UnitStrategy4OLEmailInterface2, UnitOutlookIPCUtil2, UnitSTOMPClass, UnitMQData,
   UnitGAServiceData, UnitOLDataType;
 

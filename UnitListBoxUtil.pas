@@ -2,7 +2,7 @@ unit UnitListBoxUtil;
 
 interface
 
-uses Vcl.StdCtrls;
+uses Vcl.StdCtrls, ArrayHelper, System.Generics.Collections;
 
 function GetSelectedIndexs(AListBox: TListBox): TArray<integer>;
 procedure MoveUpSelectedItemsFromListBox(AListBox: TListBox);
@@ -19,7 +19,7 @@ begin
   for i := 0 to AListBox.Count - 1 do
   begin
     if AListBox.Selected[i] then
-      TAryHelper<Integer>.Append(Result, i);
+      TArray.Add<Integer>(Result, i);
   end;
 end;
 
