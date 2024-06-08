@@ -4,8 +4,7 @@ interface
 
 uses System.SysUtils, Classes,
   mormot.orm.core, mormot.core.base, mormot.rest.sqlite3, mormot.core.os,
-  mormot.core.data, mormot.orm.base, mormot.core.variants, mormot.core.datetime,
-  UnitGAServiceData;
+  mormot.core.data, mormot.orm.base, mormot.core.variants, mormot.core.datetime;
 
 type
   TSQLOLEmailMsg = class(TSQLRecord)
@@ -27,9 +26,9 @@ type
     fSavedMsgFileName
     : RawUTF8;
     fAttachCount: integer;
-    FContainData: TContainData4Mail;
+    FContainData: integer;//TContainData4Mail;
     //해당 메일이 누구한테 보내는 건지 구분하기 위함
-    FProcDirection: TProcessDirection;
+    FProcDirection: integer;//TProcessDirection;
     fRecvDate: TTimeLog;
   public
     FIsUpdate: Boolean;
@@ -51,8 +50,8 @@ type
     property SavedMsgFilePath: RawUTF8 read fSavedMsgFilePath write fSavedMsgFilePath;
     property SavedMsgFileName: RawUTF8 read fSavedMsgFileName write fSavedMsgFileName;
     property AttachCount: integer read fAttachCount write fAttachCount;
-    property ContainData: TContainData4Mail read FContainData write FContainData;
-    property ProcDirection: TProcessDirection read FProcDirection write FProcDirection;
+    property ContainData: integer read FContainData write FContainData;
+    property ProcDirection: integer read FProcDirection write FProcDirection;
     property RecvDate: TTimeLog read fRecvDate write fRecvDate;
   end;
 
@@ -304,10 +303,10 @@ begin
         LEmailMsg.SavedMsgFileName := LVar.SavedMsgFileName;
         LEmailMsg.AttachCount := LVar.AttachCount;
         LEmailMsg.RecvDate := TimeLogFromDateTime(StrToDateTime(LVar.RecvDate));
-        LStr := LVar.ContainData;
-        LEmailMsg.ContainData := g_ContainData4Mail.ToType(LStr);
-        LStr := LVar.ProcDirection;
-        LEmailMsg.ProcDirection := g_ProcessDirection.ToType(LStr);
+//        LStr := LVar.ContainData;
+        LEmailMsg.ContainData := LVar.ContainData;//g_ContainData4Mail.ToType(LStr);
+//        LStr := LVar.ProcDirection;
+        LEmailMsg.ProcDirection := LVar.ProcDirection;//g_ProcessDirection.ToType(LStr);
 
         if LEmailMsg.IsUpdate then
           g_OLEmailMsgDB.Update(LEmailMsg)
@@ -373,8 +372,7 @@ begin
   end;
 end;
 
-function UpdateOLMail2DBFromContainDataNProcdir(AID: integer;
-  AConData: TContainData4Mail; AProcDir: TProcessDirection): Boolean;
+function UpdateOLMail2DBFromContainDataNProcdir(AID, AConData, AProcDir: integer): Boolean;
 var
   LEmailMsg: TSQLOLEmailMsg;
 begin

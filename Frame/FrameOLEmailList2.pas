@@ -21,7 +21,7 @@ uses
 
   UnitHiconisMasterRecord, CommonData2, FrmEditEmailInfo2, UnitOLEmailRecord2,
   UnitStrategy4OLEmailInterface2, UnitOutlookIPCUtil2, UnitSTOMPClass, UnitMQData,
-  UnitGAServiceData, UnitOLDataType;
+  UnitElecServiceData2, UnitOLDataType;
 
 type
   TFrame2 = class(TFrame)
