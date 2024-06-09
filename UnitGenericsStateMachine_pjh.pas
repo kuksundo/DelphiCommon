@@ -133,10 +133,14 @@ type
     /// parameter.
     /// </returns>
     function AddState(AState: TState): TStateHolder<TState, TTrigger>;
-    function GetState(AState: TState): TStateHolder<TState, TTrigger>;
+    function GetStateHolder(AState: TState): TStateHolder<TState, TTrigger>;
+    //AState에서 ATrigger 실행 시 Transition하는 StateHolder 반환 함
+    function GetNextStateHolderByTrigger(AState: TState; ATrigger: TTrigger): TStateHolder<TState, TTrigger>;
+
     procedure Validate;
     function GetAllTriggerCount: integer;
     function GetStateNTriggers2Strings(const AState: TState): TStrings;
+    function GetAllStates2Strings(): TStrings;
     procedure GetStateNTriggers2Combo(const AState: TState; ACombo: TComboBox);
 
     property StateCount: Integer read GetStateCount;
@@ -145,6 +149,7 @@ type
     property InitialState: TStateHolder<TState, TTrigger>
       read GetInitialState;
     property Active: boolean read FActive write SetActive;
+    property States: TObjectDictionary<TState, TStateHolder<TState, TTrigger>> read FStates;
   end;
 
 implementation
@@ -317,18 +322,21 @@ var
 begin
   Result := TStringList.Create;
 
-  LState :=  GetState(AState);
+  LState :=  GetStateHolder(AState);
 
-  if Assigned(LState) then
+  if Assigned(LState) then //특정 State의 Trigger들을 반환함
   begin
-    LStr := TValue.From<TState>(LState.State).ToString + ' -> ' +
-      TValue.From<TTrigger>(LTrigger.Trigger).ToString + ' -> ' +
-      TValue.From<TState>(LTrigger.Destination).ToString;
+    for LTrigger in LState.Triggers.Values do
+    begin
+      LStr := TValue.From<TState>(LState.State).ToString + ' -> ' +
+        TValue.From<TTrigger>(LTrigger.Trigger).ToString + ' -> ' +
+        TValue.From<TState>(LTrigger.Destination).ToString;
 
-    Result.Add(LStr);
+      Result.Add(LStr);
+    end;
   end
   else
-  begin
+  begin //State가 Null 이면 State Machine에 있는 모든 State + Trigger를 반환함
     for LState in FStates.Values do
     begin
       for LTrigger in LState.Triggers.Values do
@@ -341,6 +349,21 @@ begin
       end;
     end;//for
   end;
+end;
+
+function TStateMachine<TState, TTrigger>.GetAllStates2Strings: TStrings;
+var
+  LStr: string;
+  LState: TStateHolder<TState, TTrigger>;
+begin
+  Result := TStringList.Create;
+
+  for LState in FStates.Values do
+  begin
+    LStr := TValue.From<TState>(LState.State).ToString;
+
+    Result.Add(LStr);
+  end;//for
 end;
 
 function TStateMachine<TState, TTrigger>.GetAllTriggerCount: integer;
@@ -380,7 +403,20 @@ begin
   Result := LInitialState;
 end;
 
-function TStateMachine<TState, TTrigger>.GetState(
+function TStateMachine<TState, TTrigger>.GetNextStateHolderByTrigger(
+  AState: TState; ATrigger: TTrigger): TStateHolder<TState, TTrigger>;
+var
+  LCurrentBackup: TState;
+begin
+  LCurrentBackup := FCurrentState;
+
+  Result := GetStateHolder(AState);
+  Result.Execute(ATrigger);
+
+  FCurrentState := LCurrentBackup;
+end;
+
+function TStateMachine<TState, TTrigger>.GetStateHolder(
   AState: TState): TStateHolder<TState, TTrigger>;
 var
   LState: TStateHolder<TState, TTrigger>;
