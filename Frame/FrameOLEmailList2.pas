@@ -445,6 +445,8 @@ var
   LOriginalEntryId, LOriginalStoreId,
   LJson, LNewStoreId, LNewStorePath: string;
 begin
+  // 윈도우 탐색기에서 Drag 했을 경우 LFileName에 Drag한 File Name이 존재함
+  // OutLook에서 Drag한 경우에는 LFileName = '' 임
   if (DataFormatAdapterOutlook.DataFormat <> nil) then
   begin
     OutlookDataFormat := DataFormatAdapterOutlook.DataFormat as TOutlookDataFormat;
