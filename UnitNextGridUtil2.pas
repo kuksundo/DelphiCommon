@@ -21,6 +21,9 @@ function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): variant;
+//ARow 행의 데이터만 Variant로 반환함
+function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
+procedure SetNnGridRowFromVar(AGrid: TNextGrid; ARow: integer; AVar: variant);
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
 procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean=False);
 function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
@@ -334,6 +337,26 @@ begin
   end;
 
   Result := LDynArr.SaveToJSON;
+end;
+
+function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
+var
+  i: integer;
+  LColumnName: string;
+begin
+  TDocVariant.New(Result);
+
+  for i := 0 to AGrid.Columns.Count - 1 do
+  begin
+    LColumnName := AGrid.Columns.Item[i].Name;
+
+    TDocVariantData(Result).Value[LColumnName] := AGrid.CellsByName[LColumnName, ARow];
+  end;
+end;
+
+procedure SetNnGridRowFromVar(AGrid: TNextGrid; ARow: integer; AVar: variant);
+begin
+
 end;
 
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
