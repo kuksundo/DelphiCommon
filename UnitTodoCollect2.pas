@@ -44,9 +44,11 @@ Type
     FAlarmType,
     FAlarmTime2, //AlarmType이 2인 경우(분)
     FAlarmFlag,
-    FAlarm2Msg,
-    FAlarm2Note,
-    FAlarm2Email: integer;
+    FAlarm2Msg,   //문자로 알림 = 1
+    FAlarm2Note,  //쪽지로 알림 = 1
+    FAlarm2Email, //이메일로 알림 = 1
+    FAlarm2Popup //팜업창으로 알림 = 1
+    : integer;
 
     FAlarmTime1, //AlarmType이 1인 경우 시각
     FModDate: TDateTime;
@@ -66,6 +68,7 @@ Type
   published
     property Category: string read FCategory write FCategory;
     property Complete: Boolean read FComplete write FComplete;
+    //완료율(%)
     property Completion: TCompletion read FCompletion write FCompletion;
     property CompletionDate: TDateTime read FCompletionDate write FCompletionDate;
     property CreationDate: TDateTime read FCreationDate write FCreationDate;
