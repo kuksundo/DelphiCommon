@@ -19,12 +19,12 @@ uses
 {$ENDIF}
   mormot.core.base, mormot.core.variants, mormot.core.os, mormot.core.buffers,
 
-  FrmEditEmailInfo2, UnitOLEmailRecord2,
-  UnitStrategy4OLEmailInterface2, UnitMQData,
-  UnitOLDataType;
+//  FrmEditEmailInfo2,
+//  UnitStrategy4OLEmailInterface2, UnitMQData,
+  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2;
 
 type
-  TFrame2 = class(TFrame)
+  TOutlookEmailListFr = class(TFrame)
     mailPanel1: TPanel;
     tabMail: TTabControl;
     StatusBar: TStatusBar;
@@ -104,7 +104,7 @@ type
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
     procedure Englisth1Click(Sender: TObject);
-    procedure Korean1Click(Sender: TObject);
+//    procedure Korean1Click(Sender: TObject);
     procedure EditMailInfo1Click(Sender: TObject);
     procedure MoveEmailToSelected1Click(Sender: TObject);
     procedure DeleteMail1Click(Sender: TObject);
@@ -112,15 +112,15 @@ type
     procedure Timer1Timer(Sender: TObject);
   private
     FCurrentMailCount: integer;
-    FpjhSTOMPClass: TpjhSTOMPClass;
+//    FpjhSTOMPClass: TpjhSTOMPClass;
     FEmailDBName: string;
-{$IFDEF USE_OMNITHREAD}
-    FOLMsg2MQ: TOmniMessageQueue;
-{$ENDIF}
-
-{$IFDEF USE_CROMIS_IPC}
-    FTaskPool: TTaskPool;
-{$ENDIF}
+//{$IFDEF USE_OMNITHREAD}
+//    FOLMsg2MQ: TOmniMessageQueue;
+//{$ENDIF}
+//
+//{$IFDEF USE_CROMIS_IPC}
+//    FTaskPool: TTaskPool;
+//{$ENDIF}
 
     procedure InitFolderListMenu;
     procedure FinilizeFolderListMenu;
@@ -151,9 +151,9 @@ type
     FHullNo, FDBKey, FDBNameSuffix: string;
     FOLFolderListFileName: string;
     //Strategy Design Pattern
-    FContext4OLEmail: TContext4OLEmail;
-    FWSInfoRec: TWSInfoRec;
-    FMQInfoRec: TMQInfoRec;
+//    FContext4OLEmail: TContext4OLEmail;
+//    FWSInfoRec: TWSInfoRec;
+//    FMQInfoRec: TMQInfoRec;
     FIsSaveEmail2DBWhenDropped: Boolean;
 
     constructor Create(AOwner: TComponent); override;
@@ -188,10 +188,10 @@ type
 function ShowEmailListFromJson(AGrid: TNextGrid; AJson: RawUTF8): integer;
 
 implementation
-uses ShellApi, mormot.core.mustache, UnitStringUtil, UnitIPCModule2,
-  DragDropInternet, UnitHttpModule4InqManageServer2,
+uses ShellApi, mormot.core.mustache, UnitStringUtil, //UnitIPCModule2,
+  DragDropInternet, //UnitHttpModule4InqManageServer2,
   //UnitGAMakeReport,
-  UnitBase64Util2, UnitMustacheUtil2, UnitMakeReport2, StrUtils, UnitJHPFileData,
+  UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
   UnitNextGridUtil2;
 
 {$R *.dfm}
@@ -254,7 +254,7 @@ begin
   end;
 end;
 
-function TFrame2.AddEmail2GridNList(ADBKey, AJson: string; AList: TStringList; AFromRemote: Boolean): Boolean;
+function TOutlookEmailListFr.AddEmail2GridNList(ADBKey, AJson: string; AList: TStringList; AFromRemote: Boolean): Boolean;
 var
   LVarArr: TVariantDynArray;
   i: integer;
@@ -296,7 +296,7 @@ begin
 
 end;
 
-procedure TFrame2.AddFolderListFromOL(AFolder: string);
+procedure TOutlookEmailListFr.AddFolderListFromOL(AFolder: string);
 begin
   if FFolderListFromOL.IndexOf(AFolder) = -1  then
   begin
@@ -312,7 +312,7 @@ begin
     ShowMessage('동일한 Folder 이름이 존재함 : ' + AFolder);
 end;
 
-procedure TFrame2.AdjustEnumData2Grid(AGrid: TNextGrid);
+procedure TOutlookEmailListFr.AdjustEnumData2Grid(AGrid: TNextGrid);
 var
   i, LRow: integer;
 begin
@@ -321,49 +321,49 @@ begin
     i := StrToIntDef(AGrid.CellsByName['ProcDirection', LRow],-1);
 
     if i <> -1 then
-      AGrid.CellsByName['ProcDirection', LRow] := g_ProcessDirection.ToString(i);
+//      AGrid.CellsByName['ProcDirection', LRow] := g_ProcessDirection.ToString(i);
 
     i := StrToIntDef(AGrid.CellsByName['ContainData', LRow],-1);
 
     if i <> -1 then
-      AGrid.CellsByName['ContainData', LRow] := g_ContainData4Mail.ToString(i);
+//      AGrid.CellsByName['ContainData', LRow] := g_ContainData4Mail.ToString(i);
   end;
 end;
 
-constructor TFrame2.Create(AOwner: TComponent);
+constructor TOutlookEmailListFr.Create(AOwner: TComponent);
 begin
   FEmailDBName := '';
-  DOC_DIR := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName) + 'Doc');
-  FContext4OLEmail := TContext4OLEmail.Create;
+//  DOC_DIR := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName) + 'Doc');
+//  FContext4OLEmail := TContext4OLEmail.Create;
   SetCurrentDir(ExtractFilePath(Application.ExeName));
   FFolderListFromOL := TStringList.Create;
   FTempEmailMsgFileListFromRemote := TStringList.Create;
   FRemoteIPAddress := '';
-  FpjhSTOMPClass := nil;
+//  FpjhSTOMPClass := nil;
   FIsSaveEmail2DBWhenDropped := False;
 //  FWorker4OLMsg2MQ := TWorker4OLMsg2MQ.Create(FOLMsg2MQ);
 
-  if FOLFolderListFileName = '' then
-    FOLFolderListFileName := '.\'+OLFOLDER_LIST_FILE_NAME;
+//  if FOLFolderListFileName = '' then
+//    FOLFolderListFileName := '.\'+OLFOLDER_LIST_FILE_NAME;
 
   if FileExists(FOLFolderListFileName) then
     FFolderListFromOL.LoadFromFile(FOLFolderListFileName);
 
 //  MoveFolderCBDropDown(nil);
 
-  if FMQInfoRec.FIsEnableMQ then
-  begin
-{$IFDEF USE_OMNITHREAD}
-    FOLMsg2MQ := TOmniMessageQueue.Create(100);
-{$ENDIF}
-    InitSTOMP(FMQInfoRec.FUserId,FMQInfoRec.FPasswd,FMQInfoRec.FIPAddr,
-      FMQInfoRec.FPortNo,FMQInfoRec.FTopic);
-  end;
+//  if FMQInfoRec.FIsEnableMQ then
+//  begin
+//{$IFDEF USE_OMNITHREAD}
+//    FOLMsg2MQ := TOmniMessageQueue.Create(100);
+//{$ENDIF}
+//    InitSTOMP(FMQInfoRec.FUserId,FMQInfoRec.FPasswd,FMQInfoRec.FIPAddr,
+//      FMQInfoRec.FPortNo,FMQInfoRec.FTopic);
+//  end;
 
   inherited;
 end;
 
-procedure TFrame2.DeleteEmialFromGrid2DB;
+procedure TOutlookEmailListFr.DeleteEmialFromGrid2DB;
 var
   i, LID: integer;
 begin
@@ -372,13 +372,13 @@ begin
     if not grid_Mail.RowVisible[i] then
     begin
       LID := GetEmailIDFromGrid(i);
-      if DeleteOLMail2DBFromID(LID) then
-        grid_Mail.DeleteRow(i);
+//      if DeleteOLMail2DBFromID(LID) then
+//        grid_Mail.DeleteRow(i);
     end;
   end;
 end;
 
-procedure TFrame2.DeleteMail(ARow: integer);
+procedure TOutlookEmailListFr.DeleteMail(ARow: integer);
 //var
 //  LEmailID: integer;
 begin
@@ -397,74 +397,80 @@ begin
 //  end;
 end;
 
-procedure TFrame2.DeleteMail1Click(Sender: TObject);
+procedure TOutlookEmailListFr.DeleteMail1Click(Sender: TObject);
 begin
   DeleteMail(grid_Mail.SelectedRow);
 end;
 
-destructor TFrame2.Destroy;
+destructor TOutlookEmailListFr.Destroy;
 begin
   FFolderListFromOL.Free;
   FTempEmailMsgFileListFromRemote.Free;
-  FContext4OLEmail.Free;
-  DestroyOLEmailMsg;
+//  FContext4OLEmail.Free;
+//  DestroyOLEmailMsg;
 
-  if Assigned(FpjhSTOMPClass) then
-    FpjhSTOMPClass.DisConnectStomp;
+//  if Assigned(FpjhSTOMPClass) then
+//    FpjhSTOMPClass.DisConnectStomp;
 //  if Assigned(FWorker4OLMsg2MQ) then
 //  begin
 //    FWorker4OLMsg2MQ.Terminate;
 //    FWorker4OLMsg2MQ.Stop;
 //  end;
 
-{$IFDEF USE_OMNITHREAD}
-  if Assigned(FOLMsg2MQ) then
-    FreeAndNil(FOLMsg2MQ);
-{$ENDIF}
-
-  DestroySTOMP;
+//{$IFDEF USE_OMNITHREAD}
+//  if Assigned(FOLMsg2MQ) then
+//    FreeAndNil(FOLMsg2MQ);
+//{$ENDIF}
+//
+//  DestroySTOMP;
 
   inherited;
 end;
 
-procedure TFrame2.DestroySTOMP;
+procedure TOutlookEmailListFr.DestroySTOMP;
 begin
-  if Assigned(FpjhSTOMPClass) then
-    FreeAndNil(FpjhSTOMPClass);
+//  if Assigned(FpjhSTOMPClass) then
+//    FreeAndNil(FpjhSTOMPClass);
 end;
 
-procedure TFrame2.DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
+procedure TOutlookEmailListFr.DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
   APoint: TPoint; var Effect: Integer);
 var
   OutlookDataFormat: TOutlookDataFormat;
   LIsMultiDrop: boolean;
-  i: integer;
+  i, LDroppedCount: integer;
   LIds: TIDDynArray;
   LIsNewMailAdded: Boolean;
   LDroppedMailList, LNewAddedEmailList: TStringList;
   LOriginalEntryId, LOriginalStoreId,
   LJson, LNewStoreId, LNewStorePath: string;
+
+  LMailItem: _MailItem;
 begin
   // 윈도우 탐색기에서 Drag 했을 경우 LFileName에 Drag한 File Name이 존재함
   // OutLook에서 Drag한 경우에는 LFileName = '' 임
   if (DataFormatAdapterOutlook.DataFormat <> nil) then
   begin
     OutlookDataFormat := DataFormatAdapterOutlook.DataFormat as TOutlookDataFormat;
-    LIsMultiDrop := OutlookDataFormat.Messages.Count > 1;
+    LDroppedCount := OutlookDataFormat.Messages.Count; //Drop한 파일 갯수
+    LIsMultiDrop := LDroppedCount > 1;
 
     LDroppedMailList := TStringList.Create;
     LNewAddedEmailList := TStringList.Create;
     try
-      FWSInfoRec.FIsSendMQ := Send2MQCheck.Checked;
-      //OutLook(WevSocket)에게 현재 Drop한 email list 요청
-{$IFDEF USE_MORMOT_WS}
-      if SendReqOLEmailInfo_WS(LDroppedMailList, FWSInfoRec) then
-{$ENDIF}
-
-{$IFDEF USE_CROMIS_IPC}
-      if SendReqOLEmailInfo_NamedPipe_Sync(LDroppedMailList, FWSInfoRec) then
-{$ENDIF}
+      // Get all the dropped messages
+      for i := 1 to LDroppedCount do
       begin
+      // Get an IMessage interface
+      if (Supports(OutlookDataFormat.Messages[i], _MailItem, LMailItem)) then
+      begin
+        try
+
+        finally
+
+        end;
+      end;
+
         LJson := LDroppedMailList.Values['MailInfos'];
 //ShowMessage('LJson :' + #13#10 + LJson);
         //Email List를 DB에 저장
@@ -472,12 +478,7 @@ begin
           LIsNewMailAdded := AddOLMail2DBFromDroppedMail(FDBKey, FHullNo, LJson, LNewAddedEmailList)
         else
           LIsNewMailAdded := AddEmail2GridNList(FDBKey, LJson, LNewAddedEmailList);
-      end
-      else
-      begin
-        ShowMessage(LDroppedMailList.Text);
-        Exit;
-      end;
+      end;//for
 
       //새 메일이 그리드에 추가 되었으면 Refresh
       if LIsNewMailAdded then
@@ -524,9 +525,9 @@ begin
   end;
 end;
 
-procedure TFrame2.EditMailInfo1Click(Sender: TObject);
+procedure TOutlookEmailListFr.EditMailInfo1Click(Sender: TObject);
 var
-  LEmailInfoF: TEmailInfoF;
+//  LEmailInfoF: TEmailInfoF;
   LEmailID: integer;
   LContainData, LProcDirection: integer;
   LContainData2, LProcDirection2: string;
@@ -541,45 +542,45 @@ begin
 //      GetContainDataNDirFromID(LEmailID, LContainData, LProcDirection);
   end;
 
-  LProcDirection := g_ProcessDirection.ToOrdinal(grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow]);
-  LContainData := g_ContainData4Mail.ToOrdinal(grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow]);
-
-  LEmailInfoF := TEmailInfoF.Create(nil);
-  try
-    //데이터가 있으면
-//    if (LContainData <> -1) and (LProcDirection = -1) then
-//    begin
-      LEmailInfoF.ContainDataCB.ItemIndex := LContainData;
-      LEmailInfoF.EmailDirectionCB.ItemIndex := LProcDirection;
-//    end;
-
-    if LEmailInfoF.ShowModal = mrOK then
-    begin
-      LContainData2 := g_ContainData4Mail.ToString(LEmailInfoF.ContainDataCB.ItemIndex);
-      LProcDirection2 := g_ProcessDirection.ToString(LEmailInfoF.EmailDirectionCB.ItemIndex);
-
-      grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow] := LProcDirection2;
-      grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow] := LContainData2;
-
-//      if LEmailID = -1 then
-//        UpdateOLMail2DBFromContainDataNProcdir(LEmailID, LContainData2, LProcDirection2);
+//  LProcDirection := g_ProcessDirection.ToOrdinal(grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow]);
+//  LContainData := g_ContainData4Mail.ToOrdinal(grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow]);
 //
-//      ShowEmailListFromDBKey(grid_Mail, FDBKey);
-    end;
-  finally
-    LEmailInfoF.Free;
-  end;
+//  LEmailInfoF := TEmailInfoF.Create(nil);
+//  try
+//    //데이터가 있으면
+////    if (LContainData <> -1) and (LProcDirection = -1) then
+////    begin
+//      LEmailInfoF.ContainDataCB.ItemIndex := LContainData;
+//      LEmailInfoF.EmailDirectionCB.ItemIndex := LProcDirection;
+////    end;
+//
+//    if LEmailInfoF.ShowModal = mrOK then
+//    begin
+//      LContainData2 := g_ContainData4Mail.ToString(LEmailInfoF.ContainDataCB.ItemIndex);
+//      LProcDirection2 := g_ProcessDirection.ToString(LEmailInfoF.EmailDirectionCB.ItemIndex);
+//
+//      grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow] := LProcDirection2;
+//      grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow] := LContainData2;
+//
+////      if LEmailID = -1 then
+////        UpdateOLMail2DBFromContainDataNProcdir(LEmailID, LContainData2, LProcDirection2);
+////
+////      ShowEmailListFromDBKey(grid_Mail, FDBKey);
+//    end;
+//  finally
+//    LEmailInfoF.Free;
+//  end;
 
 //    FTask.EmailMsg.ManyDelete(g_ProjectDB, FTask.ID, LEmailID);
 //    g_ProjectDB.Delete(TSQLEmailMsg, LEmailID);
 end;
 
-procedure TFrame2.Englisth1Click(Sender: TObject);
+procedure TOutlookEmailListFr.Englisth1Click(Sender: TObject);
 begin
   ReqVDRAPTCoC(1);
 end;
 
-procedure TFrame2.FillInMoveFolderCB;
+procedure TOutlookEmailListFr.FillInMoveFolderCB;
 var
   i: integer;
 begin
@@ -589,12 +590,12 @@ begin
     MoveFolderCB.Items.Add(FFolderListFromOL.Names[i]);
 end;
 
-procedure TFrame2.FinilizeFolderListMenu;
+procedure TOutlookEmailListFr.FinilizeFolderListMenu;
 begin
 
 end;
 
-function TFrame2.GetEmailIDFromGrid(ARow: integer): TID;
+function TOutlookEmailListFr.GetEmailIDFromGrid(ARow: integer): TID;
 begin
   if ARow <> -1 then
   begin
@@ -604,7 +605,7 @@ begin
     Result := -1;
 end;
 
-function TFrame2.GetSenderEmailListFromGrid(
+function TOutlookEmailListFr.GetSenderEmailListFromGrid(
   AContainData4Mails: TContainData4Mails): string;
 var
   i: integer;
@@ -623,7 +624,7 @@ begin
   end;
 end;
 
-procedure TFrame2.grid_MailCellDblClick(Sender: TObject; ACol, ARow: Integer);
+procedure TOutlookEmailListFr.grid_MailCellDblClick(Sender: TObject; ACol, ARow: Integer);
 var
   LEntryID, LStoreID: string;
 begin
@@ -647,7 +648,7 @@ begin
   NextGridScrollToRow(grid_Mail);
 end;
 
-procedure TFrame2.InitEmailClient(AEmailDBName: string);
+procedure TOutlookEmailListFr.InitEmailClient(AEmailDBName: string);
 begin
   if AEmailDBName = '' then
     AEmailDBName := FEmailDBName;
@@ -655,7 +656,7 @@ begin
   InitOLEmailMsgClient(AEmailDBName);
 end;
 
-procedure TFrame2.InitFolderListMenu;
+procedure TOutlookEmailListFr.InitFolderListMenu;
 var
   i: integer;
   LMenu: TMenuItem;
@@ -673,26 +674,26 @@ begin
   end;
 end;
 
-procedure TFrame2.InitSTOMP(AUserId, APasswd, AServerIP, AServerPort,
+procedure TOutlookEmailListFr.InitSTOMP(AUserId, APasswd, AServerIP, AServerPort,
   ATopic: string);
 begin
-  if not Assigned(FpjhSTOMPClass) then
-  begin
-    FpjhSTOMPClass := TpjhSTOMPClass.CreateWithStr(AUserId,
-                                            APasswd,
-                                            AServerIP,
-                                            AServerPort,
-                                            ATopic,
-                                            Self.Handle,False,False);
-  end;
+//  if not Assigned(FpjhSTOMPClass) then
+//  begin
+//    FpjhSTOMPClass := TpjhSTOMPClass.CreateWithStr(AUserId,
+//                                            APasswd,
+//                                            AServerIP,
+//                                            AServerPort,
+//                                            ATopic,
+//                                            Self.Handle,False,False);
+//  end;
 end;
 
-procedure TFrame2.Korean1Click(Sender: TObject);
-begin
-  ReqVDRAPTCoC(2);
-end;
+//procedure TOutlookEmailListFr.Korean1Click(Sender: TObject);
+//begin
+//  ReqVDRAPTCoC(2);
+//end;
 
-class function TFrame2.MakeEMailHTMLBody<T>(AMailType: integer): string;
+class function TOutlookEmailListFr.MakeEMailHTMLBody<T>(AMailType: integer): string;
 begin
   case AMailType of
     0:;
@@ -711,7 +712,7 @@ begin
   end;
 end;
 
-procedure TFrame2.MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID,
+procedure TOutlookEmailListFr.MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID,
   ANewStoreId, ANewStorePath: string; AIsShowResult: Boolean);
 var
   LOriginalEntryId, LOriginalStoreId,
@@ -728,24 +729,24 @@ begin
     LSubFolder := SubFolderNameEdit.Text;
 
   LMovedMailList := TStringList.Create;
-  try
-    if (ANewStoreId <> '') and (ANewStorePath <> '') then
-    begin
-{$IFDEF USE_MORMOT_WS}
-      if SendCmd2OL4MoveFolderEmail_WS(AOriginalEntryID, AOriginalStoreID,
-{$ELSE}
-  {$IFDEF USE_CROMIS_IPC}
-      if SendCmd2OL4MoveFolderEmail_NamedPipe_Sync(AOriginalEntryID, AOriginalStoreID,
-  {$ENDIF}
-{$ENDIF}
-        ANewStoreId, ANewStorePath, LSubFolder, LHullNo, LMovedMailList, FWSInfoRec) then
-      begin
-        UpdateOlMail2DBFromMovedMail(LMovedMailList, False);
-
-        if AIsShowResult then
-          ShowMessage('Email move to folder( ' + ANewStorePath + ' ) completed!');
-      end;
-    end;
+//  try
+//    if (ANewStoreId <> '') and (ANewStorePath <> '') then
+//    begin
+//{$IFDEF USE_MORMOT_WS}
+//      if SendCmd2OL4MoveFolderEmail_WS(AOriginalEntryID, AOriginalStoreID,
+//{$ELSE}
+//  {$IFDEF USE_CROMIS_IPC}
+//      if SendCmd2OL4MoveFolderEmail_NamedPipe_Sync(AOriginalEntryID, AOriginalStoreID,
+//  {$ENDIF}
+//{$ENDIF}
+//        ANewStoreId, ANewStorePath, LSubFolder, LHullNo, LMovedMailList, FWSInfoRec) then
+//      begin
+//        UpdateOlMail2DBFromMovedMail(LMovedMailList, False);
+//
+//        if AIsShowResult then
+//          ShowMessage('Email move to folder( ' + ANewStorePath + ' ) completed!');
+//      end;
+//    end;
 
 //    if Assigned(Sender) then
 //    begin
@@ -771,12 +772,12 @@ begin
 //          FFolderListFromOL.Names[MoveFolderCB.ItemIndex] + ' ) completed!');
 //      end;
 //    end;
-  finally
-    LMovedMailList.Free;
-  end;
+//  finally
+//    LMovedMailList.Free;
+//  end;
 end;
 
-procedure TFrame2.MoveEmailToFolderClick(Sender: TObject);
+procedure TOutlookEmailListFr.MoveEmailToFolderClick(Sender: TObject);
 var
   LOriginalEntryId, LOriginalStoreId: string;
 begin
@@ -792,7 +793,7 @@ begin
   ShowEmailListFromDBKey(grid_Mail, FDBKey);
 end;
 
-procedure TFrame2.MoveEmailToSelected1Click(Sender: TObject);
+procedure TOutlookEmailListFr.MoveEmailToSelected1Click(Sender: TObject);
 var
   LOriginalEntryId, LOriginalStoreId, LNewStoreId, LNewStorePath: string;
 begin
@@ -811,65 +812,65 @@ begin
   ShowEmailListFromDBKey(grid_Mail, FDBKey);
 end;
 
-procedure TFrame2.MoveFolderCBDropDown(Sender: TObject);
+procedure TOutlookEmailListFr.MoveFolderCBDropDown(Sender: TObject);
 begin
   FillInMoveFolderCB;
 end;
 
-procedure TFrame2.ReqVDRAPTCoC(ALang: integer);
+procedure TOutlookEmailListFr.ReqVDRAPTCoC(ALang: integer);
 var
   LEntryId, LStoreId, LHTMLBody, LAttachment: string;
   LCmdList: TStringList;
   LFileContents: RawUTF8;
   LRaw: RawByteString;
-  LOLEmailActionRec: TOLEmailActionRecord;
+//  LOLEmailActionRec: TOLEmailActionRecord;
 begin
   LEntryId := grid_Mail.CellByName['LocalEntryId', grid_Mail.SelectedRow].AsString;
   LStoreId := grid_Mail.CellByName['LocalStoreId', grid_Mail.SelectedRow].AsString;
 
-  LOLEmailActionRec.FEmailAction := ACTION_MakeEmailHTMLBody;
-  LOLEmailActionRec.FMailKind := MAILKIND_VDRAPT_REPLY_WITHNOMAKEZIP;
-
-  if ALang = 1 then
-    LOLEmailActionRec.FTemplateFileName := DOC_DIR + VDR_APT_COC_ENG_SEND_MUSTACHE_FILE_NAME
-  else
-  if ALang = 2 then
-    LOLEmailActionRec.FTemplateFileName := DOC_DIR + VDR_APT_COC_KOR_SEND_MUSTACHE_FILE_NAME;
-
-  LHTMLBody := FContext4OLEmail.Algorithm4EmailAction(LOLEmailActionRec);
-
-  LCmdList := GetCmdList4ReplyMail(LEntryId, LStoreId, LHTMLBody);
-  try
-    LOLEmailActionRec.FEmailAction := ACTION_MakeAttachFile;
-    LOLEmailActionRec.FMailKind := MAILKIND_VDRAPT_REPLY_IFZIPEXIST;
-    LOLEmailActionRec.FFileKind := g_JHPFileFormat.ToOrdinal(gfkWORD);
-    LAttachment := FContext4OLEmail.Algorithm4EmailAction(LOLEmailActionRec);
-
-    if FileExists(LAttachment) then
-    begin
-      LRaw := StringFromFile(LAttachment);
-      LFileContents := MakeRawUTF8ToBin64(LRaw);
-
-      LCmdList.Add('AttachedFileName='+ExtractFileName(LAttachment));
-      LCmdList.Add('MakeBase64ToString='+'True');
-      LCmdList.Add('FileContent='+UTF8ToString(LFileContents));
-    end;
-
-    LCmdList.Add('To=REPLYALL');
-
-{$IFDEF USE_MORMOT_WS}
-    SendCmd2OL4ReplyMail_WS(LCmdList, FWSInfoRec);
-{$ELSE}
-  {$IFDEF USE_CROMIS_IPC}
+//  LOLEmailActionRec.FEmailAction := ACTION_MakeEmailHTMLBody;
+//  LOLEmailActionRec.FMailKind := MAILKIND_VDRAPT_REPLY_WITHNOMAKEZIP;
+//
+//  if ALang = 1 then
+//    LOLEmailActionRec.FTemplateFileName := DOC_DIR + VDR_APT_COC_ENG_SEND_MUSTACHE_FILE_NAME
+//  else
+//  if ALang = 2 then
+//    LOLEmailActionRec.FTemplateFileName := DOC_DIR + VDR_APT_COC_KOR_SEND_MUSTACHE_FILE_NAME;
+//
+//  LHTMLBody := FContext4OLEmail.Algorithm4EmailAction(LOLEmailActionRec);
+//
+//  LCmdList := GetCmdList4ReplyMail(LEntryId, LStoreId, LHTMLBody);
+//  try
+//    LOLEmailActionRec.FEmailAction := ACTION_MakeAttachFile;
+//    LOLEmailActionRec.FMailKind := MAILKIND_VDRAPT_REPLY_IFZIPEXIST;
+//    LOLEmailActionRec.FFileKind := g_JHPFileFormat.ToOrdinal(gfkWORD);
+//    LAttachment := FContext4OLEmail.Algorithm4EmailAction(LOLEmailActionRec);
+//
+//    if FileExists(LAttachment) then
+//    begin
+//      LRaw := StringFromFile(LAttachment);
+//      LFileContents := MakeRawUTF8ToBin64(LRaw);
+//
+//      LCmdList.Add('AttachedFileName='+ExtractFileName(LAttachment));
+//      LCmdList.Add('MakeBase64ToString='+'True');
+//      LCmdList.Add('FileContent='+UTF8ToString(LFileContents));
+//    end;
+//
+//    LCmdList.Add('To=REPLYALL');
+//
+//{$IFDEF USE_MORMOT_WS}
 //    SendCmd2OL4ReplyMail_WS(LCmdList, FWSInfoRec);
-  {$ENDIF}
-{$ENDIF}
-  finally
-    LCmdList.Free;
-  end;
+//{$ELSE}
+//  {$IFDEF USE_CROMIS_IPC}
+////    SendCmd2OL4ReplyMail_WS(LCmdList, FWSInfoRec);
+//  {$ENDIF}
+//{$ENDIF}
+//  finally
+//    LCmdList.Free;
+//  end;
 end;
 
-procedure TFrame2.SaveEmailFromGrid2DB;
+procedure TOutlookEmailListFr.SaveEmailFromGrid2DB;
 var
   LDoc: variant;
   LJsonArray: string;
@@ -883,39 +884,39 @@ begin
   AddOLMail2DBFromDroppedMail(FDBKey, '', LJsonArray, nil);
 end;
 
-procedure TFrame2.Send2MQCheckClick(Sender: TObject);
+procedure TOutlookEmailListFr.Send2MQCheckClick(Sender: TObject);
 begin
   Send2MQCheck.Checked := not Send2MQCheck.Checked;
 end;
 
-procedure TFrame2.SendOLEmail2MQ(AEntryIdList: TStrings);
+procedure TOutlookEmailListFr.SendOLEmail2MQ(AEntryIdList: TStrings);
 var
 {$IFDEF USE_OMNITHREAD}
   LOmniValue: TOmniValue;
 {$ENDIF}
-  LRec: TOLMsgFile4STOMP;
+//  LRec: TOLMsgFile4STOMP;
   LRaw: RawByteString;
   LMsgFileName: string;
   LUtf8: RawUTF8;
 begin
-  if not FMQInfoRec.FIsEnableMQ then
-    exit;
-
-  LRaw := StringFromFile(LMsgFileName);
-  LRaw := SynLZCompress(LRaw);
-  LUtf8 := BinToBase64(LRaw);
-  LRec.FMsgFile := UTF8ToString(LUtf8);
-  LRec.FHost := FMQInfoRec.FIPAddr;
-  LRec.FUserId := FMQInfoRec.FUserId;
-  LRec.FPasswd := FMQInfoRec.FPasswd;
-  LRec.FTopic := FMQInfoRec.FTopic;
-//  LOmniValue := TOmniValue.FromRecord<TOLMsgFile4STOMP>(LRec);
-//  FOLMsg2MQ.Enqueue(TOmniMessage.Create(1, LOmniValue));
-
-  FpjhSTOMPClass.StompSendMsgThread(LRec.FMsgFile, LRec.FTopic);
+//  if not FMQInfoRec.FIsEnableMQ then
+//    exit;
+//
+//  LRaw := StringFromFile(LMsgFileName);
+//  LRaw := SynLZCompress(LRaw);
+//  LUtf8 := BinToBase64(LRaw);
+//  LRec.FMsgFile := UTF8ToString(LUtf8);
+//  LRec.FHost := FMQInfoRec.FIPAddr;
+//  LRec.FUserId := FMQInfoRec.FUserId;
+//  LRec.FPasswd := FMQInfoRec.FPasswd;
+//  LRec.FTopic := FMQInfoRec.FTopic;
+////  LOmniValue := TOmniValue.FromRecord<TOLMsgFile4STOMP>(LRec);
+////  FOLMsg2MQ.Enqueue(TOmniMessage.Create(1, LOmniValue));
+//
+//  FpjhSTOMPClass.StompSendMsgThread(LRec.FMsgFile, LRec.FTopic);
 end;
 
-function TFrame2.SetDBKey4Email(ADBKey: string): Boolean;
+function TOutlookEmailListFr.SetDBKey4Email(ADBKey: string): Boolean;
 begin
   if ADBKey = '' then
     exit;
@@ -926,7 +927,7 @@ begin
     FDBKey := ADBKey;
 end;
 
-function TFrame2.SetDBName4Email(ADBName: string) : Boolean;
+function TOutlookEmailListFr.SetDBName4Email(ADBName: string) : Boolean;
 begin
   if ADBName = '' then
     exit;
@@ -937,12 +938,12 @@ begin
     FEmailDBName := ADBName;
 end;
 
-procedure TFrame2.SetEmbededMode;
+procedure TOutlookEmailListFr.SetEmbededMode;
 begin
   panMailButtons.Visible := False;
 end;
 
-procedure TFrame2.SetMailCount(ACount: integer);
+procedure TOutlookEmailListFr.SetMailCount(ACount: integer);
 begin
   if FCurrentMailCount <> ACount then
   begin
@@ -951,7 +952,7 @@ begin
   end;
 end;
 
-procedure TFrame2.SetMoveFolderIndex;
+procedure TOutlookEmailListFr.SetMoveFolderIndex;
 var
   i: integer;
   LStr: RawUTF8;
@@ -965,10 +966,10 @@ begin
     end;
 end;
 
-procedure TFrame2.SetMQInfoRec4OL(AIPAddr, APortNo, AUserId, APasswd,
+procedure TOutlookEmailListFr.SetMQInfoRec4OL(AIPAddr, APortNo, AUserId, APasswd,
   ATopic: string; AIsMQEnable: Boolean);
 begin
-  SetMQInfoRec(AIPAddr, APortNo, AUserId, APasswd,ATopic,AIsMQEnable,FMQInfoRec);
+//  SetMQInfoRec(AIPAddr, APortNo, AUserId, APasswd,ATopic,AIsMQEnable,FMQInfoRec);
 //  FMQInfoRec.FIPAddr := AIPAddr;
 //  FMQInfoRec.FPortNo := APortNo;
 //  FMQInfoRec.FUserId := AUserId;
@@ -980,32 +981,32 @@ begin
   Send2MQCheck.Enabled := AIsMQEnable;
 end;
 
-procedure TFrame2.SetNamedPipeInfoRec4OL(AComputerName, AServerName: string; AIsNPEnable: Boolean);
+procedure TOutlookEmailListFr.SetNamedPipeInfoRec4OL(AComputerName, AServerName: string; AIsNPEnable: Boolean);
 begin
-  SetNamedPipeInfoRec(AComputerName, AServerName,AIsNPEnable,FWSInfoRec);
+//  SetNamedPipeInfoRec(AComputerName, AServerName,AIsNPEnable,FWSInfoRec);
 //  FWSInfoRec.FComputerName := AComputerName;
 //  FWSInfoRec.FServerName := AServerName;
 //  FWSInfoRec.FNamedPipeEnabled := AIsNPEnable;
 end;
 
-procedure TFrame2.SetWSInfoRec4OL(AIPAddr, APortNo, ATransKey: string; AIsWSEnable: Boolean);
+procedure TOutlookEmailListFr.SetWSInfoRec4OL(AIPAddr, APortNo, ATransKey: string; AIsWSEnable: Boolean);
 begin
-  SetWSInfoRec(AIPAddr, APortNo, ATransKey,AIsWSEnable,FWSInfoRec);
+//  SetWSInfoRec(AIPAddr, APortNo, ATransKey,AIsWSEnable,FWSInfoRec);
 //  FWSInfoRec.FIPAddr := AIPAddr;
 //  FWSInfoRec.FPortNo := APortNo;
 //  FWSInfoRec.FTransKey := ATransKey;
 //  FWSInfoRec.FIsWSEnabled := AIsWSEnable;
 end;
 
-procedure TFrame2.ShowEmailContentFromRemote(AGrid: TNextGrid; ARow: integer);
+procedure TOutlookEmailListFr.ShowEmailContentFromRemote(AGrid: TNextGrid; ARow: integer);
 begin
 
 end;
 
-function TFrame2.ShowEmailListFromDBKey(AGrid: TNextGrid;
+function TOutlookEmailListFr.ShowEmailListFromDBKey(AGrid: TNextGrid;
   ADBKey: string): integer;
 var
-  LSQLEmailMsg: TSQLEmailMsg;
+  LSQLEmailMsg: TSQLOLEmailMsg;
   LRow: integer;
   LUtf8: RawUTF8;
 begin
@@ -1021,7 +1022,7 @@ begin
 //  end;
 end;
 
-procedure TFrame2.SubFolderCBClick(Sender: TObject);
+procedure TOutlookEmailListFr.SubFolderCBClick(Sender: TObject);
 begin
   if SubFolderCB.Checked then
     AutoMoveCB.Checked := True;
@@ -1029,7 +1030,7 @@ begin
   SubFolderNameEdit.Enabled := SubFolderCB.Checked;
 end;
 
-procedure TFrame2.Timer1Timer(Sender: TObject);
+procedure TOutlookEmailListFr.Timer1Timer(Sender: TObject);
 begin
   //EMailDBName을 변경하고 싶으면 SetDBName4Email()함수를 실행할 것
 //  if FEmailDBName = '' then

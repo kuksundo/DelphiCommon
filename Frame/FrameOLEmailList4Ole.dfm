@@ -1,4 +1,4 @@
-object Frame2: TFrame2
+object OutlookEmailListFr: TOutlookEmailListFr
   Left = 0
   Top = 0
   Width = 920
@@ -1482,7 +1482,6 @@ object Frame2: TFrame2
     DragTypes = [dtCopy, dtLink]
     OnDrop = DropEmptyTarget1Drop
     Target = grid_Mail
-    WinTarget = 0
     Left = 76
     Top = 108
   end
@@ -1529,7 +1528,6 @@ object Frame2: TFrame2
         end
         object Korean1: TMenuItem
           Caption = 'Korean'
-          OnClick = Korean1Click
         end
       end
       object N15: TMenuItem
@@ -1612,7 +1610,6 @@ object Frame2: TFrame2
       Caption = 'Options'
       object Send2MQCheck: TMenuItem
         Caption = 'Send Dropped Mail 2 MQ'
-        Checked = True
         OnClick = Send2MQCheckClick
       end
     end
