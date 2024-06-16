@@ -6,24 +6,43 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, System.Actions, Vcl.ActnList,
   Vcl.XPStyleActnCtrls, Vcl.ActnMan, Vcl.ComCtrls, Vcl.Buttons, PngBitBtn, Vcl.Menus,
+  ActiveX,
   Vcl.StdCtrls, Vcl.ToolWin, Vcl.ActnCtrls, Vcl.ExtCtrls, NxColumnClasses,
   NxColumns, NxScrollControl, NxCustomGridControl, NxCustomGrid, NxGrid,
   AdvOfficeTabSet, System.Rtti, DateUtils, System.SyncObjs,
-  DragDrop, DropTarget,
-{$IFDEF USE_OMNITHREAD}
+  DragDrop, DropTarget, MapiDefs, TimerPool,
   OtlCommon, OtlComm, OtlTaskControl, OtlContainerObserver, otlTask, OtlParallel,
-{$ENDIF}
 {$IFDEF USE_CROMIS_IPC}
   // cromis units
   Cromis.Comm.Custom, Cromis.Comm.IPC, Cromis.Threading,
 {$ENDIF}
   mormot.core.base, mormot.core.variants, mormot.core.os, mormot.core.buffers,
+  mormot.core.log, mormot.core.unicode,
 
 //  FrmEditEmailInfo2,
 //  UnitStrategy4OLEmailInterface2, UnitMQData,
+  UnitWorker4OmniMsgQ,
+  UnitOLControlWorker,
   UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2;
 
 type
+  TLogProc = procedure(AMsg: string) of object;
+
+  TMessage = class(TObject)
+  private
+    FMessage: IMessage;
+    FStorage: IStorage;
+    FAttachments: TInterfaceList;
+    FAttachmentsLoaded: boolean;
+    function GetAttachments: TInterfaceList;
+  public
+    constructor Create(const AMessage: IMessage; const AStorage: IStorage);
+    destructor Destroy; override;
+    procedure SaveToStream(Stream: TStream);
+    property Msg: IMessage read FMessage;
+    property Attachments: TInterfaceList read GetAttachments;
+  end;
+
   TOutlookEmailListFr = class(TFrame)
     mailPanel1: TPanel;
     tabMail: TTabControl;
@@ -36,8 +55,8 @@ type
     RecvDate: TNxDateColumn;
     ProcDirection: TNxTextColumn;
     ContainData: TNxTextColumn;
-    Sender: TNxMemoColumn;
-    Receiver: TNxMemoColumn;
+    SenderName: TNxMemoColumn;
+    Recipients: TNxMemoColumn;
     CC: TNxMemoColumn;
     BCC: TNxMemoColumn;
     RowID: TNxTextColumn;
@@ -98,11 +117,12 @@ type
     DBKey: TNxTextColumn;
     SavedMsgFilePath: TNxTextColumn;
     SavedMsgFileName: TNxTextColumn;
+
+    procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
+      APoint: TPoint; var Effect: Integer);
     procedure MoveFolderCBDropDown(Sender: TObject);
     procedure SubFolderCBClick(Sender: TObject);
     procedure grid_MailCellDblClick(Sender: TObject; ACol, ARow: Integer);
-    procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
-      APoint: TPoint; var Effect: Integer);
     procedure Englisth1Click(Sender: TObject);
 //    procedure Korean1Click(Sender: TObject);
     procedure EditMailInfo1Click(Sender: TObject);
@@ -111,6 +131,16 @@ type
     procedure Send2MQCheckClick(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
   private
+    FOLControlWorker: TOLControlWorker;
+    FCommandQueue    : TOmniMessageQueue;
+    FResponseQueue   : TOmniMessageQueue;
+    FSendMsgQueue    : TOmniMessageQueue;
+    FPJHTimerPool: TPJHTimerPool;
+
+    FLogProc: TLogProc;
+    FMainFormHandle,
+    FMyWnd: THandle;
+
     FCurrentMailCount: integer;
 //    FpjhSTOMPClass: TpjhSTOMPClass;
     FEmailDBName: string;
@@ -122,14 +152,33 @@ type
 //    FTaskPool: TTaskPool;
 //{$ENDIF}
 
+    procedure StartWorker;
+    procedure StopWorker;
+
+    procedure OnInitVarTimer(Sender : TObject; Handle : Integer;
+            Interval : Cardinal; ElapsedTime : LongInt);
+    procedure OnGetOLFolderListTimer(Sender : TObject; Handle : Integer;
+            Interval : Cardinal; ElapsedTime : LongInt);
+    procedure FrameWndProc(var Message: Winapi.Messages.TMessage);
+    procedure OnWorkerResult(var Msg: Winapi.Messages.TMessage);
+//    procedure OnWorkerResult(var Msg: TMessage); message MSG_RESULT;
+
+    procedure ProcessRespondFromWorker(AMsgId: integer; ARec: TOLRespondRec);
+
+    procedure InitVar();
+    procedure DestroyVar();
+
     procedure InitFolderListMenu;
     procedure FinilizeFolderListMenu;
+    procedure FillFolderListFromRespRec(ARec: TOLRespondRec);
+
     procedure MoveEmailToFolderClick(Sender: TObject);
     procedure MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID, ANewStoreId,
       ANewStorePath: string; AIsShowResult: Boolean = True);
+
     procedure DeleteMail(ARow: integer);
     function GetEmailIDFromGrid(ARow: integer): TID;
-    procedure ShowEmailContentFromRemote(AGrid: TNextGrid; ARow: integer);
+    procedure ShowMailContents(AGrid: TNextGrid; ARow: integer);
     procedure SendOLEmail2MQ(AEntryIdList: TStrings);
 
     procedure AddFolderListFromOL(AFolder: string);
@@ -140,6 +189,8 @@ type
 
     procedure InitSTOMP(AUserId, APasswd, AServerIP, AServerPort, ATopic: string);
     procedure DestroySTOMP;
+
+    procedure InitMAPI();
   public
     //메일을 이동시킬 Outlook 폴더 리스트,
     //HGS Task/Send Folder Name 2 IPC 메뉴에 의해 OL으로 부터 수신함
@@ -160,6 +211,14 @@ type
     destructor Destroy; override;
 //    constructor Create(AOwner: TComponent); override;
 //    constructor CreateWithOLFolderList(AFolderListFileName, AProdCode: string);
+
+    procedure SendCmd2WorkerThrd(const ACmd: TOLCommandKind; const AValue: TOmniValue);
+
+    //Result: Drag로 수신한 메일 수 반환
+    //AJson: json array 형식임 = [{},{}]
+    function ShowNMoveEmailListFromJsonAry(AJson: RawUTF8): integer;
+
+    procedure SetLogProc(ALogProc: TLogProc);
 
     procedure SetMailCount(ACount: integer);
     procedure SetWSInfoRec4OL(AIPAddr,APortNo,ATransKey: string;
@@ -188,13 +247,36 @@ type
 function ShowEmailListFromJson(AGrid: TNextGrid; AJson: RawUTF8): integer;
 
 implementation
-uses ShellApi, mormot.core.mustache, UnitStringUtil, //UnitIPCModule2,
+uses
+  ShellApi, mormot.core.mustache, UnitStringUtil, //UnitIPCModule2,
   DragDropInternet, //UnitHttpModule4InqManageServer2,
+  MapiUtil,
+  MapiTags,
+  ComObj,
   //UnitGAMakeReport,
   UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
   UnitNextGridUtil2;
 
 {$R *.dfm}
+
+type
+  TMAPIINIT_0 =
+    record
+      Version: ULONG;
+      Flags: ULONG;
+    end;
+
+  PMAPIINIT_0 = ^TMAPIINIT_0;
+  TMAPIINIT = TMAPIINIT_0;
+  PMAPIINIT = ^TMAPIINIT;
+
+const
+  MAPI_INIT_VERSION = 0;
+  MAPI_MULTITHREAD_NOTIFICATIONS = $00000001;
+  MAPI_NO_COINIT = $00000008;
+
+var
+  MapiInit: TMAPIINIT_0 = (Version: MAPI_INIT_VERSION; Flags: 0); //https://docs.microsoft.com/de-de/office/client-developer/outlook/mapi/mapiinit_0
 
 { TFrame2 }
 
@@ -293,7 +375,6 @@ begin
       end;
     end;
   end;//for
-
 end;
 
 procedure TOutlookEmailListFr.AddFolderListFromOL(AFolder: string);
@@ -332,6 +413,10 @@ end;
 
 constructor TOutlookEmailListFr.Create(AOwner: TComponent);
 begin
+  FMainFormHandle := TWinControl(AOwner).Handle;
+
+  InitVar();
+
   FEmailDBName := '';
 //  DOC_DIR := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName) + 'Doc');
 //  FContext4OLEmail := TContext4OLEmail.Create;
@@ -424,6 +509,8 @@ begin
 //
 //  DestroySTOMP;
 
+  DestroyVar();
+
   inherited;
 end;
 
@@ -431,6 +518,16 @@ procedure TOutlookEmailListFr.DestroySTOMP;
 begin
 //  if Assigned(FpjhSTOMPClass) then
 //    FreeAndNil(FpjhSTOMPClass);
+end;
+
+procedure TOutlookEmailListFr.DestroyVar;
+begin
+  DeallocateHWnd(FMyWnd);
+
+  FPJHTimerPool.RemoveAll();
+  FPJHTimerPool.Free;
+
+  StopWorker();
 end;
 
 procedure TOutlookEmailListFr.DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
@@ -445,6 +542,7 @@ var
   LOriginalEntryId, LOriginalStoreId,
   LJson, LNewStoreId, LNewStorePath: string;
 
+  LMessage: IMessage;
   LMailItem: _MailItem;
 begin
   // 윈도우 탐색기에서 Drag 했을 경우 LFileName에 Drag한 File Name이 존재함
@@ -455,29 +553,33 @@ begin
     LDroppedCount := OutlookDataFormat.Messages.Count; //Drop한 파일 갯수
     LIsMultiDrop := LDroppedCount > 1;
 
-    LDroppedMailList := TStringList.Create;
-    LNewAddedEmailList := TStringList.Create;
+//    LDroppedMailList := TStringList.Create;
+//    LNewAddedEmailList := TStringList.Create;
     try
       // Get all the dropped messages
-      for i := 1 to LDroppedCount do
+      for i := 0 to LDroppedCount - 1 do
       begin
-      // Get an IMessage interface
-      if (Supports(OutlookDataFormat.Messages[i], _MailItem, LMailItem)) then
-      begin
-        try
+        //Outlook 에서 선택된 메일 들을 OLControlWorker 에 요청함
+        //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkSelMail4Explore) Grid에 표시
+        SendCmd2WorkerThrd(olckGetSelectedMailItemFromExplorer, TOmniValue.CastFrom(''));
 
-        finally
+        // Get an IMessage interface
+        if (Supports(OutlookDataFormat.Messages[i], IMessage, LMessage)) then
+        begin
+          try
 
+          finally
+
+          end;
         end;
-      end;
 
-        LJson := LDroppedMailList.Values['MailInfos'];
+//        LJson := LDroppedMailList.Values['MailInfos'];
 //ShowMessage('LJson :' + #13#10 + LJson);
         //Email List를 DB에 저장
-        if FIsSaveEmail2DBWhenDropped then
-          LIsNewMailAdded := AddOLMail2DBFromDroppedMail(FDBKey, FHullNo, LJson, LNewAddedEmailList)
-        else
-          LIsNewMailAdded := AddEmail2GridNList(FDBKey, LJson, LNewAddedEmailList);
+//        if FIsSaveEmail2DBWhenDropped then
+//          LIsNewMailAdded := AddOLMail2DBFromDroppedMail(FDBKey, FHullNo, LJson, LNewAddedEmailList)
+//        else
+//          LIsNewMailAdded := AddEmail2GridNList(FDBKey, LJson, LNewAddedEmailList);
       end;//for
 
       //새 메일이 그리드에 추가 되었으면 Refresh
@@ -513,14 +615,14 @@ begin
             '( ' + IntToStr(OutlookDataFormat.Messages.Count) + ' 건 )');
         end;
 
-        SendOLEmail2MQ(LNewAddedEmailList);
+//        SendOLEmail2MQ(LNewAddedEmailList);
 
         if FIsSaveEmail2DBWhenDropped then
           MailCount := ShowEmailListFromDBKey(grid_Mail, FDBKey);
       end;
     finally
-      LNewAddedEmailList.Free;
-      LDroppedMailList.Free;
+//      LNewAddedEmailList.Free;
+//      LDroppedMailList.Free;
     end;
   end;
 end;
@@ -580,6 +682,21 @@ begin
   ReqVDRAPTCoC(1);
 end;
 
+procedure TOutlookEmailListFr.FillFolderListFromRespRec(ARec: TOLRespondRec);
+var
+  LStrList: TStringList;
+begin
+  LStrList := TStringList.Create;
+  try
+    LStrList.Text := ARec.FMsg;
+    FFolderListFromOL.Assign(LStrList);
+    FillInMoveFolderCB();
+    InitFolderListMenu();
+  finally
+    LStrList.Free;
+  end;
+end;
+
 procedure TOutlookEmailListFr.FillInMoveFolderCB;
 var
   i: integer;
@@ -593,6 +710,15 @@ end;
 procedure TOutlookEmailListFr.FinilizeFolderListMenu;
 begin
 
+end;
+
+procedure TOutlookEmailListFr.FrameWndProc(var Message: Winapi.Messages.TMessage);
+begin
+  if Message.Msg = MSG_RESULT then
+  begin
+    OnWorkerResult(Message);
+  end else
+    Message.Result := DefWindowProc(FMyWnd, Message.Msg, Message.WParam, Message.LParam);
 end;
 
 function TOutlookEmailListFr.GetEmailIDFromGrid(ARow: integer): TID;
@@ -634,16 +760,7 @@ begin
   LEntryID := grid_Mail.CellsByName['LocalEntryId', ARow];
   LStoreID := grid_Mail.CellsByName['LocalStoreId', ARow];
 
-  if FRemoteIPAddress = '' then
-{$IFDEF USE_MORMOT_WS}
-    SendCmd2OL4ViewEmail_WS(LEntryID, LStoreID, FWSInfoRec)
-{$ELSE}
-  {$IFDEF USE_CROMIS_IPC}
-//    SendCmd2OL4ViewEmail_NamedPipe(LEntryID, LStoreID, FWSInfoRec)
-  {$ENDIF}
-{$ENDIF}
-  else
-    ShowEmailContentFromRemote(grid_Mail, ARow);
+  ShowMailContents(grid_Mail, ARow);
 
   NextGridScrollToRow(grid_Mail);
 end;
@@ -674,6 +791,27 @@ begin
   end;
 end;
 
+procedure TOutlookEmailListFr.InitMAPI;
+begin
+  LoadMAPI;
+
+  try
+    // It appears that for for Win XP and later it is OK to let MAPI call
+    // coInitialize.
+    // V5.1 = WinXP.
+//    if ((Win32MajorVersion shl 16) or Win32MinorVersion < $00050001) then
+//      MapiInit.Flags := MapiInit.Flags or MAPI_NO_COINIT;
+
+   {$IFDEF WIN64}
+   MAPIInitialize don't works under Win64???
+   {$ENDIF}
+    OleCheck(MAPIInitialize(@MapiInit));
+  except
+    on E: System.SysUtils.Exception do
+      ShowMessage(Format('Failed to initialize MAPI: %s', [E.Message]));
+  end;
+end;
+
 procedure TOutlookEmailListFr.InitSTOMP(AUserId, APasswd, AServerIP, AServerPort,
   ATopic: string);
 begin
@@ -686,6 +824,18 @@ begin
 //                                            ATopic,
 //                                            Self.Handle,False,False);
 //  end;
+end;
+
+procedure TOutlookEmailListFr.InitVar;
+begin
+  FMyWnd := AllocateHWnd(FrameWndProc);
+
+  FPJHTimerPool := TPJHTimerPool.Create(Self);
+  FPJHTimerPool.AddOneShot(OnInitVarTimer,1000);
+  FPJHTimerPool.AddOneShot(OnGetOLFolderListTimer,2000);
+
+  StartWorker();
+  InitMAPI();
 end;
 
 //procedure TOutlookEmailListFr.Korean1Click(Sender: TObject);
@@ -817,6 +967,53 @@ begin
   FillInMoveFolderCB;
 end;
 
+procedure TOutlookEmailListFr.OnGetOLFolderListTimer(Sender: TObject;
+  Handle: Integer; Interval: Cardinal; ElapsedTime: Integer);
+begin
+  SendCmd2WorkerThrd(olckGetFolderList, TOmniValue.CastFrom(''));
+end;
+
+procedure TOutlookEmailListFr.OnInitVarTimer(Sender: TObject; Handle: Integer;
+  Interval: Cardinal; ElapsedTime: Integer);
+begin
+  SendCmd2WorkerThrd(olckInitVar, TOmniValue.CastFrom(''));
+end;
+
+procedure TOutlookEmailListFr.OnWorkerResult(var Msg: Winapi.Messages.TMessage);
+var
+  LOLRespondRec: TOLRespondRec;
+  LMsg  : TOmniMessage;
+begin
+  if FResponseQueue.TryDequeue(LMsg) then
+  begin
+    LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
+
+    ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
+  end;
+end;
+
+procedure TOutlookEmailListFr.ProcessRespondFromWorker(AMsgId: integer;
+  ARec: TOLRespondRec);
+var
+  LValue: TOmniValue;
+  LUtf8: RawUTF8;
+begin
+  case TOLRespondKind(AMsgId) of
+    olrkMAPIFolderList: begin
+      FillFolderListFromRespRec(ARec);
+      FLogProc(ARec.FMsg);
+    end;
+    olrkLog: FLogProc(ARec.FMsg);
+    //Outlook 에서 DragDrop 되었을때 현재 Outlook에서 Select된 Mail 정보를 Json Array로 가져옴
+    olrkSelMail4Explore: begin
+      LUtf8 := StringToUtf8(ARec.FMsg);
+      ShowNMoveEmailListFromJsonAry(LUtf8);
+//      ShowEmailListFromJson(grid_Mail, LUtf8);
+      FLogProc(ARec.FMsg);
+    end;
+  end;
+end;
+
 procedure TOutlookEmailListFr.ReqVDRAPTCoC(ALang: integer);
 var
   LEntryId, LStoreId, LHTMLBody, LAttachment: string;
@@ -889,6 +1086,13 @@ begin
   Send2MQCheck.Checked := not Send2MQCheck.Checked;
 end;
 
+procedure TOutlookEmailListFr.SendCmd2WorkerThrd(const ACmd: TOLCommandKind;
+  const AValue: TOmniValue);
+begin
+  if not FCommandQueue.Enqueue(TOmniMessage.Create(Ord(ACmd), AValue)) then
+    raise System.SysUtils.Exception.Create('Command queue is full!');
+end;
+
 procedure TOutlookEmailListFr.SendOLEmail2MQ(AEntryIdList: TStrings);
 var
 {$IFDEF USE_OMNITHREAD}
@@ -941,6 +1145,11 @@ end;
 procedure TOutlookEmailListFr.SetEmbededMode;
 begin
   panMailButtons.Visible := False;
+end;
+
+procedure TOutlookEmailListFr.SetLogProc(ALogProc: TLogProc);
+begin
+  FLogProc := ALogProc;
 end;
 
 procedure TOutlookEmailListFr.SetMailCount(ACount: integer);
@@ -998,9 +1207,30 @@ begin
 //  FWSInfoRec.FIsWSEnabled := AIsWSEnable;
 end;
 
-procedure TOutlookEmailListFr.ShowEmailContentFromRemote(AGrid: TNextGrid; ARow: integer);
+procedure TOutlookEmailListFr.ShowMailContents(AGrid: TNextGrid; ARow: integer);
+var
+  LEntryIdRecord: TEntryIdRecord;
+  LValue: TOmniValue;
 begin
+  LEntryIdRecord.FEntryId := AGrid.CellsByName['LocalEntryId', ARow];
+  LEntryIdRecord.FStoreId := AGrid.CellsByName['LocalStoreId', ARow];
+//  LEntryIdRecord.FFolderPath := AGrid.CellsByName['SavedOLFolderPath', ARow];
 
+  LValue := TOmniValue.FromRecord(LEntryIdRecord);
+
+  SendCmd2WorkerThrd(olckShowMailContents, LValue);
+end;
+
+function TOutlookEmailListFr.ShowNMoveEmailListFromJsonAry(
+  AJson: RawUTF8): integer;
+var
+  LVar: variant;
+begin
+  //AJson = [] 형식의 Email List임
+  LVar := _JSON(AJson);
+
+
+  Result := GetListFromVariant2NextGrid(grid_Mail, LVar, True, True);
 end;
 
 function TOutlookEmailListFr.ShowEmailListFromDBKey(AGrid: TNextGrid;
@@ -1022,6 +1252,29 @@ begin
 //  end;
 end;
 
+procedure TOutlookEmailListFr.StartWorker;
+begin
+  FCommandQueue := TOmniMessageQueue.Create(1000);
+  FResponseQueue := TOmniMessageQueue.Create(1000, false);
+  FSendMsgQueue := TOmniMessageQueue.Create(1000);
+
+  FOLControlWorker := TOLControlWorker.Create(FCommandQueue, FResponseQueue, FSendMsgQueue, FMyWnd);
+end;
+
+procedure TOutlookEmailListFr.StopWorker;
+begin
+  if Assigned(FOLControlWorker) then
+  begin
+    TWorker(FOLControlWorker).Stop;
+    FOLControlWorker.WaitFor;
+    FreeAndNil(FOLControlWorker);
+  end;
+
+  FCommandQueue.Free;
+  FResponseQueue.Free;
+  FSendMsgQueue.Free;
+end;
+
 procedure TOutlookEmailListFr.SubFolderCBClick(Sender: TObject);
 begin
   if SubFolderCB.Checked then
@@ -1041,6 +1294,185 @@ begin
 //
 //  InitOLEmailMsgClient(FEmailDBName);
   Timer1.Enabled := False;
+end;
+
+{ TMessage }
+
+constructor TMessage.Create(const AMessage: IMessage; const AStorage: IStorage);
+begin
+  FMessage := AMessage;
+  FStorage := AStorage;
+  FAttachments := TInterfaceList.Create;
+end;
+
+destructor TMessage.Destroy;
+begin
+  FAttachments.Free;
+  FMessage := nil;
+  inherited Destroy;
+end;
+
+function TMessage.GetAttachments: TInterfaceList;
+const
+  AttachmentTags: packed record
+    Values: ULONG;
+    PropTags: array[0..0] of ULONG;
+  end = (Values: 1; PropTags: (PR_ATTACH_NUM));
+
+var
+  Table: IMAPITable;
+  Rows: PSRowSet;
+  i: integer;
+  Attachment: IAttach;
+begin
+  if (not FAttachmentsLoaded) then
+  begin
+    FAttachmentsLoaded := True;
+    (*
+    ** Get list of attachment interfaces from message
+    **
+    ** Note: This will only succeed the first time it is called for an IMessage.
+    ** The reason is probably that it is illegal (according to MSDN) to call
+    ** IMessage.OpenAttach more than once for a given attachment. However, it
+    ** might also be a bug in my code, but, whatever the reason, the solution is
+    ** beyond the scope of this demo.
+    **
+    ** Let me know if you find a solution.
+    *)
+    if (Succeeded(FMessage.GetAttachmentTable(0, Table))) then
+    begin
+      if (Succeeded(HrQueryAllRows(Table, PSPropTagArray(@AttachmentTags), nil, nil, 0, Rows))) then
+        try
+          for i := 0 to integer(Rows.cRows)-1 do
+          begin
+            // Get one attachment at a time
+            if (Rows.aRow[i].lpProps[0].ulPropTag and PROP_TYPE_MASK <> PT_ERROR) and
+              (Succeeded(FMessage.OpenAttach(Rows.aRow[i].lpProps[0].Value.l, IAttach, 0, Attachment))) then
+              FAttachments.Add(Attachment);
+          end;
+
+        finally
+          FreePRows(Rows);
+        end;
+      Table := nil;
+    end;
+  end;
+  Result := FAttachments;
+end;
+
+procedure TMessage.SaveToStream(Stream: TStream);
+const
+  CLSID_MailMessage:TGUID='{00020D0B-0000-0000-C000-000000000046}';
+var
+  LockBytes: ILockBytes;
+  Storage: IStorage;
+(*
+  Malloc: IMalloc;
+  MsgSession: pointer;
+  NewMsg: IUnknown;
+  ExcludeTags: PSPropTagArray;
+*)
+//  ProblemArray: PSPropProblemArray;
+  Memory: HGLOBAL;
+  Buffer: pointer;
+  Size: integer;
+begin
+  (*
+  ** This implementation is based, in part, on the Microsoft knowledgebase
+  ** article:
+  ** Save Message to MSG Compound File
+  ** http://support.microsoft.com/kb/171907
+  *)
+  Memory := GlobalAlloc(GMEM_MOVEABLE, 0);
+  try
+
+    OleCheck(CreateILockBytesOnHGlobal(Memory, True, LockBytes));
+    try
+
+      // Create compound file
+      OleCheck(StgCreateDocfileOnILockBytes(LockBytes,
+        STGM_TRANSACTED or STGM_READWRITE or STGM_CREATE, 0, Storage));
+      try
+
+        Storage.Commit(STGC_DEFAULT);
+        FStorage.CopyTo(0, nil, nil, Storage);
+        Storage.Commit(STGC_DEFAULT);
+(*
+        Malloc := IMalloc(MAPIGetDefaultMalloc);
+        try
+
+          // Open an IMessage session.
+          OleCheck(OpenIMsgSession(Malloc, 0, MsgSession));
+          try
+
+            // Open an IMessage interface on an IStorage object
+            OleCheck(OpenIMsgOnIStg(MsgSession,
+              @MAPIAllocateBuffer, @MAPIAllocateMore, @MAPIFreeBuffer, Malloc,
+              nil, Storage, nil, 0, 0, NewMsg));
+            try
+
+              // write the CLSID to the IStorage instance - pStorage. This will
+              // only work with clients that support this compound document type
+              // as the storage medium. If the client does not support
+              // CLSID_MailMessage as the compound document, you will have to use
+              // the CLSID that it does support.
+              OleCheck(WriteClassStg(Storage, CLSID_MailMessage));
+
+              GetMem(ExcludeTags, SizeOf(TSPropTagArray)+SizeOf(ULONG)*6);
+              try
+
+                // Exclude a few properties - just like the MSDN sample
+                ExcludeTags.cValues := 7;
+                ExcludeTags.aulPropTag[0] := PR_ACCESS;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-6] := PR_BODY;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-5] := PR_RTF_SYNC_BODY_COUNT;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-4] := PR_RTF_SYNC_BODY_CRC;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-3] := PR_RTF_SYNC_BODY_TAG;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-2] := PR_RTF_SYNC_PREFIX_COUNT;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-1] := PR_RTF_SYNC_TRAILING_COUNT;
+
+                // Copy message properties
+//                Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, ProblemArray);
+                OleCheck(Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, PSPropProblemArray(nil^)));
+
+              finally
+                FreeMem(ExcludeTags);
+              end;
+
+              IMessage(NewMsg).SaveChanges(0);
+              Storage.Commit(STGC_DEFAULT);
+
+            finally
+              pointer(NewMsg) := nil;
+            end;
+
+          finally
+            CloseIMsgSession(MsgSession);
+          end;
+
+        finally
+          Malloc := nil;
+        end;
+  *)
+      finally
+        Storage := nil;
+      end;
+
+      Size := GlobalSize(Memory);
+      Buffer := Winapi.Windows.GlobalLock(Memory);
+      try
+        Stream.Write(Buffer^, Size);
+      finally
+        Winapi.Windows.GlobalUnlock(Memory);
+      end;
+
+    finally
+      LockBytes := nil;
+    end;
+
+  finally
+    GlobalFree(Memory);
+  end;
 end;
 
 end.

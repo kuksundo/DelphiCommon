@@ -1,13 +1,13 @@
 object OutlookEmailListFr: TOutlookEmailListFr
   Left = 0
   Top = 0
-  Width = 920
+  Width = 1214
   Height = 705
   TabOrder = 0
   object mailPanel1: TPanel
     Left = 0
     Top = 0
-    Width = 920
+    Width = 1214
     Height = 705
     Margins.Left = 5
     Margins.Right = 5
@@ -18,20 +18,22 @@ object OutlookEmailListFr: TOutlookEmailListFr
     ParentBackground = False
     TabOrder = 0
     StyleElements = [seFont, seClient]
+    ExplicitWidth = 920
     DesignSize = (
-      920
+      1214
       705)
     object tabMail: TTabControl
       Left = 5
       Top = 57
-      Width = 910
+      Width = 1204
       Height = 615
       Align = alClient
       TabOrder = 0
+      ExplicitWidth = 910
       object StatusBar: TStatusBar
         Left = 4
         Top = 592
-        Width = 902
+        Width = 1196
         Height = 19
         AutoHint = True
         Panels = <
@@ -61,11 +63,12 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ShowHint = True
         SizeGrip = False
         UseSystemFont = False
+        ExplicitWidth = 902
       end
       object EmailTab: TAdvOfficeTabSet
         Left = 4
         Top = 6
-        Width = 902
+        Width = 1196
         Height = 27
         AdvOfficeTabs = <
           item
@@ -967,11 +970,12 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ButtonSettings.ScrollButtonLastHint = 'Last'
         TabSettings.Alignment = taCenter
         TabSettings.Width = 110
+        ExplicitWidth = 902
       end
       object grid_Mail: TNextGrid
         Left = 4
         Top = 33
-        Width = 902
+        Width = 1196
         Height = 559
         Touch.InteractiveGestures = [igPan, igPressAndTap]
         Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia, igoPanGutter, igoParentPassthrough]
@@ -986,6 +990,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
         TabOrder = 2
         TabStop = True
         OnCellDblClick = grid_MailCellDblClick
+        ExplicitWidth = 902
         object NxIncrementColumn1: TNxIncrementColumn
           Alignment = taCenter
           DefaultWidth = 30
@@ -1101,7 +1106,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Position = 5
           SortType = stAlphabetic
         end
-        object Sender: TNxMemoColumn
+        object SenderName: TNxMemoColumn
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -11
@@ -1119,7 +1124,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Position = 6
           SortType = stAlphabetic
         end
-        object Receiver: TNxMemoColumn
+        object Recipients: TNxMemoColumn
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -11
@@ -1289,12 +1294,13 @@ object OutlookEmailListFr: TOutlookEmailListFr
     object panMailButtons: TPanel
       Left = 5
       Top = 672
-      Width = 910
+      Width = 1204
       Height = 33
       Align = alBottom
       BevelOuter = bvNone
       ParentBackground = False
       TabOrder = 1
+      ExplicitWidth = 910
       object btnStartProgram: TBitBtn
         Left = 16
         Top = 4
@@ -1327,7 +1333,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
         TabOrder = 0
       end
       object BitBtn1: TBitBtn
-        Left = 821
+        Left = 1115
         Top = 0
         Width = 89
         Height = 33
@@ -1354,10 +1360,11 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ModalResult = 8
         NumGlyphs = 2
         TabOrder = 1
+        ExplicitLeft = 821
       end
     end
     object panProgress: TPanel
-      Left = 703
+      Left = 997
       Top = 650
       Width = 205
       Height = 18
@@ -1367,6 +1374,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
       ParentBackground = False
       TabOrder = 2
       Visible = False
+      ExplicitLeft = 703
       DesignSize = (
         205
         18)
@@ -1409,7 +1417,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     object Panel1: TPanel
       Left = 5
       Top = 0
-      Width = 910
+      Width = 1204
       Height = 57
       Align = alTop
       Font.Charset = DEFAULT_CHARSET
@@ -1419,6 +1427,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 3
+      ExplicitWidth = 910
       object Label1: TLabel
         Left = 8
         Top = 31
@@ -1482,6 +1491,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     DragTypes = [dtCopy, dtLink]
     OnDrop = DropEmptyTarget1Drop
     Target = grid_Mail
+    WinTarget = 0
     Left = 76
     Top = 108
   end
