@@ -18,7 +18,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
     ParentBackground = False
     TabOrder = 0
     StyleElements = [seFont, seClient]
-    ExplicitWidth = 920
     DesignSize = (
       1214
       705)
@@ -29,7 +28,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       Height = 615
       Align = alClient
       TabOrder = 0
-      ExplicitWidth = 910
       object StatusBar: TStatusBar
         Left = 4
         Top = 592
@@ -63,7 +61,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ShowHint = True
         SizeGrip = False
         UseSystemFont = False
-        ExplicitWidth = 902
       end
       object EmailTab: TAdvOfficeTabSet
         Left = 4
@@ -970,7 +967,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ButtonSettings.ScrollButtonLastHint = 'Last'
         TabSettings.Alignment = taCenter
         TabSettings.Width = 110
-        ExplicitWidth = 902
       end
       object grid_Mail: TNextGrid
         Left = 4
@@ -990,7 +986,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
         TabOrder = 2
         TabStop = True
         OnCellDblClick = grid_MailCellDblClick
-        ExplicitWidth = 902
         object NxIncrementColumn1: TNxIncrementColumn
           Alignment = taCenter
           DefaultWidth = 30
@@ -1300,7 +1295,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       BevelOuter = bvNone
       ParentBackground = False
       TabOrder = 1
-      ExplicitWidth = 910
       object btnStartProgram: TBitBtn
         Left = 16
         Top = 4
@@ -1360,7 +1354,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ModalResult = 8
         NumGlyphs = 2
         TabOrder = 1
-        ExplicitLeft = 821
       end
     end
     object panProgress: TPanel
@@ -1374,7 +1367,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       ParentBackground = False
       TabOrder = 2
       Visible = False
-      ExplicitLeft = 703
       DesignSize = (
         205
         18)
@@ -1427,7 +1419,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       Font.Style = [fsBold]
       ParentFont = False
       TabOrder = 3
-      ExplicitWidth = 910
       object Label1: TLabel
         Left = 8
         Top = 31

@@ -166,7 +166,8 @@ begin
       else
         LCellValue := LColName;
 
-      AGrid.CellsByName[LColName, j] := LCellValue;
+      if AGrid.Columns.IndexOf(AGrid.ColumnByName[LColName]) > -1 then
+        AGrid.CellsByName[LColName, j] := LCellValue;
     end;//for
   end;//with
 end;
@@ -226,7 +227,7 @@ begin
   AddNextGridRowsFromVariant(AGrid, LDynUtf8, AIsAddColumn);
 end;
 
-//ADoc는 한개의 레코드에 대한 Json 임
+//ADoc는 복수개의 레코드에 대한 Json 임
 //AIsUsePosFunc : True = Pos함수를 사용하여 LCompName이 Column Name에 포함되어 있으면 처리
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean; AIsUsePosFunc: Boolean; AIsClearRow: Boolean): integer;
@@ -238,6 +239,7 @@ var
   LUtf8: RawUTF8;
   LDoc: variant;
 
+  //AJson은 한개의 레코드에 대한 Json임
   procedure AddRowFromVar(AJson: variant);
   var
     Li, Lj: integer;

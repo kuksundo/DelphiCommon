@@ -17,7 +17,7 @@ uses
   Cromis.Comm.Custom, Cromis.Comm.IPC, Cromis.Threading,
 {$ENDIF}
   mormot.core.base, mormot.core.variants, mormot.core.os, mormot.core.buffers,
-  mormot.core.log, mormot.core.unicode,
+  mormot.core.log, mormot.core.unicode, mormot.core.data,
 
 //  FrmEditEmailInfo2,
 //  UnitStrategy4OLEmailInterface2, UnitMQData,
@@ -141,6 +141,8 @@ type
     FMainFormHandle,
     FMyWnd: THandle;
 
+    FEntryIdRecord: TEntryIdRecord;
+
     FCurrentMailCount: integer;
 //    FpjhSTOMPClass: TpjhSTOMPClass;
     FEmailDBName: string;
@@ -175,11 +177,15 @@ type
     procedure MoveEmailToFolderClick(Sender: TObject);
     procedure MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID, ANewStoreId,
       ANewStorePath: string; AIsShowResult: Boolean = True);
+      //ADynArry: Move할 Email List임
+    procedure ReqMoveEmailFolder2Worker(ADynAry: TRawUTF8DynArray);
+    function GetEntryIdFromGridJson(ADoc: variant): TEntryIdRecord;
 
     procedure DeleteMail(ARow: integer);
     function GetEmailIDFromGrid(ARow: integer): TID;
     procedure ShowMailContents(AGrid: TNextGrid; ARow: integer);
     procedure SendOLEmail2MQ(AEntryIdList: TStrings);
+    procedure UpdateEmailId2GridFromJson(AJson: string);
 
     procedure AddFolderListFromOL(AFolder: string);
     procedure SetMoveFolderIndex;
@@ -731,6 +737,29 @@ begin
     Result := -1;
 end;
 
+function TOutlookEmailListFr.GetEntryIdFromGridJson(
+  ADoc: variant): TEntryIdRecord;
+var
+  i: integer;
+  LColName: string;
+begin
+  Result := Default(TEntryIdRecord);
+
+  for i := 0 to TDocVariantData(ADoc).Count - 1 do
+  begin
+    LColName := TDocVariantData(ADoc).Names[i];
+
+    if LColName = 'LocalEntryId' then
+      Result.FEntryId := TDocVariantData(ADoc).Values[i]
+    else
+    if LColName = 'LocalStoreId' then
+      Result.FStoreId := TDocVariantData(ADoc).Values[i]
+    else
+    if LColName = 'SavedOLFolderPath' then
+      Result.FFolderPath := TDocVariantData(ADoc).Values[i];
+  end;
+end;
+
 function TOutlookEmailListFr.GetSenderEmailListFromGrid(
   AContainData4Mails: TContainData4Mails): string;
 var
@@ -879,52 +908,24 @@ begin
     LSubFolder := SubFolderNameEdit.Text;
 
   LMovedMailList := TStringList.Create;
-//  try
-//    if (ANewStoreId <> '') and (ANewStorePath <> '') then
-//    begin
-//{$IFDEF USE_MORMOT_WS}
-//      if SendCmd2OL4MoveFolderEmail_WS(AOriginalEntryID, AOriginalStoreID,
-//{$ELSE}
-//  {$IFDEF USE_CROMIS_IPC}
-//      if SendCmd2OL4MoveFolderEmail_NamedPipe_Sync(AOriginalEntryID, AOriginalStoreID,
-//  {$ENDIF}
-//{$ENDIF}
-//        ANewStoreId, ANewStorePath, LSubFolder, LHullNo, LMovedMailList, FWSInfoRec) then
-//      begin
-//        UpdateOlMail2DBFromMovedMail(LMovedMailList, False);
-//
-//        if AIsShowResult then
-//          ShowMessage('Email move to folder( ' + ANewStorePath + ' ) completed!');
-//      end;
-//    end;
+  try
+    if (ANewStoreId <> '') and (ANewStorePath <> '') then
+    begin
+      FEntryIdRecord := Default(TEntryIdRecord);
 
-//    if Assigned(Sender) then
-//    begin
-//      if SendCmd2OL4MoveFolderEmail_WS(AOriginalEntryID, AOriginalStoreID,
-//        FFolderListFromOL.ValueFromIndex[TMenuItem(Sender).Tag],
-//        FFolderListFromOL.Names[TMenuItem(Sender).Tag], LSubFolder, LHullNo,
-//        LMovedMailList, FWSInfoRec) then
-//      begin
-//        UpdateOlMail2DBFromMovedMail(LMovedMailList);
-//        ShowMessage('Email move to folder( ' +
-//          FFolderListFromOL.Names[TMenuItem(Sender).Tag] + ' ) completed!');
-//      end;
-//    end
-//    else
-//    begin
-//      if SendCmd2OL4MoveFolderEmail_WS(AOriginalEntryID, AOriginalStoreID,
-//        FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex],
-//        FFolderListFromOL.Names[MoveFolderCB.ItemIndex], LSubFolder, LHullNo,
-//        LMovedMailList, FWSInfoRec) then
-//      begin
-//        UpdateOlMail2DBFromMovedMail(LMovedMailList);
-//        ShowMessage('Email move to Selected folder( ' +
-//          FFolderListFromOL.Names[MoveFolderCB.ItemIndex] + ' ) completed!');
-//      end;
-//    end;
-//  finally
-//    LMovedMailList.Free;
-//  end;
+      SendCmd2WorkerThrd(olckMoveMail2Folder, TOmniValue.CastFrom(''));
+
+//      if (AOriginalEntryID, AOriginalStoreID, ANewStoreId, ANewStorePath, LSubFolder, LHullNo, LMovedMailList) then
+      begin
+        UpdateOlMail2DBFromMovedMail(LMovedMailList, False);
+
+        if AIsShowResult then
+          ShowMessage('Email move to folder( ' + ANewStorePath + ' ) completed!');
+      end;
+    end;
+  finally
+    LMovedMailList.Free;
+  end;
 end;
 
 procedure TOutlookEmailListFr.MoveEmailToFolderClick(Sender: TObject);
@@ -1011,7 +1012,48 @@ begin
 //      ShowEmailListFromJson(grid_Mail, LUtf8);
       FLogProc(ARec.FMsg);
     end;
+    //Email Move 후(Mail Drop시) 응답(New EntryId와 StoreId가 Json으로 반환됨)
+    olrkMoveMail2Folder: begin
+      //grid_Maai의 New EntryId 및 StoreId를 갱신함
+      UpdateEmailId2GridFromJson(ARec.FMsg);
+    end;
   end;
+end;
+
+procedure TOutlookEmailListFr.ReqMoveEmailFolder2Worker(
+  ADynAry: TRawUTF8DynArray);
+var
+  i: integer;
+  LDoc: variant;
+  LOmniValue: TOmniValue;
+  LDestFolder: string;
+//  LUtf8: RawUtf8;
+begin
+  for i := Low(ADynAry) to High(ADynAry) do
+  begin
+    LDoc := _JSON(ADynAry[i]);
+//    LUtf8 := LDoc;
+
+    //Move Folder를 위한 정보 가져옴(Mail.EntryID, Mail.StoreID, FFolderPath)
+    FEntryIdRecord := GetEntryIdFromGridJson(LDoc);
+
+    //이동할 폴더 명 :
+//    LDestFolder := MoveFolderCB.Text + ';' + SubFolderNameEdit.Text;
+
+    //이동할 Root Folder EntryId + ';' + Folder StoreId로 저장됨
+    LDestFolder := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
+
+    FEntryIdRecord.FEntryId4MoveRoot := StrToken(LDestFolder, ';');
+    FEntryIdRecord.FStoreId4MoveRoot := StrToken(LDestFolder, ';');
+
+    //이동할 Folder Path를 저장: RootFolder + ';' + SubFolder
+    LDestFolder := FFolderListFromOL.Names[MoveFolderCB.ItemIndex] + ';' + SubFolderNameEdit.Text;;
+    FEntryIdRecord.FFolderPath4Move := LDestFolder;
+
+    LOmniValue := TOmniValue.FromRecord(FEntryIdRecord);
+    //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
+    SendCmd2WorkerThrd(olckMoveMail2Folder, LOmniValue);
+  end;//for
 end;
 
 procedure TOutlookEmailListFr.ReqVDRAPTCoC(ALang: integer);
@@ -1225,12 +1267,21 @@ function TOutlookEmailListFr.ShowNMoveEmailListFromJsonAry(
   AJson: RawUTF8): integer;
 var
   LVar: variant;
+  LUtf8: RawUTF8;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+  LDestFolder: string;
 begin
   //AJson = [] 형식의 Email List임
-  LVar := _JSON(AJson);
+//  LVar := _JSON(AJson);
 
+  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+  LDynArr.LoadFromJSON(PUTF8Char(AJson));
 
-  Result := GetListFromVariant2NextGrid(grid_Mail, LVar, True, True);
+  ReqMoveEmailFolder2Worker(LDynUtf8);
+  AddNextGridRowsFromVariant(grid_Mail, LDynUtf8, False);
+
+//  Result := GetListFromVariant2NextGrid(grid_Mail, LVar, True, True);
 end;
 
 function TOutlookEmailListFr.ShowEmailListFromDBKey(AGrid: TNextGrid;
@@ -1294,6 +1345,26 @@ begin
 //
 //  InitOLEmailMsgClient(FEmailDBName);
   Timer1.Enabled := False;
+end;
+
+procedure TOutlookEmailListFr.UpdateEmailId2GridFromJson(AJson: string);
+var
+  LDoc: IDocDict;
+  LRow, LRow2: integer;
+  LOldEntryId: string;
+begin
+  LDoc := DocDict(AJson);
+
+  LOldEntryId := LDoc['OldEntryId'];
+
+  LRow2 := 0;
+  LRow := GetRowIndexFromFindNext(grid_Mail, LOldEntryId, 11, LRow2);
+
+  if LRow <> -1 then
+  begin
+    grid_Mail.CellsByName['LocalEntryId', LRow] := LDoc['NewEntryId'];
+    grid_Mail.CellsByName['LocalStoreId', LRow] := LDoc['NewStoreId'];
+  end;
 end;
 
 { TMessage }
