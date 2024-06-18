@@ -23,7 +23,8 @@ uses
 //  UnitStrategy4OLEmailInterface2, UnitMQData,
   UnitWorker4OmniMsgQ,
   UnitOLControlWorker,
-  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2;
+  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2,
+  AeroButtons, Vcl.ImgList;
 
 type
   TLogProc = procedure(AMsg: string) of object;
@@ -117,10 +118,13 @@ type
     DBKey: TNxTextColumn;
     SavedMsgFilePath: TNxTextColumn;
     SavedMsgFileName: TNxTextColumn;
+    ImageList16x16: TImageList;
+    AeroButton1: TAeroButton;
+    SenderEmail: TNxTextColumn;
+    FolderEntryId: TNxTextColumn;
 
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
-    procedure MoveFolderCBDropDown(Sender: TObject);
     procedure SubFolderCBClick(Sender: TObject);
     procedure grid_MailCellDblClick(Sender: TObject; ACol, ARow: Integer);
     procedure Englisth1Click(Sender: TObject);
@@ -130,6 +134,7 @@ type
     procedure DeleteMail1Click(Sender: TObject);
     procedure Send2MQCheckClick(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
+    procedure AeroButton1Click(Sender: TObject);
   private
     FOLControlWorker: TOLControlWorker;
     FCommandQueue    : TOmniMessageQueue;
@@ -182,6 +187,7 @@ type
     function GetEntryIdFromGridJson(ADoc: variant): TEntryIdRecord;
 
     procedure DeleteMail(ARow: integer);
+
     function GetEmailIDFromGrid(ARow: integer): TID;
     procedure ShowMailContents(AGrid: TNextGrid; ARow: integer);
     procedure SendOLEmail2MQ(AEntryIdList: TStrings);
@@ -246,6 +252,7 @@ type
     function ShowEmailListFromDBKey(AGrid: TNextGrid; ADBKey: string): integer;
 
     procedure FillInMoveFolderCB;
+    procedure SetMoveFolderCBByFolderPath(AFolderPath: string='');
 
     property MailCount: integer read FCurrentMailCount write SetMailCount;
   end;
@@ -261,7 +268,7 @@ uses
   ComObj,
   //UnitGAMakeReport,
   UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
-  UnitNextGridUtil2;
+  UnitNextGridUtil2, UnitOutlookUtil2;
 
 {$R *.dfm}
 
@@ -417,6 +424,11 @@ begin
   end;
 end;
 
+procedure TOutlookEmailListFr.AeroButton1Click(Sender: TObject);
+begin
+  SaveEmailFromGrid2DB();
+end;
+
 constructor TOutlookEmailListFr.Create(AOwner: TComponent);
 begin
   FMainFormHandle := TWinControl(AOwner).Handle;
@@ -463,8 +475,8 @@ begin
     if not grid_Mail.RowVisible[i] then
     begin
       LID := GetEmailIDFromGrid(i);
-//      if DeleteOLMail2DBFromID(LID) then
-//        grid_Mail.DeleteRow(i);
+      if DeleteOLMail2DBFromID(LID) then
+        grid_Mail.DeleteRow(i);
     end;
   end;
 end;
@@ -528,12 +540,14 @@ end;
 
 procedure TOutlookEmailListFr.DestroyVar;
 begin
+//  MAPIUninitialize;
   DeallocateHWnd(FMyWnd);
 
   FPJHTimerPool.RemoveAll();
   FPJHTimerPool.Free;
 
   StopWorker();
+//  DestroyOLEmailMsg(); //UnitOLEmailRecord2.finalization에서 실행 함
 end;
 
 procedure TOutlookEmailListFr.DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
@@ -561,23 +575,23 @@ begin
 
 //    LDroppedMailList := TStringList.Create;
 //    LNewAddedEmailList := TStringList.Create;
-    try
+//    try
       // Get all the dropped messages
-      for i := 0 to LDroppedCount - 1 do
-      begin
+//      for i := 0 to LDroppedCount - 1 do
+//      begin
         //Outlook 에서 선택된 메일 들을 OLControlWorker 에 요청함
         //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkSelMail4Explore) Grid에 표시
-        SendCmd2WorkerThrd(olckGetSelectedMailItemFromExplorer, TOmniValue.CastFrom(''));
+        SendCmd2WorkerThrd(olckGetSelectedMailItemFromExplorer, TOmniValue.CastFrom(LDroppedCount));
 
         // Get an IMessage interface
-        if (Supports(OutlookDataFormat.Messages[i], IMessage, LMessage)) then
-        begin
-          try
-
-          finally
-
-          end;
-        end;
+//        if (Supports(OutlookDataFormat.Messages[i], IMessage, LMessage)) then
+//        begin
+//          try
+//
+//          finally
+//
+//          end;
+//        end;
 
 //        LJson := LDroppedMailList.Values['MailInfos'];
 //ShowMessage('LJson :' + #13#10 + LJson);
@@ -586,50 +600,50 @@ begin
 //          LIsNewMailAdded := AddOLMail2DBFromDroppedMail(FDBKey, FHullNo, LJson, LNewAddedEmailList)
 //        else
 //          LIsNewMailAdded := AddEmail2GridNList(FDBKey, LJson, LNewAddedEmailList);
-      end;//for
+//      end;//for
 
       //새 메일이 그리드에 추가 되었으면 Refresh
-      if LIsNewMailAdded then
-      begin
-        if (MoveFolderCB.ItemIndex > -1) and (AutoMoveCB.Checked) then
-        begin
-          LNewStoreId := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
-          LNewStorePath := FFolderListFromOL.Names[MoveFolderCB.ItemIndex];
-        end
-        else
-        begin
-          LNewStoreId := '';
-          LNewStorePath := '';
-        end;
-
-        if (LNewStoreId <> '') and (LNewStorePath <> '') then
-        begin
-          for i := 0 to LNewAddedEmailList.Count - 1 do
-          begin
-            LOriginalEntryId := LNewAddedEmailList.Names[i];
-            LOriginalStoreId := LNewAddedEmailList.ValueFromIndex[i];
-            MoveEmail2Folder(LOriginalEntryId, LOriginalStoreId, LNewStoreId, LNewStorePath, False);
-
-//            if SendCmd2OL4MoveFolderEmail_WS(LOriginalEntryId, LOriginalStoreId,
-//              LStoreId, LStorePath, LSubFolder, LHullNo, LDroppedMailList, FWSInfoRec) then
-//            begin
-//              UpdateOlMail2DBFromMovedMail(LDroppedMailList);
-//            end;
-          end;
-
-          ShowMessage('Email move to folder( ' + LNewStorePath + ' ) completed!' + #13#10 +
-            '( ' + IntToStr(OutlookDataFormat.Messages.Count) + ' 건 )');
-        end;
+//      if LIsNewMailAdded then
+//      begin
+//        if (MoveFolderCB.ItemIndex > -1) and (AutoMoveCB.Checked) then
+//        begin
+//          LNewStoreId := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
+//          LNewStorePath := FFolderListFromOL.Names[MoveFolderCB.ItemIndex];
+//        end
+//        else
+//        begin
+//          LNewStoreId := '';
+//          LNewStorePath := '';
+//        end;
+//
+//        if (LNewStoreId <> '') and (LNewStorePath <> '') then
+//        begin
+//          for i := 0 to LNewAddedEmailList.Count - 1 do
+//          begin
+//            LOriginalEntryId := LNewAddedEmailList.Names[i];
+//            LOriginalStoreId := LNewAddedEmailList.ValueFromIndex[i];
+//            MoveEmail2Folder(LOriginalEntryId, LOriginalStoreId, LNewStoreId, LNewStorePath, False);
+//
+////            if SendCmd2OL4MoveFolderEmail_WS(LOriginalEntryId, LOriginalStoreId,
+////              LStoreId, LStorePath, LSubFolder, LHullNo, LDroppedMailList, FWSInfoRec) then
+////            begin
+////              UpdateOlMail2DBFromMovedMail(LDroppedMailList);
+////            end;
+//          end;
+//
+//          ShowMessage('Email move to folder( ' + LNewStorePath + ' ) completed!' + #13#10 +
+//            '( ' + IntToStr(OutlookDataFormat.Messages.Count) + ' 건 )');
+//        end;
 
 //        SendOLEmail2MQ(LNewAddedEmailList);
 
-        if FIsSaveEmail2DBWhenDropped then
-          MailCount := ShowEmailListFromDBKey(grid_Mail, FDBKey);
-      end;
-    finally
-//      LNewAddedEmailList.Free;
+//        if FIsSaveEmail2DBWhenDropped then
+//          MailCount := ShowEmailListFromDBKey(grid_Mail, FDBKey);
+//      end;
+//    finally
+//      LNewAddedEmailList.Free;
 //      LDroppedMailList.Free;
-    end;
+//    end;
   end;
 end;
 
@@ -791,7 +805,7 @@ begin
 
   ShowMailContents(grid_Mail, ARow);
 
-  NextGridScrollToRow(grid_Mail);
+//  NextGridScrollToRow(grid_Mail);
 end;
 
 procedure TOutlookEmailListFr.InitEmailClient(AEmailDBName: string);
@@ -863,8 +877,9 @@ begin
   FPJHTimerPool.AddOneShot(OnInitVarTimer,1000);
   FPJHTimerPool.AddOneShot(OnGetOLFolderListTimer,2000);
 
+  InitEmailClient();
   StartWorker();
-  InitMAPI();
+//  InitMAPI();
 end;
 
 //procedure TOutlookEmailListFr.Korean1Click(Sender: TObject);
@@ -963,11 +978,6 @@ begin
   ShowEmailListFromDBKey(grid_Mail, FDBKey);
 end;
 
-procedure TOutlookEmailListFr.MoveFolderCBDropDown(Sender: TObject);
-begin
-  FillInMoveFolderCB;
-end;
-
 procedure TOutlookEmailListFr.OnGetOLFolderListTimer(Sender: TObject;
   Handle: Integer; Interval: Cardinal; ElapsedTime: Integer);
 begin
@@ -1002,6 +1012,8 @@ begin
   case TOLRespondKind(AMsgId) of
     olrkMAPIFolderList: begin
       FillFolderListFromRespRec(ARec);
+      //FolderList가 ComboBox에 채워지면 Grid의 FolderPath를 참조하여 ComboBox ItmeIndex 조정함
+      SetMoveFolderCBByFolderPath();
       FLogProc(ARec.FMsg);
     end;
     olrkLog: FLogProc(ARec.FMsg);
@@ -1023,12 +1035,17 @@ end;
 procedure TOutlookEmailListFr.ReqMoveEmailFolder2Worker(
   ADynAry: TRawUTF8DynArray);
 var
-  i: integer;
+  i, LFolderIdx: integer;
   LDoc: variant;
   LOmniValue: TOmniValue;
   LDestFolder: string;
 //  LUtf8: RawUtf8;
 begin
+  LFolderIdx := MoveFolderCB.ItemIndex;
+
+  if LFolderIdx < 0 then
+    exit;
+
   for i := Low(ADynAry) to High(ADynAry) do
   begin
     LDoc := _JSON(ADynAry[i]);
@@ -1203,6 +1220,33 @@ begin
   end;
 end;
 
+procedure TOutlookEmailListFr.SetMoveFolderCBByFolderPath(AFolderPath: string);
+var
+  i,j,k: integer;
+begin
+  if AFolderPath = '' then
+  begin
+    for i := 0 to grid_Mail.RowCount - 1 do
+    begin
+      AFolderPath := grid_Mail.CellsByName['SavedOLFolderPath', grid_Mail.RowCount-1];
+      AFolderPath := GetFolderNameOfNthLevel(AFolderPath, 2);
+
+      for j := 0 to MoveFolderCB.Items.Count - 1 do
+      begin
+//        k := Pos(MoveFolderCB.Items.Strings[j], AFolderPath);
+          k := MoveFolderCB.Items.IndexOf(AFolderPath);
+//        if k > 0 then
+
+        if k > -1  then
+        begin
+          MoveFolderCB.ItemIndex := k;
+          Exit;
+        end;
+      end;//for
+    end;//for
+  end;
+end;
+
 procedure TOutlookEmailListFr.SetMoveFolderIndex;
 var
   i: integer;
@@ -1278,7 +1322,9 @@ begin
   LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
   LDynArr.LoadFromJSON(PUTF8Char(AJson));
 
-  ReqMoveEmailFolder2Worker(LDynUtf8);
+  if AutoMoveCB.Checked then
+    ReqMoveEmailFolder2Worker(LDynUtf8);
+
   AddNextGridRowsFromVariant(grid_Mail, LDynUtf8, False);
 
 //  Result := GetListFromVariant2NextGrid(grid_Mail, LVar, True, True);

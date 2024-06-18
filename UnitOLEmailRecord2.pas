@@ -7,18 +7,31 @@ uses System.SysUtils, Classes,
   mormot.core.data, mormot.orm.base, mormot.core.variants, mormot.core.datetime;
 
 type
+  TOLEmailSrchRec = packed record
+    FHullNo,
+    FClaimNo,
+    FProjectNo,
+    fOrderBy
+    : RawUTF8;
+  end;
+
   TSQLOLEmailMsg = class(TSQLRecord)
   private
-    fDBKey,
-    fHullNo: RawUTF8;
+    fDBKey,//Email EntryId를 Key로 사용
+    fHullNo,
+    fProjectNo,
+    fClaimNo: RawUTF8;
     fPrevFolderPath,
     fSavedOLFolderPath,
     fLocalEntryId,
     fLocalStoreId,
     fRemoteEntryId, //원격지의 pst파일에 저장할 때 Id
     fRemoteStoreId,
-    fSender,
-    fReceiver,
+    fFolderEntryId,
+    fFolderStoreId,
+    fSenderName,
+    fSenderEmail,
+    fRecipients, //수신자 Email List
     fCarbonCopy,
     fBlindCC,
     fSubject,
@@ -36,16 +49,21 @@ type
   published
     property DBKey: RawUTF8 read fDBKey write fDBKey;// stored AS_UNIQUE;
     property HullNo: RawUTF8 read fHullNo write fHullNo;
+    property ProjectNo: RawUTF8 read fProjectNo write fProjectNo;
+    property ClaimNo: RawUTF8 read fClaimNo write fClaimNo;
     property PrevFolderPath: RawUTF8 read fPrevFolderPath write fPrevFolderPath;
     property SavedOLFolderPath: RawUTF8 read fSavedOLFolderPath write fSavedOLFolderPath;
     property LocalEntryId: RawUTF8 read fLocalEntryId write fLocalEntryId;
     property LocalStoreId: RawUTF8 read fLocalStoreId write fLocalStoreId;
     property RemoteEntryId: RawUTF8 read fRemoteEntryId write fRemoteEntryId;
     property RemoteStoreId: RawUTF8 read fRemoteStoreId write fRemoteStoreId;
-    property Sender: RawUTF8 read fSender write fSender;
-    property Receiver: RawUTF8 read fReceiver write fReceiver;
-    property CarbonCopy: RawUTF8 read fCarbonCopy write fCarbonCopy;
-    property BlindCC: RawUTF8 read fBlindCC write fBlindCC;
+    property FolderEntryId: RawUTF8 read fFolderEntryId write fFolderEntryId;
+    property FolderStoreId: RawUTF8 read fFolderStoreId write fFolderStoreId;
+    property SenderName: RawUTF8 read fSenderName write fSenderName;
+    property SenderEmail: RawUTF8 read fSenderEmail write fSenderEmail;
+    property Recipients: RawUTF8 read fRecipients write fRecipients;
+    property CC: RawUTF8 read fCarbonCopy write fCarbonCopy;
+    property BCC: RawUTF8 read fBlindCC write fBlindCC;
     property Subject: RawUTF8 read fSubject write fSubject;
     property SavedMsgFilePath: RawUTF8 read fSavedMsgFilePath write fSavedMsgFilePath;
     property SavedMsgFileName: RawUTF8 read fSavedMsgFileName write fSavedMsgFileName;
@@ -68,6 +86,8 @@ procedure DestroyOLEmailMsg;
 function GetSQLOLEmailMsgFromDBKey(ADBKey: string): TSQLOLEmailMsg;
 function GetFirstStoreIdFromDBKey(ADBKey: string): string;
 function GetOLEmailList2JSONArrayFromDBKey(ADBKey: string): RawUTF8;
+function GetEmailList2JSONArrayFromSearchRec(ASearchRec: TOLEmailSrchRec): RawUTF8;
+function GetSQLOLEmailMsgFromSearchRec(ASearchRec: TOLEmailSrchRec): TSQLOLEmailMsg;
 procedure GetContainDataNDirFromID(AID: integer; out AConData, AProcDir: integer);
 function GetEmailCountFromDBKey(ADBKey: string): integer;
 
@@ -79,30 +99,33 @@ procedure DestroyOLEmailMsg;
 
 implementation
 
-uses UnitFolderUtil2, Forms;
+uses UnitFolderUtil2, VarRecUtils, Forms;
 
 procedure InitOLEmailMsgClient(AExeName: string; ADBFileName: string);
 var
-  LStr, LFileName: string;
+  LStr, LFileName, LFilePath: string;
 begin
   if Assigned(g_OLEmailMsgDB) then
     DestroyOLEmailMsg;
 
+  if AExeName = '' then
+    AExeName := Application.ExeName;
+
   LStr := ExtractFileExt(AExeName);
   LFileName := ExtractFileName(AExeName);
-  AExeName := ExtractFilePath(AExeName);
+  LFilePath := ExtractFilePath(AExeName);
 
   if LStr = '.exe' then
   begin
-    LStr := ChangeFileExt(ExtractFileName(AExeName),'.sqlite');
-    LStr := LStr.Replace('.sqlite', '_Email.sqlite');
-    AExeName := GetSubFolderPath(AExeName, 'db');
+    LFileName := ChangeFileExt(ExtractFileName(AExeName),'.sqlite');
+    LFileName := LFileName.Replace('.sqlite', '_Email.sqlite');
+    LFilePath := GetSubFolderPath(LFilePath, 'db');
   end;
 
-  AExeName := EnsureDirectoryExists(AExeName);
+  LFilePath := EnsureDirectoryExists(LFilePath);
 
   if ADBFileName = '' then
-    g_OLEmailMsgDBFileName := AExeName + LFileName
+    g_OLEmailMsgDBFileName := LFilePath + LFileName
   else
     g_OLEmailMsgDBFileName := ADBFileName;
 
@@ -186,6 +209,94 @@ begin
   end;
 end;
 
+function GetEmailList2JSONArrayFromSearchRec(ASearchRec: TOLEmailSrchRec): RawUTF8;
+var
+  LSQLEmailMsg: TSQLOLEmailMsg;
+  LUtf8: RawUTF8;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+begin
+  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+  LSQLEmailMsg := GetSQLOLEmailMsgFromSearchRec(ASearchRec);
+
+  try
+    LSQLEmailMsg.FillRewind;
+
+    while LSQLEmailMsg.FillOne do
+    begin
+      LUtf8 := LSQLEmailMsg.GetJSONValues(true, True, soSelect);
+      LDynArr.Add(LUtf8);
+    end;
+
+    LUtf8 := LDynArr.SaveToJSON;
+    Result := LUtf8;
+  finally
+    FreeAndNil(LSQLEmailMsg);
+  end;
+end;
+
+function GetSQLOLEmailMsgFromSearchRec(ASearchRec: TOLEmailSrchRec): TSQLOLEmailMsg;
+var
+  ConstArray: TConstArray;
+  LWhere, LStr: string;
+begin
+  LWhere := '';
+  ConstArray := CreateConstArray([]);
+  try
+    if ASearchRec.FHullNo <> '' then
+    begin
+      AddConstArray(ConstArray, ['%'+ASearchRec.FHullNo+'%']);
+
+      if LWhere <> '' then
+        LWhere := LWhere + ' and ';
+
+      LWhere := LWhere + 'HullNo LIKE ? ';
+    end;
+
+    if ASearchRec.FClaimNo <> '' then
+    begin
+      AddConstArray(ConstArray, ['%'+ASearchRec.FClaimNo+'%']);
+
+      if LWhere <> '' then
+        LWhere := LWhere + ' and ';
+
+      LWhere := LWhere + 'ClaimNo LIKE ? ';
+    end;
+
+    if ASearchRec.FProjectNo <> '' then
+    begin
+      AddConstArray(ConstArray, ['%'+ASearchRec.FProjectNo+'%']);
+
+      if LWhere <> '' then
+        LWhere := LWhere + ' and ';
+
+      LWhere := LWhere + 'ProjectNo LIKE ? ';
+    end;
+
+    if LWhere = '' then
+    begin
+      AddConstArray(ConstArray, [-1]);
+      LWhere := 'ID <> ? ';
+    end;
+
+    if ASearchRec.fOrderBy <> '' then
+      LWhere := LWhere + ' ' + ASearchRec.fOrderBy;
+
+    Result := TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm, Lwhere, ConstArray);
+
+    if Result.FillOne then
+    begin
+      Result.IsUpdate := True;
+    end
+    else
+    begin
+      Result.IsUpdate := False;
+    end
+  finally
+    FinalizeConstArray(ConstArray);
+  end;
+end;
+
 procedure GetContainDataNDirFromID(AID: integer; out AConData, AProcDir: integer);
 var
   i: integer;
@@ -252,7 +363,12 @@ begin
       LEntryId := LVar.EntryId
     else
     if LVar.LocalEntryId <> Null then
-      LEntryId := LVar.LocalEntryId
+    begin
+      LEntryId := LVar.LocalEntryId;
+
+      if ADBKey = '' then
+        ADBKey := LEntryId;
+    end
     else
     if LVar.RemoteEntryId <> Null then
       LEntryId := LVar.RemoteEntryId;
@@ -290,10 +406,13 @@ begin
           LEmailMsg.LocalStoreId := LStoreId;
         end;
 
-        LEmailMsg.Sender := LVar.Sender;
-        LEmailMsg.Receiver := LVar.Receiver;
-        LEmailMsg.CarbonCopy := LVar.CC;
-        LEmailMsg.BlindCC := LVar.BCC;
+        LEmailMsg.FolderEntryId := LVar.FolderEntryId;
+
+        LEmailMsg.SenderName := LVar.SenderName;
+        LEmailMsg.SenderEmail := LVar.SenderEmail;
+        LEmailMsg.Recipients := LVar.Recipients;
+        LEmailMsg.CC := LVar.CC;
+        LEmailMsg.BCC := LVar.BCC;
         LEmailMsg.Subject := LVar.Subject;
         LUtf8 := LVar.SavedOLFolderPath;
         LEmailMsg.SavedOLFolderPath := LUtf8;
@@ -301,12 +420,16 @@ begin
         LEmailMsg.SavedMsgFilePath := GetFolderPathFromEmailPath(LUtf8);
         //GUID.msg 형식으로 저장됨
         LEmailMsg.SavedMsgFileName := LVar.SavedMsgFileName;
-        LEmailMsg.AttachCount := LVar.AttachCount;
+        LEmailMsg.AttachCount := StrToIntDef(LVar.AttachCount, 0);
         LEmailMsg.RecvDate := TimeLogFromDateTime(StrToDateTime(LVar.RecvDate));
 //        LStr := LVar.ContainData;
-        LEmailMsg.ContainData := LVar.ContainData;//g_ContainData4Mail.ToType(LStr);
+        LEmailMsg.ContainData := StrToIntDef(LVar.ContainData, 0);//g_ContainData4Mail.ToType(LStr);
 //        LStr := LVar.ProcDirection;
-        LEmailMsg.ProcDirection := LVar.ProcDirection;//g_ProcessDirection.ToType(LStr);
+        LEmailMsg.ProcDirection := StrToIntDef(LVar.ProcDirection, 0);//g_ProcessDirection.ToType(LStr);
+
+        LEmailMsg.HullNo := LVar.HullNo;
+        LEmailMsg.ClaimNo := LVar.ClaimNo;
+        LEmailMsg.ProjectNo := LVar.HullNo;
 
         if LEmailMsg.IsUpdate then
           g_OLEmailMsgDB.Update(LEmailMsg)

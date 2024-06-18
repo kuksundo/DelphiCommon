@@ -15,6 +15,7 @@ procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
 procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 //ADoc Name이 Grid의 Cell Data 임
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+//첫번쨰 행이 Grid의 Column Name 임
 procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsAddColumn: Boolean=false);
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean=false);
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
