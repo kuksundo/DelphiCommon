@@ -263,7 +263,7 @@ var
           if POS(LCompName, AGrid.Columns[Lj].Name) > 0 then
           begin
             if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
-              AGrid.CellByName[Lj, LRow].AsDateTime := TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+              AGrid.CellByName[Lj, LRow].AsDateTime := VarToDateTIme(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
             else //반드시 String Type만 대입 할 것
               AGrid.CellsByName[Lj, LRow] := TDocVariantData(AJson).Values[Li];
           end;
@@ -272,7 +272,7 @@ var
       else if AGrid.Columns.IndexOf(AGrid.ColumnByName[LCompName]) > -1 then
       begin
         if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
-          AGrid.CellByName[LCompName, LRow].AsDateTime := TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+          AGrid.CellByName[LCompName, LRow].AsDateTime := VarToDateTIme(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
         else //반드시 String Type만 대입 할 것
           AGrid.CellsByName[LCompName, LRow] := TDocVariantData(AJson).Values[Li];
       end;
@@ -363,7 +363,7 @@ begin
     LColumnName := AGrid.Columns.Item[i].Name;
 
     if AGrid.ColumnByName[LColumnName].ColumnType = ctDate then
-      TDocVariantData(Result).Value[LColumnName] := TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
+      TDocVariantData(Result).Value[LColumnName] := VarFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime) //TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
     else
       TDocVariantData(Result).Value[LColumnName] := AGrid.CellsByName[LColumnName, ARow];
   end;
