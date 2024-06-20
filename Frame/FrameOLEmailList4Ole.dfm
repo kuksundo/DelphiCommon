@@ -2,13 +2,13 @@ object OutlookEmailListFr: TOutlookEmailListFr
   Left = 0
   Top = 0
   Width = 1214
-  Height = 705
+  Height = 651
   TabOrder = 0
   object mailPanel1: TPanel
     Left = 0
     Top = 0
     Width = 1214
-    Height = 705
+    Height = 651
     Margins.Left = 5
     Margins.Right = 5
     Align = alClient
@@ -18,19 +18,21 @@ object OutlookEmailListFr: TOutlookEmailListFr
     ParentBackground = False
     TabOrder = 0
     StyleElements = [seFont, seClient]
+    ExplicitHeight = 705
     DesignSize = (
       1214
-      705)
+      651)
     object tabMail: TTabControl
       Left = 5
       Top = 57
       Width = 1204
-      Height = 615
+      Height = 561
       Align = alClient
       TabOrder = 0
+      ExplicitHeight = 615
       object StatusBar: TStatusBar
         Left = 4
-        Top = 592
+        Top = 538
         Width = 1196
         Height = 19
         AutoHint = True
@@ -61,6 +63,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ShowHint = True
         SizeGrip = False
         UseSystemFont = False
+        ExplicitTop = 592
       end
       object EmailTab: TAdvOfficeTabSet
         Left = 4
@@ -972,11 +975,11 @@ object OutlookEmailListFr: TOutlookEmailListFr
         Left = 4
         Top = 33
         Width = 1196
-        Height = 559
+        Height = 505
         Touch.InteractiveGestures = [igPan, igPressAndTap]
         Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia, igoPanGutter, igoParentPassthrough]
         Align = alClient
-        AppearanceOptions = [ao3DGridLines, aoAlphaBlendedSelection, aoBoldTextSelection, aoHideSelection]
+        AppearanceOptions = [ao3DGridLines, aoAlphaBlendedSelection, aoBoldTextSelection, aoHideFocus, aoHideSelection]
         Caption = ''
         HeaderSize = 23
         HighlightedTextColor = clHotLight
@@ -986,8 +989,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
         TabOrder = 2
         TabStop = True
         OnCellDblClick = grid_MailCellDblClick
-        ExplicitLeft = -5
-        ExplicitTop = 209
+        ExplicitHeight = 559
         object NxIncrementColumn1: TNxIncrementColumn
           Alignment = taCenter
           DefaultWidth = 30
@@ -1008,6 +1010,16 @@ object OutlookEmailListFr: TOutlookEmailListFr
           SortType = stAlphabetic
           Width = 30
         end
+        object TaskID: TNxTextColumn
+          Header.Font.Charset = DEFAULT_CHARSET
+          Header.Font.Color = clWindowText
+          Header.Font.Height = -11
+          Header.Font.Name = 'Tahoma'
+          Header.Font.Style = []
+          Position = 1
+          SortType = stAlphabetic
+          Visible = False
+        end
         object HullNo: TNxTextColumn
           Alignment = taCenter
           Font.Charset = DEFAULT_CHARSET
@@ -1022,9 +1034,51 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
+          Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
           ParentFont = False
-          Position = 1
+          Position = 2
           SortType = stAlphabetic
+        end
+        object ProjectNo: TNxTextColumn
+          Alignment = taCenter
+          Header.Caption = 'ProjectNo'
+          Header.Alignment = taCenter
+          Header.Font.Charset = DEFAULT_CHARSET
+          Header.Font.Color = clWindowText
+          Header.Font.Height = -11
+          Header.Font.Name = 'Tahoma'
+          Header.Font.Style = []
+          Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
+          Position = 3
+          SortType = stAlphabetic
+        end
+        object ClaimNo: TNxTextColumn
+          Alignment = taCenter
+          DefaultWidth = 50
+          Header.Caption = 'ClaimNo'
+          Header.Alignment = taCenter
+          Header.Font.Charset = DEFAULT_CHARSET
+          Header.Font.Color = clWindowText
+          Header.Font.Height = -11
+          Header.Font.Name = 'Tahoma'
+          Header.Font.Style = []
+          Position = 4
+          SortType = stAlphabetic
+          Width = 50
+        end
+        object Description: TNxButtonColumn
+          Alignment = taCenter
+          Header.Caption = #49444#47749
+          Header.Alignment = taCenter
+          Header.Font.Charset = DEFAULT_CHARSET
+          Header.Font.Color = clWindowText
+          Header.Font.Height = -11
+          Header.Font.Name = 'Tahoma'
+          Header.Font.Style = []
+          Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
+          Position = 5
+          SortType = stAlphabetic
+          OnButtonClick = DescriptionButtonClick
         end
         object Subject: TNxTextColumn
           DefaultWidth = 300
@@ -1041,7 +1095,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 2
+          Position = 6
           SortType = stAlphabetic
           Width = 300
         end
@@ -1061,7 +1115,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 3
+          Position = 7
           SortType = stDate
           NoneCaption = 'None'
           TodayCaption = 'Today'
@@ -1082,7 +1136,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 4
+          Position = 8
           SortType = stAlphabetic
           Width = 121
         end
@@ -1100,7 +1154,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 5
+          Position = 9
           SortType = stAlphabetic
         end
         object SenderName: TNxMemoColumn
@@ -1118,7 +1172,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Style = []
           Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
           ParentFont = False
-          Position = 6
+          Position = 10
           SortType = stAlphabetic
         end
         object Recipients: TNxMemoColumn
@@ -1135,7 +1189,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 7
+          Position = 11
           SortType = stAlphabetic
         end
         object CC: TNxMemoColumn
@@ -1152,7 +1206,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 8
+          Position = 12
           SortType = stAlphabetic
         end
         object BCC: TNxMemoColumn
@@ -1169,7 +1223,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 9
+          Position = 13
           SortType = stAlphabetic
         end
         object RowID: TNxTextColumn
@@ -1184,7 +1238,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 10
+          Position = 14
           SortType = stAlphabetic
           Visible = False
         end
@@ -1200,7 +1254,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 11
+          Position = 15
           SortType = stAlphabetic
           Visible = False
         end
@@ -1216,7 +1270,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 12
+          Position = 16
           SortType = stAlphabetic
           Visible = False
         end
@@ -1235,7 +1289,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 13
+          Position = 17
           SortType = stAlphabetic
         end
         object AttachCount: TNxTextColumn
@@ -1253,7 +1307,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
           ParentFont = False
-          Position = 14
+          Position = 18
           SortType = stAlphabetic
         end
         object DBKey: TNxTextColumn
@@ -1262,7 +1316,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
-          Position = 15
+          Position = 19
           SortType = stAlphabetic
           Visible = False
         end
@@ -1272,7 +1326,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
-          Position = 16
+          Position = 20
           SortType = stAlphabetic
           Visible = False
         end
@@ -1282,7 +1336,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
-          Position = 17
+          Position = 21
           SortType = stAlphabetic
           Visible = False
         end
@@ -1294,7 +1348,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
-          Position = 18
+          Position = 22
           SortType = stAlphabetic
           Visible = False
         end
@@ -1304,7 +1358,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
-          Position = 19
+          Position = 23
           SortType = stAlphabetic
           Visible = False
         end
@@ -1312,13 +1366,14 @@ object OutlookEmailListFr: TOutlookEmailListFr
     end
     object panMailButtons: TPanel
       Left = 5
-      Top = 672
+      Top = 618
       Width = 1204
       Height = 33
       Align = alBottom
       BevelOuter = bvNone
       ParentBackground = False
       TabOrder = 1
+      ExplicitTop = 672
       object btnStartProgram: TBitBtn
         Left = 128
         Top = 6
@@ -1393,12 +1448,11 @@ object OutlookEmailListFr: TOutlookEmailListFr
         Caption = 'Save To DB'
         TabOrder = 2
         OnClick = AeroButton1Click
-        ExplicitLeft = 1018
       end
     end
     object panProgress: TPanel
       Left = 997
-      Top = 650
+      Top = 596
       Width = 205
       Height = 18
       Alignment = taRightJustify
@@ -1407,6 +1461,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
       ParentBackground = False
       TabOrder = 2
       Visible = False
+      ExplicitTop = 650
       DesignSize = (
         205
         18)
@@ -1664,7 +1719,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C01012F009800B40610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01012F009800C80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000C0000000010020000000000000C0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

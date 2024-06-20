@@ -6,13 +6,13 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types
     Variants, Dialogs, Forms, Excel2010,
     NxColumnClasses, NxColumns, NxGrid, NxCells, ArrayHelper,
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode,
-    mormot.core.text;
+    mormot.core.text, mormot.core.datetime;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
   AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
 //ADoc Name이 Grid의 Column Name임
-procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; ARow: integer=-1);
 //ADoc Name이 Grid의 Cell Data 임
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 //첫번쨰 행이 Grid의 Column Name 임
@@ -37,8 +37,9 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 procedure ShowOrHideAllColumn4NextGrid(ANextGrid: TNextGrid; AIsShow: Boolean);
 function GetRowFromMouseDown(ANextGrid: TNextGrid; APoint: TPoint): integer;
 //AFindFromRow부터 검색 시작, Column[AColIdx]의 내용 중에 AFindText가 있으면 RowNo 반환
+//AColIdx: -1 이면 AColName을 사용하여 Column 검색함
 function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
-  const AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false): integer;
+  AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false; AColName: string=''): integer;
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 
 implementation
@@ -148,15 +149,16 @@ begin
   end;
 end;
 
-procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
+procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant;
+  AIsFromValue: Boolean; ARow: integer);
 var
-  i,j: integer;
+  i: integer;
   LCellValue, LColName: string;
 begin
   with AGrid do
   begin
-//    ClearRows;
-    j := AGrid.AddRow();
+    if ARow = -1 then
+      ARow := AGrid.AddRow();
 
     for i := 0 to TDocVariantData(ADoc).Count - 1 do
     begin
@@ -168,7 +170,7 @@ begin
         LCellValue := LColName;
 
       if AGrid.Columns.IndexOf(AGrid.ColumnByName[LColName]) > -1 then
-        AGrid.CellsByName[LColName, j] := LCellValue;
+        AGrid.CellsByName[LColName, ARow] := LCellValue;
     end;//for
   end;//with
 end;
@@ -260,15 +262,19 @@ var
         begin
           if POS(LCompName, AGrid.Columns[Lj].Name) > 0 then
           begin
-            //반드시 String Type만 대입 할 것
-            AGrid.CellsByName[Lj, LRow] := TDocVariantData(AJson).Values[Li];
+            if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
+              AGrid.CellByName[Lj, LRow].AsDateTime := TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+            else //반드시 String Type만 대입 할 것
+              AGrid.CellsByName[Lj, LRow] := TDocVariantData(AJson).Values[Li];
           end;
         end;
       end
       else if AGrid.Columns.IndexOf(AGrid.ColumnByName[LCompName]) > -1 then
       begin
-        //반드시 String Type만 대입 할 것
-        AGrid.CellsByName[LCompName, LRow] := TDocVariantData(AJson).Values[Li];
+        if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
+          AGrid.CellByName[LCompName, LRow].AsDateTime := TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+        else //반드시 String Type만 대입 할 것
+          AGrid.CellsByName[LCompName, LRow] := TDocVariantData(AJson).Values[Li];
       end;
     end;
   end;
@@ -332,7 +338,10 @@ begin
       if ARemoveUnderBar then
         LColumnName := strToken(LColumnName, '_');
 
-      TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
+      if AGrid.ColumnByName[LColumnName].ColumnType = ctDate then
+        TDocVariantData(LV).Value[LColumnName] := AGrid.CellByName[LColumnName, i].AsDateTime
+      else
+        TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
     end;
 
     LUtf8 := LV;
@@ -353,7 +362,10 @@ begin
   begin
     LColumnName := AGrid.Columns.Item[i].Name;
 
-    TDocVariantData(Result).Value[LColumnName] := AGrid.CellsByName[LColumnName, ARow];
+    if AGrid.ColumnByName[LColumnName].ColumnType = ctDate then
+      TDocVariantData(Result).Value[LColumnName] := TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
+    else
+      TDocVariantData(Result).Value[LColumnName] := AGrid.CellsByName[LColumnName, ARow];
   end;
 end;
 
@@ -577,7 +589,8 @@ begin
 end;
 
 function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
-  const AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false): integer;
+  AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean;
+  AColName: string): integer;
 var
   i: integer;
   LStr: string;
@@ -589,6 +602,23 @@ begin
 
   if AFindFromRow > ANextGrid.RowCount - 1 then
     AFindFromRow := 0;
+
+  if AColIdx = -1 then
+  begin
+    for i := 0 to ANextGrid.Columns.Count - 1 do
+    begin
+      LStr := ANextGrid.Columns.Item[i].Name;
+
+      if LStr = AColName then
+      begin
+        AColIdx := i;
+        Break;
+      end;
+    end;
+  end;
+
+  if AColIdx = -1 then
+    exit;
 
   for i := AFindFromRow to ANextGrid.RowCount - 1 do
   begin

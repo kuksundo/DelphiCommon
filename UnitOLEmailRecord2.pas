@@ -8,6 +8,7 @@ uses System.SysUtils, Classes,
 
 type
   TOLEmailSrchRec = packed record
+    FTaskID: TID;
     FHullNo,
     FClaimNo,
     FProjectNo,
@@ -17,7 +18,8 @@ type
 
   TSQLOLEmailMsg = class(TSQLRecord)
   private
-    fDBKey,//Email EntryId를 Key로 사용
+    fTaskID: TID;
+//    fDBKey,//Email EntryId를 Key로 사용
     fHullNo,
     fProjectNo,
     fClaimNo: RawUTF8;
@@ -36,7 +38,8 @@ type
     fBlindCC,
     fSubject,
     fSavedMsgFilePath,
-    fSavedMsgFileName
+    fSavedMsgFileName,
+    fDescription //메일 보충 설명
     : RawUTF8;
     fAttachCount: integer;
     FContainData: integer;//TContainData4Mail;
@@ -47,7 +50,8 @@ type
     FIsUpdate: Boolean;
     property IsUpdate: Boolean read FIsUpdate write FIsUpdate;
   published
-    property DBKey: RawUTF8 read fDBKey write fDBKey;// stored AS_UNIQUE;
+    property TaskID: TID read fTaskID write fTaskID;
+//    property DBKey: RawUTF8 read fDBKey write fDBKey;// stored AS_UNIQUE;
     property HullNo: RawUTF8 read fHullNo write fHullNo;
     property ProjectNo: RawUTF8 read fProjectNo write fProjectNo;
     property ClaimNo: RawUTF8 read fClaimNo write fClaimNo;
@@ -65,6 +69,7 @@ type
     property CC: RawUTF8 read fCarbonCopy write fCarbonCopy;
     property BCC: RawUTF8 read fBlindCC write fBlindCC;
     property Subject: RawUTF8 read fSubject write fSubject;
+    property Description: RawUTF8 read fDescription write fDescription;
     property SavedMsgFilePath: RawUTF8 read fSavedMsgFilePath write fSavedMsgFilePath;
     property SavedMsgFileName: RawUTF8 read fSavedMsgFileName write fSavedMsgFileName;
     property AttachCount: integer read fAttachCount write fAttachCount;
@@ -83,15 +88,17 @@ function CreateOLEmailMsgModel: TSQLModel;
 procedure DestroyOLEmailMsg;
 
 function GetEMailDBName(AExeName, AProdType: string): String;
-function GetSQLOLEmailMsgFromDBKey(ADBKey: string): TSQLOLEmailMsg;
-function GetFirstStoreIdFromDBKey(ADBKey: string): string;
-function GetOLEmailList2JSONArrayFromDBKey(ADBKey: string): RawUTF8;
+//function GetSQLOLEmailMsgFromDBKey(ADBKey: string): TSQLOLEmailMsg;
+function GetSQLOLEmailMsgFromTaskID(ATaskID: TID): TSQLOLEmailMsg;
+function GetFirstStoreIdFromDBKey(ADBKey: TID): string;
+function GetOLEmailList2JSONArrayFromDBKey(ADBKey: TID): RawUTF8;
 function GetEmailList2JSONArrayFromSearchRec(ASearchRec: TOLEmailSrchRec): RawUTF8;
 function GetSQLOLEmailMsgFromSearchRec(ASearchRec: TOLEmailSrchRec): TSQLOLEmailMsg;
 procedure GetContainDataNDirFromID(AID: integer; out AConData, AProcDir: integer);
-function GetEmailCountFromDBKey(ADBKey: string): integer;
+//function GetEmailCountFromDBKey(ADBKey: string): integer;
+function GetEmailCountFromTaskID(ATaskID: TID): integer;
 
-function AddOLMail2DBFromDroppedMail(ADBKey, AHullNo, AJson: string;
+function AddOLMail2DBFromDroppedMail(AJson: string;
   AAddedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
 function UpdateOLMail2DBFromMovedMail(AMovedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
 function DeleteOLMail2DBFromID(AID: integer): Boolean;
@@ -106,7 +113,8 @@ var
   LStr, LFileName, LFilePath: string;
 begin
   if Assigned(g_OLEmailMsgDB) then
-    DestroyOLEmailMsg;
+    exit;
+//    DestroyOLEmailMsg;
 
   if AExeName = '' then
     AExeName := Application.ExeName;
@@ -155,10 +163,21 @@ begin
   Result := Result.Replace('.exe', '_' + AProdType + '.exe');
 end;
 
-function GetSQLOLEmailMsgFromDBKey(ADBKey: string): TSQLOLEmailMsg;
+//function GetSQLOLEmailMsgFromDBKey(ADBKey: string): TSQLOLEmailMsg;
+//begin
+//  Result := TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm,
+//    'DBKey = ?', [ADBKey]);
+//
+//  if Result.FillOne then
+//    Result.IsUpdate := True
+//  else
+//    Result.IsUpdate := False;
+//end;
+
+function GetSQLOLEmailMsgFromTaskID(ATaskID: TID): TSQLOLEmailMsg;
 begin
   Result := TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm,
-    'DBKey = ?', [ADBKey]);
+    'TaskID = ?', [ATaskID]);
 
   if Result.FillOne then
     Result.IsUpdate := True
@@ -166,12 +185,12 @@ begin
     Result.IsUpdate := False;
 end;
 
-function GetFirstStoreIdFromDBKey(ADBKey: string): string;
+function GetFirstStoreIdFromDBKey(ADBKey: TID): string;
 var
   LIds: TIDDynArray;
   LSQLEmailMsg: TSQLOLEmailMsg;
 begin
-  LSQLEmailMsg:= TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm, 'DBKey = ?', [ADBKey]);
+  LSQLEmailMsg:= TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm, 'TaskID = ?', [ADBKey]);
 
   try
     if LSQLEmailMsg.FillOne then
@@ -183,7 +202,7 @@ begin
   end;
 end;
 
-function GetOLEmailList2JSONArrayFromDBKey(ADBKey: string): RawUTF8;
+function GetOLEmailList2JSONArrayFromDBKey(ADBKey: TID): RawUTF8;
 var
   LSQLEmailMsg: TSQLOLEmailMsg;
   LUtf8: RawUTF8;
@@ -191,7 +210,7 @@ var
   LDynArr: TDynArray;
 begin
   LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
-  LSQLEmailMsg := GetSQLOLEmailMsgFromDBKey(ADBKey);
+  LSQLEmailMsg := GetSQLOLEmailMsgFromTaskID(ADBKey);
 
   try
     LSQLEmailMsg.FillRewind;
@@ -243,6 +262,16 @@ begin
   LWhere := '';
   ConstArray := CreateConstArray([]);
   try
+    if ASearchRec.FTaskID <> -1 then
+    begin
+      AddConstArray(ConstArray, [ASearchRec.FTaskID]);
+
+      if LWhere <> '' then
+        LWhere := LWhere + ' and ';
+
+      LWhere := LWhere + 'TaskID = ? ';
+    end;
+
     if ASearchRec.FHullNo <> '' then
     begin
       AddConstArray(ConstArray, ['%'+ASearchRec.FHullNo+'%']);
@@ -318,12 +347,28 @@ begin
   end;
 end;
 
-function GetEmailCountFromDBKey(ADBKey: string): integer;
+//function GetEmailCountFromDBKey(ADBKey: TID): integer;
+//var
+//  LSQLEmailMsg: TSQLOLEmailMsg;
+//begin
+//  Result := 0;
+//  LSQLEmailMsg := GetSQLOLEmailMsgFromDBKey(ADBKey);
+//  try
+//    if LSQLEmailMsg.IsUpdate then
+//    begin
+//      Result := LSQLEmailMsg.fFill.Table.RowCount;
+//    end;
+//  finally
+//    FreeAndNil(LSQLEmailMsg);
+//  end;
+//end;
+
+function GetEmailCountFromTaskID(ATaskID: TID): integer;
 var
   LSQLEmailMsg: TSQLOLEmailMsg;
 begin
   Result := 0;
-  LSQLEmailMsg := GetSQLOLEmailMsgFromDBKey(ADBKey);
+  LSQLEmailMsg := GetSQLOLEmailMsgFromTaskID(ATaskID);
   try
     if LSQLEmailMsg.IsUpdate then
     begin
@@ -334,12 +379,12 @@ begin
   end;
 end;
 
-function AddOLMail2DBFromDroppedMail(ADBKey, AHullNo, AJson: string;
+function AddOLMail2DBFromDroppedMail(AJson: string;
   AAddedMailList: TStringList; AFromRemote: Boolean): Boolean;
 var
   LVarArr: TVariantDynArray;
   LVar: Variant;
-  i: integer;
+  i, LID: integer;
   LEmailMsg: TSQLOLEmailMsg;
   LUtf8: RawUTF8;
   LEntryId, LStoreId, LWhere, LStr: string;
@@ -365,9 +410,6 @@ begin
     if LVar.LocalEntryId <> Null then
     begin
       LEntryId := LVar.LocalEntryId;
-
-      if ADBKey = '' then
-        ADBKey := LEntryId;
     end
     else
     if LVar.RemoteEntryId <> Null then
@@ -382,18 +424,20 @@ begin
     if LVar.RemoteStoreId  <> Null then
       LStoreId := LVar.RemoteStoreId;
 
+    LID := StrToIntDef(LVar.TaskID, 0);
+
     if (LEntryId <> '') and (LStoreId <> '') then
     begin
       LEmailMsg := TSQLOLEmailMsg.CreateAndFillPrepare(g_OLEmailMsgDB.Orm,
-        'DBKey = ? AND ' + LWhere, [ADBKey, LEntryId, LStoreId]);
+        'TaskID = ? AND ' + LWhere, [LID, LEntryId, LStoreId]);
       try
         if LEmailMsg.FillOne then
           LEmailMsg.IsUpdate := True
         else
           LEmailMsg.IsUpdate := False;
 
-        LEmailMsg.DBKey := ADBKey;
-        LEmailMsg.HullNo := AHullNo;
+        LEmailMsg.TaskID := LID;
+        LEmailMsg.HullNo := LVar.HullNo;
 
         if AFromRemote then
         begin
@@ -429,17 +473,18 @@ begin
 
         LEmailMsg.HullNo := LVar.HullNo;
         LEmailMsg.ClaimNo := LVar.ClaimNo;
-        LEmailMsg.ProjectNo := LVar.HullNo;
+        LEmailMsg.ProjectNo := LVar.ProjectNo;
+        LEmailMsg.Description := LVar.Description;
 
         if LEmailMsg.IsUpdate then
           g_OLEmailMsgDB.Update(LEmailMsg)
         else
         //DB에 동일한 데이터가 없으면 email을 DB에 추가
         begin
-          g_OLEmailMsgDB.Add(LEmailMsg, true);
+          LID := g_OLEmailMsgDB.Add(LEmailMsg, true);
 
-          if Assigned(AAddedMailList) then
-            AAddedMailList.Add(LEmailMsg.LocalEntryId + '=' + LEmailMsg.LocalStoreId);
+          if Assigned(AAddedMailList) then //신규 추가인 경우 Grid의 RawID를 갱신하기 위해 반환함
+            AAddedMailList.Add(LEmailMsg.LocalEntryId + '=' + IntToStr(LID));
         end;
 
         Result := True;
