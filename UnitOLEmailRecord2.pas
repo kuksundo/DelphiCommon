@@ -102,7 +102,7 @@ procedure DestroyOLEmailMsg;
   AAddedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
 function UpdateOLMail2DBFromMovedMail(AMovedMailList: TStringList; AFromRemote: Boolean=False): Boolean;
 function DeleteOLMail2DBFromID(AID: integer): Boolean;
-function DeleteOLMail2DBFromDBKey(ADBKey: string): Boolean;
+function DeleteOLMail2DBFromDBKey(ADBKey: TID): Boolean;
 
 implementation
 
@@ -565,9 +565,9 @@ begin
   Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, AID);
 end;
 
-function DeleteOLMail2DBFromDBKey(ADBKey: string): Boolean;
+function DeleteOLMail2DBFromDBKey(ADBKey: TID): Boolean;
 begin
-  Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, 'DBKey = ?', [ADBKey]);
+  Result := g_OLEmailMsgDB.Delete(TSQLOLEmailMsg, 'TaskID = ?', [ADBKey]);
 end;
 
 initialization

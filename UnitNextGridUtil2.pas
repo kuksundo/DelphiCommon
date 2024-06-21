@@ -44,7 +44,7 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 
 implementation
 
-uses UnitStringUtil;
+uses UnitStringUtil, UnitVariantUtil;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
 var
@@ -263,7 +263,7 @@ var
           if POS(LCompName, AGrid.Columns[Lj].Name) > 0 then
           begin
             if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
-              AGrid.CellByName[Lj, LRow].AsDateTime := VarToDateTIme(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+              AGrid.CellByName[Lj, LRow].AsDateTime := VarToDateWithTimeLog(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
             else //반드시 String Type만 대입 할 것
               AGrid.CellsByName[Lj, LRow] := TDocVariantData(AJson).Values[Li];
           end;
@@ -272,7 +272,7 @@ var
       else if AGrid.Columns.IndexOf(AGrid.ColumnByName[LCompName]) > -1 then
       begin
         if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
-          AGrid.CellByName[LCompName, LRow].AsDateTime := VarToDateTIme(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+          AGrid.CellByName[LCompName, LRow].AsDateTime := VarToDateWithTimeLog(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
         else //반드시 String Type만 대입 할 것
           AGrid.CellsByName[LCompName, LRow] := TDocVariantData(AJson).Values[Li];
       end;

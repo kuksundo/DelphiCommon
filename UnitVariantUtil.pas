@@ -2,13 +2,18 @@ unit UnitVariantUtil;
 
 interface
 
-uses Winapi.Activex, System.Variants, System.VarUtils;
+uses Winapi.Activex, System.Variants, System.VarUtils,
+  mormot.core.datetime;
 
 function SafeArrayGetVarType(psa: PSafeArray): TVarType; safecall; external 'OleAut32.dll';
-
 function PSafeArrayToVariant(psa: PSafeArray): OleVariant;
 
+function VarToDateWithTimeLog(AVar: Variant): TDateTime;
+function VarFromDateWithTimeLog(ADate: TDateTime): Variant;
+
 implementation
+
+uses UnitStringUtil, System.SysUtils;
 
 function PSafeArrayToVariant(psa: PSafeArray): OleVariant;
 var
@@ -34,6 +39,23 @@ begin
 
   TVarData(Result).VType := VT_ARRAY or Vt;
   TVarData(Result).VArray := PVarArray(psa);
+end;
+
+function VarToDateWithTimeLog(AVar: Variant): TDateTime;
+var
+  LStr: string;
+begin
+  LStr := AVar;
+
+  if StrIsNumeric(LStr) then
+    Result := TimelogToDateTime(StrToInt64(LStr))
+  else
+    Result := VarToDateTIme(AVar);
+end;
+
+function VarFromDateWithTimeLog(ADate: TDateTime): Variant;
+begin
+
 end;
 
 end.

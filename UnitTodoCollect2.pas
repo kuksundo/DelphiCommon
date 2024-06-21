@@ -4,7 +4,7 @@ interface
 
 uses System.Classes, DateUtils, TodoList,
   mormot.rest.client, mormot.core.base, mormot.core.data, mormot.core.variants,
-  mormot.core.text
+  mormot.core.text, mormot.core.datetime
   ;
 
 Type
@@ -18,42 +18,43 @@ Type
 
   TpjhTodoItem = class(TCollectionItem)
   private
+    FTaskCode: TID;
     FImageIndex: Integer;
     FNotes: TStringList;
     FTag: Integer;
     FTotalTime: double;
     FSubject: string;
-    FCompletion: TCompletion;
-    FDueDate: TDateTime;
-    FPriority: TTodoPriority;
-    FStatus: TTodoStatus;
+    FCompletion: integer;//TCompletion;
+    FDueDate: TTimeLog;
+    FPriority: integer;//TTodoPriority;
+    FStatus: integer;//TTodoStatus;
     FOnChange: TNotifyEvent;
     FComplete: Boolean;
-    FCreationDate: TDateTime;
-    FCompletionDate: TDateTime;
+    FCreationDate: TTimeLog;
+    FCompletionDate: TTimeLog;
     FResource: string;
     FDBKey: string;
     FProject: string;
     FCategory: string;
 
     FTodoCode,
-    FTaskCode,
     FPlanCode,
     FModId: string;
 
     FAlarmType,
     FAlarmTime2, //AlarmType이 2인 경우(분)
-    FAlarmFlag,
+    FAlarmFlag
+    : integer;
     FAlarm2Msg,   //문자로 알림 = 1
     FAlarm2Note,  //쪽지로 알림 = 1
     FAlarm2Email, //이메일로 알림 = 1
     FAlarm2Popup //팜업창으로 알림 = 1
-    : integer;
+    : Boolean;
 
     FAlarmTime1, //AlarmType이 1인 경우 시각
-    FModDate: TDateTime;
+    FModDate: TTimeLog;
 
-    FAlarmTime: TDateTime; //Alarm을 발생 시켜야할 시각
+    FAlarmTime: TTimeLog; //Alarm을 발생 시켜야할 시각
 
     procedure SetNotes(const Value: TStringList);
   public
@@ -64,39 +65,40 @@ Type
     procedure AssignTo(Dest: TPersistent); override;
     function ToJson: string;
 
-    property AlarmTime: TDateTime read FAlarmTime write FAlarmTime;
+    property AlarmTime: TTimeLog read FAlarmTime write FAlarmTime;
   published
     property Category: string read FCategory write FCategory;
     property Complete: Boolean read FComplete write FComplete;
     //완료율(%)
-    property Completion: TCompletion read FCompletion write FCompletion;
-    property CompletionDate: TDateTime read FCompletionDate write FCompletionDate;
-    property CreationDate: TDateTime read FCreationDate write FCreationDate;
-    property DueDate: TDateTime read FDueDate write FDueDate;
+    property Completion: integer read FCompletion write FCompletion;
+    property CompletionDate: TTimeLog read FCompletionDate write FCompletionDate;
+    property CreationDate: TTimeLog read FCreationDate write FCreationDate;
+    property DueDate: TTimeLog read FDueDate write FDueDate;
     property ImageIndex: Integer read FImageIndex write FImageIndex;
     property Notes: TStringList read FNotes write SetNotes;
-    property Priority: TTodoPriority read FPriority write FPriority;
+    property Priority: integer read FPriority write FPriority;
     property Project: string read FProject write FProject;
     property Resource: string read FResource write FResource;
-    property Status: TTodoStatus read FStatus write FStatus;
+    property Status: integer read FStatus write FStatus;
     property Subject: string read FSubject write FSubject;
     property Tag: Integer read FTag write FTag;
     property TotalTime: double read FTotalTime write FTotalTime;
 
     property TodoCode: string read FTodoCode write FTodoCode;
-    property TaskCode: string read FTaskCode write FTaskCode;
+    property TaskID: TID read FTaskCode write FTaskCode;
     property PlanCode: string read FPlanCode write FPlanCode;
     property ModId: string read FModId write FModId;
 
     property AlarmType: integer read FAlarmType write FAlarmType;
     property AlarmTime2: integer read FAlarmTime2 write FAlarmTime2;
     property AlarmFlag: integer read FAlarmFlag write FAlarmFlag;
-    property Alarm2Msg: integer read FAlarm2Msg write FAlarm2Msg;
-    property Alarm2Note: integer read FAlarm2Note write FAlarm2Note;
-    property Alarm2Email: integer read FAlarm2Email write FAlarm2Email;
+    property Alarm2Msg: Boolean read FAlarm2Msg write FAlarm2Msg;
+    property Alarm2Note: Boolean read FAlarm2Note write FAlarm2Note;
+    property Alarm2Email: Boolean read FAlarm2Email write FAlarm2Email;
+    property Alarm2Popup: Boolean read FAlarm2Popup write FAlarm2Popup;
 
-    property AlarmTime1: TDateTime read FAlarmTime1 write FAlarmTime1;
-    property ModDate: TDateTime read FModDate write FModDate;
+    property AlarmTime1: TTimeLog read FAlarmTime1 write FAlarmTime1;
+    property ModDate: TTimeLog read FModDate write FModDate;
   end;
 
   TpjhToDoItemCollection = class(TCollection)
@@ -240,16 +242,18 @@ var
   i: integer;
   myHour, myMin, mySec, myMilli : Word;
   myYear, myMonth, myDay : Word;
-  Ldt: TDateTime;
+  LTLog: TTimeLog;
+  LDate: TDateTime;
 begin
   for i := 0 to Count - 1 do
   begin
     if Items[i].AlarmType = 2 then //미리알람 모드인 경우(분단위)
     begin
-      DecodeDateTime(Items[i].CreationDate, myYear, myMonth, myDay, myHour, myMin, mySec, myMilli);
-      Ldt := EncodeDateTime(myYear, myMonth, myDay, myHour, myMin, mySec, myMilli);
-      Ldt := DateTimeMinusInteger(Ldt, Items[i].AlarmTime2, 2, '-');
-      Items[i].AlarmTime := Ldt;
+      LDate := TimeLogToDateTime(Items[i].CreationDate);
+//      DecodeDateTime(LDate, myYear, myMonth, myDay, myHour, myMin, mySec, myMilli);
+//      LDate := EncodeDateTime(myYear, myMonth, myDay, myHour, myMin, mySec, myMilli);
+      LDate := DateTimeMinusInteger(LDate, Items[i].AlarmTime2, 2, '-');
+      Items[i].AlarmTime := TimeLogFromDateTime(LDate);
     end
     else
       Items[i].AlarmTime := Items[i].AlarmTime1;
@@ -432,7 +436,7 @@ begin
     TotalTime := TpjhTodoItem(Source).TotalTime;
 
     TodoCode := TpjhTodoItem(Source).TodoCode;
-    TaskCode := TpjhTodoItem(Source).TaskCode;
+    TaskID := TpjhTodoItem(Source).TaskID;
     PlanCode := TpjhTodoItem(Source).PlanCode;
     ModId := TpjhTodoItem(Source).ModId;
     AlarmType := TpjhTodoItem(Source).AlarmType;
@@ -457,10 +461,10 @@ begin
     TTodoItem(Dest).CompletionDate := CompletionDate;
     TTodoItem(Dest).CreationDate := CreationDate;
     TTodoItem(Dest).DueDate := DueDate;
-    TTodoItem(Dest).Priority := Priority;
+    TTodoItem(Dest).Priority := TTodoPriority(Priority);
     TTodoItem(Dest).Project := Project;
     TTodoItem(Dest).Resource := Resource;
-    TTodoItem(Dest).Status := Status;
+    TTodoItem(Dest).Status := TTodoStatus(Status);
     TTodoItem(Dest).Tag := Tag;
     TTodoItem(Dest).TotalTime := TotalTime;
   end;
@@ -468,7 +472,7 @@ begin
   if Dest is TpjhTodoItem then
   begin
     TpjhTodoItem(Dest).TodoCode := TodoCode;
-    TpjhTodoItem(Dest).TaskCode := TaskCode;
+    TpjhTodoItem(Dest).TaskID := TaskID;
     TpjhTodoItem(Dest).PlanCode := PlanCode;
     TpjhTodoItem(Dest).ModId := ModId;
     TpjhTodoItem(Dest).AlarmType := AlarmType;
@@ -524,7 +528,7 @@ begin
   LVar.TotalTime := TotalTime;
 
   LVar.TodoCode := TodoCode;
-  LVar.TaskCode := TaskCode;
+  LVar.TaskID := TaskID;
   LVar.PlanCode := PlanCode;
   LVar.ModId := ModId;
 
