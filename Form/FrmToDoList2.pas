@@ -11,8 +11,9 @@ uses
   JvLabel, CurvyControls,
 
   mormot.core.base, mormot.core.collections, mormot.core.json, mormot.core.variants,
+  mormot.core.datetime, mormot.core.unicode,
 
-  UnitTodoCollect2, UnitToDoList
+  UnitToDoList, UnitHiASToDoRecord, UnitHiconisMasterRecord
   ;
 
 type
@@ -53,7 +54,7 @@ type
     AppointmentStoreId: TNxTextColumn;
     EmailEntryId: TNxTextColumn;
     EmailStoreId: TNxTextColumn;
-    ToDo_Code: TNxTextColumn;
+    UniqueID: TNxTextColumn;
     Plan_Code: TNxTextColumn;
     Subject: TNxTextColumn;
     ToDoReourece: TNxTextColumn;
@@ -65,40 +66,8 @@ type
     imagelist24x24: TImageList;
     ImageList16x16: TImageList;
     PopupMenu1: TPopupMenu;
-    Mail1: TMenuItem;
-    Create1: TMenuItem;
-    N11: TMenuItem;
-    N12: TMenuItem;
-    N13: TMenuItem;
-    N14: TMenuItem;
-    N15: TMenuItem;
-    N16: TMenuItem;
-    N17: TMenuItem;
-    N18: TMenuItem;
-    N19: TMenuItem;
-    N20: TMenuItem;
-    N21: TMenuItem;
-    N6: TMenuItem;
-    Invoice4: TMenuItem;
-    Invoice3: TMenuItem;
-    InvoiceConfirm2: TMenuItem;
-    N9: TMenuItem;
-    N8: TMenuItem;
-    N7: TMenuItem;
-    N23: TMenuItem;
-    oDOList1: TMenuItem;
-    N22: TMenuItem;
-    GetHullNoToClipboard1: TMenuItem;
-    N1: TMenuItem;
     DeleteTask1: TMenuItem;
     N2: TMenuItem;
-    N3: TMenuItem;
-    N4: TMenuItem;
-    N10: TMenuItem;
-    ShowTaskID1: TMenuItem;
-    ShowEmailID1: TMenuItem;
-    ShowGSFileID1: TMenuItem;
-    GetJsonValues1: TMenuItem;
     MainMenu1: TMainMenu;
     MenuItem1: TMenuItem;
     MenuItem2: TMenuItem;
@@ -122,18 +91,31 @@ type
     Status: TNxTextColumn;
     Priority: TNxTextColumn;
     TotalTime: TNxTextColumn;
-    AlarmType: TNxTextColumn;
     Alarm2Msg: TNxCheckBoxColumn;
     Alarm2Note: TNxCheckBoxColumn;
     Alarm2Email: TNxCheckBoxColumn;
-    AlarmFlag: TNxCheckBoxColumn;
     AeroButton1: TAeroButton;
+    RowID: TNxTextColumn;
+    Alarm2Popup: TNxCheckBoxColumn;
+    AlarmFlag: TNxTextColumn;
+    AlarmType: TNxComboBoxColumn;
     procedure ClearBtnClick(Sender: TObject);
+    procedure TodoGridCellDblClick(Sender: TObject; ACol, ARow: Integer);
+    procedure btn_CloseClick(Sender: TObject);
+    procedure AeroButton1Click(Sender: TObject);
+    procedure DeleteTask1Click(Sender: TObject);
   private
-    procedure AddTodoItem2Grid(AItemJson: RawUtf8);
+    procedure AddTodoItemFromJson2Grid(AItemJson: RawUtf8);
+    procedure AddOrUpdateTodoItemRec2TodoListByJson(ARow: integer; AItemJson: string);
+
+    procedure EditToDoList(ARow: integer);
+    procedure DeleteToDoItem;
+    function GetNewToDoItemRec: TpjhTodoItemRec;
+    function GetNewToDoItemRec2Json: string;
   public
-    FToDoCollect: TpjhToDoItemCollection;
     FpjhToDoList: TpjhToDoList;
+
+    procedure ShowHeaderInfoFromTaskId(ATaskId: TID);
   end;
 
   //ATaskId = TaskID
@@ -146,7 +128,7 @@ var
 
 implementation
 
-uses UnitNextGridUtil2;
+uses UnitNextGridUtil2, FrmTodo_Detail;
 
 {$R *.dfm}
 
@@ -163,6 +145,7 @@ begin
     with LToDoListF do
     begin
       FpjhToDoList := AToDoList;
+      ShowHeaderInfoFromTaskId(ATaskId);
 
       for LpjhTodoItemRec in FpjhToDoList do
       begin
@@ -172,21 +155,96 @@ begin
 
         LUtf8 := RecordSaveJson(LpjhTodoItemRec, TypeInfo(TpjhTodoItemRec));
 
-        AddTodoItem2Grid(LUtf8);
+        AddTodoItemFromJson2Grid(LUtf8);
+      end;
+
+      Result := ShowModal();
+
+      if Result = mrOK then
+      begin
+
       end;
     end;//with
 
   finally
-
+    LToDoListF.Free;
   end;
 end;
 
-procedure TToDoListF2.AddTodoItem2Grid(AItemJson: RawUtf8);
+function TToDoListF2.GetNewToDoItemRec: TpjhTodoItemRec;
+begin
+  Result := Default(TpjhTodoItemRec);
+
+  with Result do
+  begin
+    Subject := '새 일정';
+    Notes := '일정 상세';
+    DueDate := TimeLogFromDateTIme(Now + 60);
+    CreationDate := TimeLogFromDateTIme(Now);
+    BeginDate := TimeLogFromDateTIme(Now);;
+    BeginTime := TimeLogFromDateTIme(Now);;
+    EndDate := TimeLogFromDateTIme(Now);;
+    EndTime := TimeLogFromDateTIme(Now);;
+    CompletionDate := TimeLogFromDateTIme(Now);;
+    AlarmTime1 := TimeLogFromDateTIme(Now);;
+    ModDate := TimeLogFromDateTIme(Now);;
+    AlarmTime := TimeLogFromDateTIme(Now);;
+    Priority := Ord(tpNormal);
+    Resource := 'Unassigned';
+  end;
+end;
+
+function TToDoListF2.GetNewToDoItemRec2Json: string;
+var
+  LRec: TpjhTodoItemRec;
+begin
+  LRec := GetNewToDoItemRec;
+  Result := RecordSaveJson(LRec, TypeInfo(TpjhTodoItemRec));
+end;
+
+procedure TToDoListF2.ShowHeaderInfoFromTaskId(ATaskId: TID);
+var
+  LOrmHiconisASTask: TOrmHiconisASTask;
+begin
+  LOrmHiconisASTask := GetLoadTask(ATaskId);
+  try
+    if LOrmHiconisASTask.IsUpdate then
+    begin
+      HullNoEdit.Text := LOrmHiconisASTask.HullNo;
+      ShipNameEdit.Text := LOrmHiconisASTask.ShipName;
+      ClaimNoEdit.Text := LOrmHiconisASTask.ClaimNo;
+      OrderNoEdit.Text := LOrmHiconisASTask.Order_No;
+    end;
+  finally
+    LOrmHiconisASTask.Free;
+  end;
+end;
+
+procedure TToDoListF2.AddOrUpdateTodoItemRec2TodoListByJson(ARow: integer;
+  AItemJson: string);
+var
+  LRec: TpjhTodoItemRec;
+begin
+  RecordLoadJson(LRec, StringToUtf8(AItemJson), TypeInfo(TpjhTodoItemRec));
+  FpjhTodoList.Add(LRec);
+end;
+
+procedure TToDoListF2.AddTodoItemFromJson2Grid(AItemJson: RawUtf8);
 var
   LDoc: Variant;
 begin
   LDoc := _JSON(AItemJson);
   AddNextGridRowFromVariant(TodoGrid, LDoc);
+end;
+
+procedure TToDoListF2.AeroButton1Click(Sender: TObject);
+begin
+  EditToDoList(-1);
+end;
+
+procedure TToDoListF2.btn_CloseClick(Sender: TObject);
+begin
+  Close;
 end;
 
 procedure TToDoListF2.ClearBtnClick(Sender: TObject);
@@ -198,6 +256,76 @@ begin
   OrderNoEdit.Text := '';
   CurWorkCB.ItemIndex := -1;
   ProductTypeCombo.ItemIndex := -1;
+end;
+
+procedure TToDoListF2.DeleteTask1Click(Sender: TObject);
+begin
+  DeleteToDoItem();
+end;
+
+procedure TToDoListF2.DeleteToDoItem;
+var
+  LUniqueID: string;
+begin
+  if TodoGrid.SelectedRow <> -1 then
+  begin
+    if MessageDlg('선택한 항목을 삭제 하시겠습니까?', mtConfirmation, [mbYes, mbNo],
+      0) = mrYes then
+    begin
+      LUniqueID := TodoGrid.CellsByName['UniqueID', TodoGrid.SelectedRow];
+      DeleteToDoRecFromDBByUniqueID(LUniqueID);
+      FpjhToDoList.Delete(TodoGrid.SelectedRow);
+    end;
+  end;
+end;
+
+procedure TToDoListF2.EditToDoList(ARow: integer);
+var
+  LToDoDetailF: TToDoDetailF;
+  LIdx: integer;
+  LVar: Variant;
+  LJson: String;
+  LIsAdd: Boolean;
+begin
+  LIsAdd := ARow = -1;
+
+  LToDoDetailF := TToDoDetailF.Create(Self);
+  try
+    with LToDoDetailF do
+    begin
+      if LIsAdd then
+      begin
+        LJson := GetNewToDoItemRec2Json();
+      end
+      else
+      begin
+        LVar := GetNxGridRow2Variant(TodoGrid, ARow);
+        LJson := LVar;
+      end;
+
+      SetTodoItemFromJson2Form(LJson);
+
+      if LToDoDetailF.ShowModal = mrOK then
+      begin
+        LJson := GetTodoItem2JsonFromForm();
+        LVar := _JSON(LJson);
+        SetNxGridRowFromVar(TodoGrid, ARow, LVar);
+
+        if LIsAdd then
+        begin
+          AddOrUpdateTodoItemRec2TodoListByJson(ARow, LJson);
+        end;
+      end;
+    end;//with
+  finally
+    FreeAndNil(LToDoDetailF);
+  end;//try
+end;
+
+procedure TToDoListF2.TodoGridCellDblClick(Sender: TObject; ACol,
+  ARow: Integer);
+begin
+  EditToDoList(TodoGrid.SelectedRow);
 end;
 
 end.

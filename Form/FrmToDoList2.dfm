@@ -12,6 +12,7 @@ object ToDoListF2: TToDoListF2
   Font.Style = []
   Menu = MainMenu1
   OldCreateOrder = False
+  Position = poMainFormCenter
   PixelsPerInch = 96
   TextHeight = 13
   object CurvyPanel1: TCurvyPanel
@@ -25,8 +26,6 @@ object ToDoListF2: TToDoListF2
     Align = alTop
     Rounding = 4
     TabOrder = 0
-    ExplicitLeft = -481
-    ExplicitWidth = 1160
     DesignSize = (
       966
       134)
@@ -373,7 +372,6 @@ object ToDoListF2: TToDoListF2
       Height = 119
       Anchors = [akTop, akRight]
       TabOrder = 6
-      ExplicitLeft = 832
       object btn_Search: TAeroButton
         AlignWithMargins = True
         Left = 73
@@ -387,7 +385,6 @@ object ToDoListF2: TToDoListF2
         Align = alRight
         Caption = #51312#54924
         TabOrder = 0
-        ExplicitLeft = 0
       end
       object btn_Close: TAeroButton
         AlignWithMargins = True
@@ -402,7 +399,7 @@ object ToDoListF2: TToDoListF2
         Align = alRight
         Caption = #45803#44592
         TabOrder = 1
-        ExplicitLeft = 139
+        OnClick = btn_CloseClick
       end
       object AeroButton1: TAeroButton
         AlignWithMargins = True
@@ -417,7 +414,7 @@ object ToDoListF2: TToDoListF2
         Align = alRight
         Caption = #54624#51068#52628#44032
         TabOrder = 2
-        ExplicitLeft = 71
+        OnClick = AeroButton1Click
       end
     end
     object WorkKindCB: TComboBox
@@ -441,8 +438,8 @@ object ToDoListF2: TToDoListF2
         #45796#51020#51089#50629)
     end
     object ClaimNoEdit: TEdit
-      Left = 639
-      Top = 12
+      Left = 637
+      Top = 11
       Width = 112
       Height = 21
       CharCase = ecUpperCase
@@ -888,8 +885,6 @@ object ToDoListF2: TToDoListF2
     ButtonSettings.ScrollButtonLastHint = 'Last'
     TabSettings.Alignment = taCenter
     TabSettings.Width = 110
-    ExplicitLeft = -481
-    ExplicitWidth = 1160
   end
   object TodoGrid: TNextGrid
     Left = 0
@@ -908,8 +903,7 @@ object ToDoListF2: TToDoListF2
     PopupMenu = PopupMenu1
     TabOrder = 2
     TabStop = True
-    ExplicitTop = 173
-    ExplicitWidth = 904
+    OnCellDblClick = TodoGridCellDblClick
     object NxIncrementColumn1: TNxIncrementColumn
       Alignment = taCenter
       DefaultWidth = 30
@@ -932,6 +926,11 @@ object ToDoListF2: TToDoListF2
     end
     object TaskID: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'TaskId'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -939,6 +938,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 1
       SortType = stAlphabetic
     end
@@ -984,6 +984,11 @@ object ToDoListF2: TToDoListF2
     end
     object EmailEntryId: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'EmailEntryId'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -991,11 +996,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 4
       SortType = stAlphabetic
     end
     object EmailStoreId: TNxTextColumn
       DefaultWidth = 300
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'EmailStoreId'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1003,11 +1014,12 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 5
       SortType = stAlphabetic
       Width = 300
     end
-    object ToDo_Code: TNxTextColumn
+    object UniqueID: TNxTextColumn
       Alignment = taCenter
       DefaultWidth = 200
       Font.Charset = ANSI_CHARSET
@@ -1015,7 +1027,7 @@ object ToDoListF2: TToDoListF2
       Font.Height = -13
       Font.Name = #47569#51008' '#44256#46357
       Font.Style = []
-      Header.Caption = 'ToDo Code'
+      Header.Caption = 'UniqueID'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
       Header.Font.Color = clWindowText
@@ -1029,6 +1041,11 @@ object ToDoListF2: TToDoListF2
     end
     object Plan_Code: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Plan Code'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1036,6 +1053,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 7
       SortType = stAlphabetic
     end
@@ -1061,6 +1079,11 @@ object ToDoListF2: TToDoListF2
     end
     object Notes: TNxMemoColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Notes'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1068,6 +1091,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 9
       SortType = stAlphabetic
     end
@@ -1091,6 +1115,11 @@ object ToDoListF2: TToDoListF2
     end
     object ModId: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Mod Id'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1098,11 +1127,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 11
       SortType = stAlphabetic
     end
     object Category: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Category'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1110,11 +1145,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 12
       SortType = stAlphabetic
     end
     object Project: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Project'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1122,11 +1163,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 13
       SortType = stAlphabetic
     end
     object Resource: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Resource'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1134,12 +1181,18 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 14
       SortType = stAlphabetic
     end
     object CreationDate: TNxDateColumn
       Alignment = taCenter
       DefaultValue = '2024-06-21'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #49373#49457#51068#51088
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1147,6 +1200,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 15
       SortType = stDate
       NoneCaption = 'CreationDate'
@@ -1155,6 +1209,11 @@ object ToDoListF2: TToDoListF2
     object DueDate: TNxDateColumn
       Alignment = taCenter
       DefaultValue = '2024-06-21'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #47564#47308#51068
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1162,6 +1221,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 16
       SortType = stDate
       NoneCaption = 'None'
@@ -1170,6 +1230,11 @@ object ToDoListF2: TToDoListF2
     object CompletionDate: TNxDateColumn
       Alignment = taCenter
       DefaultValue = '2024-06-21'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50756#47308#51068
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1177,6 +1242,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 17
       SortType = stDate
       NoneCaption = 'None'
@@ -1185,6 +1251,11 @@ object ToDoListF2: TToDoListF2
     object ModDate: TNxDateColumn
       Alignment = taCenter
       DefaultValue = '2024-06-21'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #49688#51221#51068#51088
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1192,6 +1263,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 18
       SortType = stDate
       NoneCaption = 'None'
@@ -1200,6 +1272,11 @@ object ToDoListF2: TToDoListF2
     object AlarmTime1: TNxDateColumn
       Alignment = taCenter
       DefaultValue = '2024-06-21'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50508#46988#48156#49373#49884#44033
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1207,6 +1284,7 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 19
       SortType = stDate
       NoneCaption = 'None'
@@ -1214,6 +1292,11 @@ object ToDoListF2: TToDoListF2
     end
     object AlarmTime2: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50508#46988#48156#49373#45224#51008#49884#44036
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1221,11 +1304,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 20
       SortType = stAlphabetic
     end
     object ImageIndex: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Image Index'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1233,11 +1322,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 21
       SortType = stAlphabetic
     end
     object Tag: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Tag'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1245,21 +1340,35 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 22
       SortType = stAlphabetic
     end
     object Completion: TNxCheckBoxColumn
+      Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50756#47308
+      Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
       Header.Font.Color = clWindowText
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 23
       SortType = stBoolean
     end
     object Status: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #49345#53468
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1267,11 +1376,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 24
       SortType = stAlphabetic
     end
     object Priority: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50864#49440#49692#50948
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1279,11 +1394,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 25
       SortType = stAlphabetic
     end
     object TotalTime: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #51204#52404#49884#44036
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1291,11 +1412,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 26
       SortType = stAlphabetic
     end
-    object AlarmType: TNxTextColumn
+    object AlarmType: TNxComboBoxColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50508#46988#50976#54805
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1303,11 +1430,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
+      ParentFont = False
       Position = 27
       SortType = stAlphabetic
     end
-    object AlarmFlag: TNxCheckBoxColumn
+    object AlarmFlag: TNxTextColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = #50508#46988' Flag'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1315,12 +1448,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Height = -11
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
-      Options = [coCanClick, coCanInput, coCanSort, coPublicUsing, coShowTextFitHint]
+      ParentFont = False
       Position = 28
-      SortType = stBoolean
+      SortType = stAlphabetic
     end
     object Alarm2Msg: TNxCheckBoxColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Alarm Msg'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1329,11 +1467,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
       Options = [coCanClick, coCanInput, coCanSort, coPublicUsing, coShowTextFitHint]
+      ParentFont = False
       Position = 29
       SortType = stBoolean
     end
     object Alarm2Note: TNxCheckBoxColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Alarm Note'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1342,11 +1486,17 @@ object ToDoListF2: TToDoListF2
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
       Options = [coCanClick, coCanInput, coCanSort, coPublicUsing, coShowTextFitHint]
+      ParentFont = False
       Position = 30
       SortType = stBoolean
     end
     object Alarm2Email: TNxCheckBoxColumn
       Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
       Header.Caption = 'Alarm Email'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
@@ -1355,8 +1505,44 @@ object ToDoListF2: TToDoListF2
       Header.Font.Name = 'Tahoma'
       Header.Font.Style = []
       Options = [coCanClick, coCanInput, coCanSort, coPublicUsing, coShowTextFitHint]
+      ParentFont = False
       Position = 31
       SortType = stBoolean
+    end
+    object Alarm2Popup: TNxCheckBoxColumn
+      Alignment = taCenter
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      Header.Caption = 'Alarm Popup'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      Options = [coCanClick, coCanInput, coCanSort, coPublicUsing, coShowTextFitHint]
+      ParentFont = False
+      Position = 32
+      SortType = stBoolean
+    end
+    object RowID: TNxTextColumn
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 33
+      SortType = stAlphabetic
+      Visible = False
     end
   end
   object StatusBarPro1: TStatusBarPro
@@ -1381,9 +1567,6 @@ object ToDoListF2: TToDoListF2
         Width = 50
       end>
     SimplePanel = False
-    ExplicitLeft = -481
-    ExplicitTop = 538
-    ExplicitWidth = 1160
   end
   object imagelist24x24: TImageList
     ColorDepth = cd32Bit
@@ -1393,7 +1576,7 @@ object ToDoListF2: TToDoListF2
     Left = 16
     Top = 208
     Bitmap = {
-      494C010101007000A40318001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010101007000AC0318001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000600000001800000001002000000000000024
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000005C43
@@ -1703,7 +1886,7 @@ object ToDoListF2: TToDoListF2
     Left = 104
     Top = 208
     Bitmap = {
-      494C010102005402B40310001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010102005402BC0310001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       000000000000000000000000000000000000000000000505052E101010521717
       17611D1D1D6C1F1D1E6D272425792523257825232578262425791F1E1E6E1E1E
@@ -1845,117 +2028,12 @@ object ToDoListF2: TToDoListF2
   object PopupMenu1: TPopupMenu
     Left = 160
     Top = 208
-    object Mail1: TMenuItem
-      Caption = 'EMail'
-      object Create1: TMenuItem
-        Caption = 'Create'
-        object N11: TMenuItem
-          Tag = 2
-          Caption = #47588#52636#52376#47532' '#50836#52397
-        end
-        object N12: TMenuItem
-          Tag = 3
-          Caption = #51088#51116#51649#53804#51077' '#50836#52397
-        end
-        object N13: TMenuItem
-          Tag = 4
-          Caption = #54644#50808' '#47588#52636' '#44256#44061#49324' '#46321#47197' '#50836#52397
-        end
-        object N14: TMenuItem
-          Tag = 5
-          Caption = #51204#51204' '#48708#54364#51456' '#44277#49324' '#49373#49457' '#50836#52397
-        end
-        object N15: TMenuItem
-          Tag = 7
-          Caption = #52636#54616#51648#49884' '#50836#52397
-        end
-        object N16: TMenuItem
-          Tag = 8
-          Caption = #54596#46300#49436#48708#49828#54016' '#51204#45804
-        end
-      end
-      object N17: TMenuItem
-        Caption = #54596#46300#49436#48708#49828
-        object N18: TMenuItem
-          Tag = 9
-          Caption = #50629#52404#44204#51201#50836#52397
-        end
-        object N19: TMenuItem
-          Tag = 10
-          Caption = #49436#48708#49828#50724#45908' '#45216#51064' '#50836#52397
-        end
-        object N20: TMenuItem
-          Tag = 11
-          Caption = #44592#49457#54869#51064#50836#52397
-        end
-        object N21: TMenuItem
-          Tag = 12
-          Caption = #44592#49457#52376#47532#50836#52397
-        end
-      end
-    end
-    object N6: TMenuItem
-      Caption = #49436#48708#49828#47532#54252#53944' '#51077#49688' '#54980' '#50629#47924' '#51208#52264
-      object Invoice4: TMenuItem
-        Caption = 'Invoice '#51089#49457
-      end
-      object Invoice3: TMenuItem
-        Caption = 'Invoice '#49569#48512' -> '#44256#44061
-      end
-      object InvoiceConfirm2: TMenuItem
-        Caption = 'Invoice Confirm <- '#44256#44061
-      end
-      object N9: TMenuItem
-        Caption = #49688#53685' '#44552#50529' '#49688#51221
-      end
-      object N8: TMenuItem
-        Caption = #49688#53685' '#51116#49849#51064
-      end
-      object N7: TMenuItem
-        Caption = #47588#52636' '#52376#47532' '#50836#52397
-      end
-    end
-    object N23: TMenuItem
-      Caption = '-'
-    end
-    object oDOList1: TMenuItem
-      Caption = 'To Do List'
-    end
-    object N22: TMenuItem
-      Caption = '-'
-    end
-    object GetHullNoToClipboard1: TMenuItem
-      Caption = 'Get Hull No To Clipboard'
-    end
-    object N1: TMenuItem
-      Caption = '-'
-    end
     object DeleteTask1: TMenuItem
-      Caption = 'Delete Task'
+      Caption = 'Delete Todo'
+      OnClick = DeleteTask1Click
     end
     object N2: TMenuItem
       Caption = '-'
-    end
-    object N3: TMenuItem
-      Caption = #50900#48324#47928#49436
-      object N4: TMenuItem
-        Caption = #50900#48324' '#50808#51452#50857#50669#48708' '#51064#48372#51060#49828' '#52376#47532' '#54788#54889
-      end
-    end
-    object N10: TMenuItem
-      Caption = '-'
-    end
-    object ShowTaskID1: TMenuItem
-      Caption = 'Show TaskID'
-    end
-    object ShowEmailID1: TMenuItem
-      Caption = 'Show EmailID'
-    end
-    object ShowGSFileID1: TMenuItem
-      Caption = 'Show GSFileID'
-    end
-    object GetJsonValues1: TMenuItem
-      Caption = 'GetJsonValues'
     end
   end
   object MainMenu1: TMainMenu
@@ -1993,7 +2071,7 @@ object ToDoListF2: TToDoListF2
     Left = 56
     Top = 208
     Bitmap = {
-      494C01010400C800E80420002000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01010400C800F00420002000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000800000004000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

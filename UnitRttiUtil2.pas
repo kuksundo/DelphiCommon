@@ -2,11 +2,16 @@ unit UnitRttiUtil2;
 
 interface
 
-uses SysUtils,Classes, Rtti, TypInfo,
+uses SysUtils,Classes, Rtti, TypInfo, Forms, Vcl.Controls,
   Delphi.Mocks.Helpers,
+  mormot.core.base,
   mormot.core.variants,
   mormot.core.json,
-  mormot.core.unicode
+  mormot.core.unicode,
+  mormot.core.text,
+  mormot.core.datetime,
+  mormot.core.rtti,
+  mormot.core.collections
   ;
 
 {$TYPEINFO ON}
@@ -76,8 +81,8 @@ procedure GetValue2(var aValue: TValue; aTargetTypeKind: TTypeKind);
 procedure SetValue2(aProp: TRttiProperty; var aValue : TValue);
 //AClass의 APropertyName에 AData를 대입함, Class Type Field는 SetClassPropertyValue()를 사용할 것
 //ex : SetValue3(aButton, 'caption', 'Pressed');
-function SetValue3(AClass: TObject; AData, APropertyName : String): TTypeKind;
-function GetValue3(AClass: TObject; APropertyName : String): TValue;
+function SetValueByPropertyName(AClass: TObject; AValue: TValue; APropertyName : String): TTypeKind;
+function GetValueByPropertyName(AClass: TObject; APropertyName : String): TValue;
 procedure SetClassPropertyValue(AClass, AData: TObject; APropertyName : String);
 
 procedure LoadRecordPropertyFromVariant(AClass: TObject; const ADoc: Variant; AIsPadFirstChar: Boolean=False);
@@ -89,7 +94,8 @@ function GetVariantFromProperty(const AClass: TObject; AIsPadFirstChar: Boolean=
 //procedure LoadRecordPropertyFromVariant2(ARecType: TypeInfo; const ADoc: Variant);
 function GetPropertyNameValueList(AObj: TObject; AIsOnlyPublished: Boolean=False): TStringList;
 function GetPropertyCount(AObj: TObject; AIsOnlyPublished: Boolean=False): integer;
-procedure LoadRecordFieldFromVariant(ATypeInfo, ARecPointer: Pointer; const ADoc: Variant; AIsPadFirstChar: Boolean=False);
+procedure LoadRecordFieldFromVariant(ATypeInfo, ARecPointer: Pointer; const ADoc: Variant; AIsPadFirstChar: Boolean=False); overload;
+procedure LoadRecordFieldFromVariant(var ARec; ATypeInfo: PRttiInfo; const ADoc: Variant; AIsPadFirstChar: Boolean=False); overload;
 function FindNSetCompValue(AParentControl: TComponent; const ACompName, APropName, AValue: string): Boolean;
 function FindNGetCompStringValue(AParentControl: TComponent; ACompName, APropName: string): string;
 
@@ -109,15 +115,24 @@ function ExecuteMethodByClass(AClass : TClass; AMethodName : String; const AArgs
 //}
 function ExecuteMethodByObject(AObj : TObject; AMethodName : String; const AArgs: Array of TValue) : TValue;
 
+//Form에 있는 {Component Name = Value} 형식의 Json으로 반홤
+//각 Component Hint = Value가 있는 Field 명을 입력해야 함(예: Text/Checked/ItemIndex)
+function GetCompNameValue2JsonFromForm(AForm: TForm): string;
+//AJson: {Component Name = Value} 형식 -
+//Form의 Component Hint = Value가 있는 Field 명이 입력 되어 있어야 함(예: Text/Checked/ItemIndex)
+function SetCompNameValueFromJson2Form(AForm: TForm; AJson: string): string;
+
 implementation
 
-function StrIsNumeric(s: string): Boolean;
-var
-  iValue, iCode: integer;
-begin
-  Val(s, iValue, iCode);
-  Result := iCode = 0;
-end;
+uses UnitStringUtil;
+
+//function StrIsNumeric(s: string): Boolean;
+//var
+//  iValue, iCode: integer;
+//begin
+//  Val(s, iValue, iCode);
+//  Result := iCode = 0;
+//end;
 
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 // This will take an inut string having the format:
@@ -480,13 +495,13 @@ begin
 //  end;
 end;
 
-function SetValue3(AClass: TObject; AData, APropertyName : String): TTypeKind;
+function SetValueByPropertyName(AClass: TObject;  AValue: TValue; APropertyName : String): TTypeKind;
 var
  ctx : TRttiContext;
  objType : TRttiType;
  Prop  : TRttiProperty;
- Value : TValue;
- LObj: TObject;
+// Value : TValue;
+// LObj: TObject;
 begin
   Result := tkUnknown;
 
@@ -495,48 +510,14 @@ begin
   try
     objType := ctx.GetType(AClass.ClassInfo);
 
-    for Prop in objType.GetProperties do
+    Prop := ObjType.GetProperty(APropertyName);
+
+    if Assigned(Prop) then
     begin
-      if not Prop.IsWritable then
-        continue;
-
-      if Prop.Visibility <> mvPublished then
-        Continue;
-
-      if Prop.Name = APropertyName then
+      if Prop.IsWritable then
       begin
-        //Property Field Address 가져옴
-        Value := Prop.GetValue(AClass);
-
-        if Value.IsObject then
-//        if Value.TypeInfo.Kind = tkClass then
-        begin
-          //Value.Kind가 tkUnKnown으로 반환 되기 때문에 수종으로 tkClass를 할당 함
-          Result := tkClass;
-
-//        if Value.Kind = tkClass then
-//        begin
-          LObj := Prop.GetValue(AClass).AsObject;
-
-          if LObj is TStrings then
-          begin
-            TStrings(LObj).Text := AData;
-            Result := tkUnknown;//값을 할당 하였으면 tkUnknown을 반환하여 성공 하였음을 알린다.
-          end;
-
-//            if Assigned(LObj) then
-//              Prop.SetValue(LObj, AData);
-        end
-        else
-        begin
-          //Field Value에 Data를 Assign함
-          SetValue(AData, Value);
-          Prop.SetValue(AClass,Value);
-//        Prop.SetValue(AClass, TValue.From(AData));
-          Result := tkUnknown;//값을 할당 하였으면 tkUnknown을 반환하여 성공 하였음을 알린다.
-        end;
-
-        Break;
+        Prop.SetValue(AClass, AValue);
+        Result := tkUnknown;//값을 할당 하였으면 tkUnknown을 반환하여 성공 하였음을 알린다.
       end;
     end;
   finally
@@ -544,7 +525,7 @@ begin
   end;
 end;
 
-function GetValue3(AClass: TObject; APropertyName : String): TValue;
+function GetValueByPropertyName(AClass: TObject; APropertyName : String): TValue;
 var
   ctx: TRttiContext;
   rttitype: TRttiType;
@@ -1308,7 +1289,7 @@ begin
   end;
 end;
 
-procedure LoadRecordFieldFromVariant(ATypeInfo, ARecPointer: Pointer;
+procedure LoadRecordFieldFromVariant(var ARec; ATypeInfo: PRttiInfo;
   const ADoc: Variant; AIsPadFirstChar: Boolean=False);
 var
   rttiContext: TRttiContext;
@@ -1317,6 +1298,23 @@ var
   Value : TValue;
 begin
   rttiType := rttiContext.GetType(ATypeInfo);//TypeInfo(THiMECSMenuRecord));
+
+  for LField in rttiType.GetFields do
+  begin
+    Value := LField.GetValue(@ARec);
+    TDocVariantData(ADoc).Value[LField.Name] := Value.AsVariant;
+  end;
+end;
+
+procedure LoadRecordFieldFromVariant(ATypeInfo, ARecPointer: Pointer; const ADoc: Variant; AIsPadFirstChar: Boolean=False); overload;
+var
+  rttiContext: TRttiContext;
+  rttiType: TRttiType;
+  LField : TRTTIField;
+  Value : TValue;
+begin
+  rttiType := rttiContext.GetType(ATypeInfo);//TypeInfo(THiMECSMenuRecord));
+
   for LField in rttiType.GetFields do
   begin
     Value := LField.GetValue(ARecPointer);
@@ -1334,7 +1332,7 @@ begin
 
   if Assigned(LComp) then
   begin
-    LTypeKind := SetValue3(TObject(LComp), AValue, APropName);
+    LTypeKind := SetValueByPropertyName(TObject(LComp), AValue, APropName);
 
     //SetValue에 실패한 경우(tkClass 인 경우)
     if LTypeKind = tkClass then
@@ -1366,7 +1364,7 @@ begin
 
   if Assigned(LComp) then
   begin
-    LValue := GetValue3(TObject(LComp), APropName);
+    LValue := GetValueByPropertyName(TObject(LComp), APropName);
     Result := GetValue(LValue);
   end;
 end;
@@ -1394,7 +1392,7 @@ end;
 function ExecuteMethodByObject(AObj : TObject; AMethodName : String; const AArgs: Array of TValue) : TValue;
 var
   RttiContext : TRttiContext;
-  RttiMethod  : TRttiMethod;
+  RttiMethod  : System.Rtti.TRttiMethod;
   RttiType    : TRttiType;
 begin
   if Assigned(AObj) then
@@ -1443,6 +1441,100 @@ begin
   finally
     LContext.Free;
   end;
+end;
+
+//Component Date = TDateTime, Record Field Type = TTimeLog 여야 아래 함수가 정상으로 작동함
+function GetCompNameValue2JsonFromForm(AForm: TForm): string;
+var
+  i: integer;
+  LComp: TComponent;
+  LDict: IDocDict;
+  LValue: TValue;
+  LDate: Double;
+begin
+  Result := '';
+  LDict := DocDict('{}');
+
+  with AForm do
+  begin
+    for i := 0 to ComponentCount - 1 do
+    begin
+      LComp := AForm.Components[i];
+
+      //Component Hint에 Value Field Name이 있어야 함
+      if TControl(LComp).Hint = '' then
+        Continue;
+
+      LValue := GetValueByPropertyName(TObject(LComp), TControl(LComp).Hint);
+
+      // Check the type of value and handle accordingly
+      case LValue.Kind of
+        tkString, tkLString, tkWString, tkUString: LDict.S[LComp.Name] := LValue.AsString;
+        tkInteger, tkInt64: LDict.I[LComp.Name] := LValue.AsInteger;
+        tkEnumeration: LDict.B[LComp.Name] := LValue.AsBoolean;
+        tkFloat: begin
+          LDate := LValue.AsDouble;
+          LDict.F[LComp.Name] := TimeLogFromDateTime(LDate);
+        end;
+      end;
+      if LValue.Kind = tkString then
+      begin
+
+      end
+      else if LValue.Kind = tkInteger then
+      begin
+
+      end;
+    end;
+  end;
+
+  Result := Utf8ToString(LDict.ToJson(jsonUnquotedPropNameCompact));
+end;
+
+function SetCompNameValueFromJson2Form(AForm: TForm; AJson: string): string;
+var
+  i: integer;
+  LComp: TComponent;
+  LDict: IDocDict;
+//  LVar: Variant;
+  LValue: TValue;
+  LUtf8: RawUtf8;
+  LDate: TDate;
+  LTimeLog: TTimeLog;
+begin
+  LUtf8 := StringToUtf8(AJson);
+//  LVar := TDocVariant.NewJson(LUtf8);
+  LDict := DocDict(LUtf8);
+  with AForm do
+  begin
+    for i := 0 to ComponentCount - 1 do
+    begin
+      LComp := AForm.Components[i];
+
+      //Component Hint에 Value Field Name이 있어야 함
+      if TControl(LComp).Hint = '' then
+        Continue;
+
+      if LDict.Exists(LComp.Name) then
+      begin
+        LValue := GetValueByPropertyName(TObject(LComp), TControl(LComp).Hint);
+
+        // Check the type of value and handle accordingly
+        case LValue.Kind of
+          tkString, tkLString, tkWString, tkUString: LValue := TValue.From(LDict.S[LComp.Name]);
+          tkInteger, tkInt64: LValue := TValue.From(StrToIntDef(LDict.S[LComp.Name],0));
+          tkEnumeration: LValue := TValue.From(LDict.B[LComp.Name]);
+          tkFloat: begin
+            LTimeLog := LDict.I[LComp.Name]; //Json Field Type이 반드시 TTimeLog 여야 함
+            LDate := TimeLogToDateTime(LTimeLog);
+            LValue := TValue.From(LDate);
+          end;
+        end;
+
+        SetValueByPropertyName(TObject(LComp), LValue, TControl(LComp).Hint);
+      end;
+    end;//for
+  end;//with
 end;
 
 end.

@@ -22,9 +22,10 @@ function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): variant;
-//ARow 행의 데이터만 Variant로 반환함
+//ARow 행의 데이터만 Variant로 반환함 : '{ColumnName=Value}'
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
-procedure SetNnGridRowFromVar(AGrid: TNextGrid; ARow: integer; AVar: variant);
+//ARow에 Variant를 Cell에 표시함
+procedure SetNxGridRowFromVar(AGrid: TNextGrid; var ARow: integer; AVar: variant);
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
 procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean=False);
 function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
@@ -354,24 +355,52 @@ end;
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
 var
   i: integer;
-  LColumnName: string;
+  LColName: string;
 begin
   TDocVariant.New(Result);
 
   for i := 0 to AGrid.Columns.Count - 1 do
   begin
-    LColumnName := AGrid.Columns.Item[i].Name;
+    LColName := AGrid.Columns.Item[i].Name;
 
-    if AGrid.ColumnByName[LColumnName].ColumnType = ctDate then
-      TDocVariantData(Result).Value[LColumnName] := VarFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime) //TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
+    if AGrid.ColumnByName[LColName].ColumnType = ctDate then
+      TDocVariantData(Result).Value[LColName] := VarFromDateTime(AGrid.CellByName[LColName, ARow].AsDateTime) //TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
     else
-      TDocVariantData(Result).Value[LColumnName] := AGrid.CellsByName[LColumnName, ARow];
+    if AGrid.ColumnByName[LColName].ColumnType = ctBoolean then
+      TDocVariantData(Result).Value[LColName] := AGrid.CellByName[LColName, ARow].AsBoolean
+    else
+      TDocVariantData(Result).Value[LColName] := AGrid.CellsByName[LColName, ARow];
   end;
 end;
 
-procedure SetNnGridRowFromVar(AGrid: TNextGrid; ARow: integer; AVar: variant);
+procedure SetNxGridRowFromVar(AGrid: TNextGrid; var ARow: integer; AVar: variant);
+var
+  i: integer;
+  LCellValue, LColName: string;
 begin
+  with AGrid do
+  begin
+    if ARow = -1 then
+      ARow := AGrid.AddRow();
 
+    for i := 0 to TDocVariantData(AVar).Count - 1 do
+    begin
+      LColName := TDocVariantData(AVar).Names[i];
+      LCellValue := TDocVariantData(AVar).Values[i];
+
+      //Grid에 Column이 존재하면
+      if AGrid.Columns.IndexOf(AGrid.ColumnByName[LColName]) > -1 then
+      begin
+        if AGrid.ColumnByName[LColName].ColumnType = ctDate then
+          AGrid.CellByName[LColName, ARow].AsDateTime := TimelogToDateTime(StrToInt64Def(LCellValue, 0))
+        else
+        if AGrid.ColumnByName[LColName].ColumnType = ctBoolean then
+          AGrid.CellByName[LColName, ARow].AsBoolean := StrToBool(LCellValue)
+        else
+          AGrid.CellsByName[LColName, ARow] := LCellValue;
+      end;
+    end;//for
+  end;//with
 end;
 
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
