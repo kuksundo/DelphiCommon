@@ -265,6 +265,9 @@ var
           begin
             if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
               AGrid.CellByName[Lj, LRow].AsDateTime := VarToDateWithTimeLog(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+            else
+            if AGrid.ColumnByName[LCompName].ColumnType = ctBoolean then
+              AGrid.CellByName[Lj, LRow].AsBoolean := TDocVariantData(AJson).Values[Li]
             else //반드시 String Type만 대입 할 것
               AGrid.CellsByName[Lj, LRow] := TDocVariantData(AJson).Values[Li];
           end;
@@ -274,6 +277,9 @@ var
       begin
         if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
           AGrid.CellByName[LCompName, LRow].AsDateTime := VarToDateWithTimeLog(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+        else
+        if AGrid.ColumnByName[LCompName].ColumnType = ctBoolean then
+          AGrid.CellByName[LCompName, LRow].AsBoolean := TDocVariantData(AJson).Values[Li]
         else //반드시 String Type만 대입 할 것
           AGrid.CellsByName[LCompName, LRow] := TDocVariantData(AJson).Values[Li];
       end;
@@ -320,7 +326,7 @@ end;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean): variant;
 var
   i, j: integer;
-  LColumnName: string;
+  LColName: string;
   LUtf8: RawUTF8;
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
@@ -334,15 +340,18 @@ begin
   begin
     for j := 0 to AGrid.Columns.Count - 1 do
     begin
-      LColumnName := AGrid.Columns.Item[j].Name;
+      LColName := AGrid.Columns.Item[j].Name;
 
       if ARemoveUnderBar then
-        LColumnName := strToken(LColumnName, '_');
+        LColName := strToken(LColName, '_');
 
-      if AGrid.ColumnByName[LColumnName].ColumnType = ctDate then
-        TDocVariantData(LV).Value[LColumnName] := AGrid.CellByName[LColumnName, i].AsDateTime
+      if AGrid.ColumnByName[LColName].ColumnType = ctDate then
+        TDocVariantData(LV).Value[LColName] := AGrid.CellByName[LColName, i].AsDateTime
       else
-        TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
+      if AGrid.ColumnByName[LColName].ColumnType = ctBoolean then
+        TDocVariantData(Result).Value[LColName] := AGrid.CellByName[LColName, i].AsBoolean
+      else
+        TDocVariantData(LV).Value[LColName] := AGrid.CellsByName[LColName, i];
     end;
 
     LUtf8 := LV;
