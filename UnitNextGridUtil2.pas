@@ -12,6 +12,8 @@ procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
   AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
 //ADoc Name이 Grid의 Column Name임
+//AIsFromValue : False = Json의 Key 값을 Value로 저장함
+//               True = Json의 Value 값을 Value로 저장함
 procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; ARow: integer=-1);
 //ADoc Name이 Grid의 Cell Data 임
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
@@ -26,6 +28,11 @@ function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): var
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
 //ARow에 Variant를 Cell에 표시함
 procedure SetNxGridRowFromVar(AGrid: TNextGrid; var ARow: integer; AVar: variant);
+//Variant -> Grid :
+procedure SetNxGridCellValueFromVar(AColumn: TnxCustomColumn; ACell: TCell; AVar: variant);
+//Grid -> Variant :
+procedure SetNxGridCellValue2Var(AColumn: TnxCustomColumn; ACell: TCell; var AVar: variant);
+
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
 procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean=False);
 function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
@@ -154,31 +161,48 @@ procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant;
   AIsFromValue: Boolean; ARow: integer);
 var
   i: integer;
-  LCellValue, LColName: string;
+  LColName: string;
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   with AGrid do
   begin
-    if ARow = -1 then
-      ARow := AGrid.AddRow();
+    BeginUpdate;
+    try
+      if ARow = -1 then
+        ARow := AddRow();
 
-    for i := 0 to TDocVariantData(ADoc).Count - 1 do
-    begin
-      LColName := TDocVariantData(ADoc).Names[i];
+      for i := 0 to TDocVariantData(ADoc).Count - 1 do
+      begin
+        LColName := TDocVariantData(ADoc).Names[i];
 
-      if AIsFromValue then
-        LCellValue := TDocVariantData(ADoc).Values[i]
-      else
-        LCellValue := LColName;
+        if AIsFromValue then
+          LCellValue := TDocVariantData(ADoc).Values[i]
+        else
+          LCellValue := StringToVariant(LColName);
 
-      if AGrid.Columns.IndexOf(AGrid.ColumnByName[LColName]) > -1 then
-        AGrid.CellsByName[LColName, ARow] := LCellValue;
-    end;//for
+        LColumn := ColumnByName[LColName];
+
+        if Columns.IndexOf(LColumn) > -1 then
+        begin
+          LCell := CellByName[LColName, ARow];
+          SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
+        end;
+      end;//for
+
+    finally
+      EndUpdate;
+    end;
   end;//with
 end;
 
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 var
   i, j: integer;
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   with AGrid do
   begin
@@ -187,9 +211,14 @@ begin
     for i := 0 to TDocVariantData(ADoc).Count - 1 do
     begin
       if AIsFromValue then
-        CellsByName[i, j] := TDocVariantData(ADoc).Values[i]
+        LCellValue := TDocVariantData(ADoc).Values[i]
       else
-        CellsByName[i, j] := TDocVariantData(ADoc).Names[i];
+        LCellValue := TDocVariantData(ADoc).Names[i];
+
+      LColumn := AGrid.Columns.Item[i];
+      LCell := Cell[i, j];
+
+      SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
     end;
   end;
 end;
@@ -219,16 +248,32 @@ end;
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean);
 var
   LUtf8: RawUTF8;
-  LDynUtf8: TRawUTF8DynArray;
-  LDynArr: TDynArray;
+//  LDynUtf8: TRawUTF8DynArray;
+//  LDynArr: TDynArray;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+  LVar: variant;
 begin
   if ADoc = null then
     exit;
 
   LUtf8 := ADoc;
-  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
-  LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
-  AddNextGridRowsFromVariant(AGrid, LDynUtf8, AIsAddColumn);
+  LDocList := DocList(LUtf8);
+
+  for LVar in LDocList do
+  begin
+    AddNextGridRowFromVariant(AGrid, LVar, True);
+  end;
+
+//  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+
+//  if LDynArr.LoadFromJSON(LUtf8) then//PUTF8Char(LUtf8));
+//  begin
+//    if LDynArr.Count = 0 then
+//      exit;
+
+//    AddNextGridRowsFromVariant(AGrid, LDynUtf8, AIsAddColumn);
+//  end;
 end;
 
 //ADoc는 복수개의 레코드에 대한 Json 임
@@ -237,89 +282,89 @@ function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean; AIsUsePosFunc: Boolean; AIsClearRow: Boolean): integer;
 var
   i, j, LRow, LCount: integer;
-  LCompName, LValue: string;
+  LColName: string;
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
   LUtf8: RawUTF8;
   LDoc: variant;
+
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 
   //AJson은 한개의 레코드에 대한 Json임
   procedure AddRowFromVar(AJson: variant);
   var
     Li, Lj: integer;
   begin
-    if AIsAdd then
-      LRow := AGrid.AddRow
-    else
-      LRow := AGrid.SelectedRow;
+    with AGrid do
+    begin
+      if AIsAdd then
+        LRow := AddRow()
+      else
+        LRow := SelectedRow;
 
-    for Li := 0 to TDocVariantData(AJson).Count - 1 do
-    begin
-      LCompName := TDocVariantData(AJson).Names[Li];
+      for Li := 0 to TDocVariantData(AJson).Count - 1 do
+      begin
+        LColName := TDocVariantData(AJson).Names[Li];
 
-      if AIsUsePosFunc then
-      begin
-        for Lj := 0 to AGrid.Columns.Count - 1 do
+        if AIsUsePosFunc then
         begin
-          if POS(LCompName, AGrid.Columns[Lj].Name) > 0 then
+          for Lj := 0 to Columns.Count - 1 do
           begin
-            if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
-              AGrid.CellByName[Lj, LRow].AsDateTime := VarToDateWithTimeLog(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
-            else
-            if AGrid.ColumnByName[LCompName].ColumnType = ctBoolean then
-              AGrid.CellByName[Lj, LRow].AsBoolean := TDocVariantData(AJson).Values[Li]
-            else //반드시 String Type만 대입 할 것
-              AGrid.CellsByName[Lj, LRow] := TDocVariantData(AJson).Values[Li];
+            //Grid에 Column Name이 존재하면
+            if POS(LColName, Columns[Lj].Name) > 0 then
+            begin
+              LColumn := ColumnByName[LColName];
+              LCell := CellByName[LColName, LRow];
+              LCellValue := TDocVariantData(AJson).Values[Li];
+
+              SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
+            end;
           end;
+        end
+        else if Columns.IndexOf(ColumnByName[LColName]) > -1 then
+        begin
+          LColumn := ColumnByName[LColName];
+          LCell := CellByName[LColName, LRow];
+          LCellValue := TDocVariantData(AJson).Values[Li];
+
+          SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
         end;
-      end
-      else if AGrid.Columns.IndexOf(AGrid.ColumnByName[LCompName]) > -1 then
-      begin
-        if AGrid.ColumnByName[LCompName].ColumnType = ctDate then
-          AGrid.CellByName[LCompName, LRow].AsDateTime := VarToDateWithTimeLog(TDocVariantData(AJson).Values[Li])//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
-        else
-        if AGrid.ColumnByName[LCompName].ColumnType = ctBoolean then
-          AGrid.CellByName[LCompName, LRow].AsBoolean := TDocVariantData(AJson).Values[Li]
-        else //반드시 String Type만 대입 할 것
-          AGrid.CellsByName[LCompName, LRow] := TDocVariantData(AJson).Values[Li];
       end;
-    end;
+    end;//with
   end;
 begin
-  with AGrid do
-  begin
-    BeginUpdate;
+  AGrid.BeginUpdate;
 
-    if AIsClearRow then
-      ClearRows;
+  if AIsClearRow then
+    AGrid.ClearRows;
 
-    try
-      if AIsArray then
+  try
+    if AIsArray then
+    begin
+      LUtf8 := VariantToUTF8(ADoc);
+      LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+      LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
+
+      for i := 0 to LDynArr.Count - 1 do
       begin
-        LValue := ADoc;
-        LUtf8 := StringToUTF8(LValue);
-        LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
-        LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
-
-        for i := 0 to LDynArr.Count - 1 do
-        begin
-          LDoc := _JSON(LDynUtf8[i]);
-          AddRowFromVar(LDoc);
-        end;
-      end
-      else
-      begin
-        AddRowFromVar(ADoc);
+        LDoc := _JSON(LDynUtf8[i]);
+        AddRowFromVar(LDoc);
       end;
-    finally
-      EndUpdate;
-
-      if AIsArray then
-        Result :=  LDynArr.Count
-      else
-        Result :=  TDocVariantData(ADoc).Count;
+    end
+    else
+    begin
+      AddRowFromVar(ADoc);
     end;
-  end;//with
+  finally
+    AGrid.EndUpdate;
+
+    if AIsArray then
+      Result :=  LDynArr.Count
+    else
+      Result :=  TDocVariantData(ADoc).Count;
+  end;
 end;
 
 //Result에 [{"NextGrid.ColumnName": NextGrid.CelsByName}] Array 형식으로 저장됨
@@ -330,33 +375,36 @@ var
   LUtf8: RawUTF8;
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
-  LV: variant;
+
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   TDocVariant.New(Result);
-  TDocVariant.New(LV);
+  TDocVariant.New(LCellValue);
   LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
 
-  for i := 0 to AGrid.RowCount - 1 do
+  with AGrid do
   begin
-    for j := 0 to AGrid.Columns.Count - 1 do
+    for i := 0 to RowCount - 1 do
     begin
-      LColName := AGrid.Columns.Item[j].Name;
+      for j := 0 to Columns.Count - 1 do
+      begin
+        LColName := Columns.Item[j].Name;
 
-      if ARemoveUnderBar then
-        LColName := strToken(LColName, '_');
+        if ARemoveUnderBar then
+          LColName := strToken(LColName, '_');
 
-      if AGrid.ColumnByName[LColName].ColumnType = ctDate then
-        TDocVariantData(LV).Value[LColName] := AGrid.CellByName[LColName, i].AsDateTime
-      else
-      if AGrid.ColumnByName[LColName].ColumnType = ctBoolean then
-        TDocVariantData(Result).Value[LColName] := AGrid.CellByName[LColName, i].AsBoolean
-      else
-        TDocVariantData(LV).Value[LColName] := AGrid.CellsByName[LColName, i];
+        LColumn := ColumnByName[LColName];
+        LCell := CellByName[LColName, i];
+
+        SetNxGridCellValue2Var(LColumn, LCell, LCellValue);
+      end;
+
+      LUtf8 := LCellValue;
+      LDynArr.Add(LUtf8);
     end;
-
-    LUtf8 := LV;
-    LDynArr.Add(LUtf8);
-  end;
+  end;//with
 
   Result := LDynArr.SaveToJSON;
 end;
@@ -365,27 +413,34 @@ function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
 var
   i: integer;
   LColName: string;
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   TDocVariant.New(Result);
 
-  for i := 0 to AGrid.Columns.Count - 1 do
+  with AGrid do
   begin
-    LColName := AGrid.Columns.Item[i].Name;
+    for i := 0 to Columns.Count - 1 do
+    begin
+      LColName := Columns.Item[i].Name;
 
-    if AGrid.ColumnByName[LColName].ColumnType = ctDate then
-      TDocVariantData(Result).Value[LColName] := VarFromDateTime(AGrid.CellByName[LColName, ARow].AsDateTime) //TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
-    else
-    if AGrid.ColumnByName[LColName].ColumnType = ctBoolean then
-      TDocVariantData(Result).Value[LColName] := AGrid.CellByName[LColName, ARow].AsBoolean
-    else
-      TDocVariantData(Result).Value[LColName] := AGrid.CellsByName[LColName, ARow];
-  end;
+      LColumn := ColumnByName[LColName];
+      LCell := CellByName[LColName, ARow];
+
+      SetNxGridCellValue2Var(LColumn, LCell, Result);
+    end;//for
+  end;//with
 end;
 
 procedure SetNxGridRowFromVar(AGrid: TNextGrid; var ARow: integer; AVar: variant);
 var
   i: integer;
-  LCellValue, LColName: string;
+  LColName: string;
+
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   with AGrid do
   begin
@@ -395,56 +450,89 @@ begin
     for i := 0 to TDocVariantData(AVar).Count - 1 do
     begin
       LColName := TDocVariantData(AVar).Names[i];
-      LCellValue := TDocVariantData(AVar).Values[i];
+      LColumn := ColumnByName[LColName];
 
       //Grid에 Column이 존재하면
-      if AGrid.Columns.IndexOf(AGrid.ColumnByName[LColName]) > -1 then
+      if Columns.IndexOf(LColumn) > -1 then
       begin
-        if AGrid.ColumnByName[LColName].ColumnType = ctDate then
-          AGrid.CellByName[LColName, ARow].AsDateTime := TimelogToDateTime(StrToInt64Def(LCellValue, 0))
-        else
-        if AGrid.ColumnByName[LColName].ColumnType = ctBoolean then
-          AGrid.CellByName[LColName, ARow].AsBoolean := StrToBool(LCellValue)
-        else
-          AGrid.CellsByName[LColName, ARow] := LCellValue;
+        LCell := CellByName[LColName, ARow];
+        LCellValue := TDocVariantData(AVar).Values[i];
+
+        SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
       end;
     end;//for
   end;//with
+end;
+
+procedure SetNxGridCellValueFromVar(AColumn: TnxCustomColumn; ACell: TCell; AVar: variant);
+var
+  LBool: Boolean;
+begin
+  if AColumn.ColumnType = ctDate then
+    ACell.AsDateTime := VarToDateWithTimeLog(AVar)//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
+  else
+  if AColumn.ColumnType = ctBoolean then //CheckBox Type
+    ACell.AsBoolean := VariantToBoolean(AVar, LBool)
+  else //반드시 String Type만 대입 할 것
+    ACell.AsString := VariantToString(AVar);
+end;
+
+procedure SetNxGridCellValue2Var(AColumn: TnxCustomColumn; ACell: TCell; var AVar: variant);
+var
+  LColName: string;
+begin
+  LColName := AColumn.Name;
+
+  if AColumn.ColumnType = ctDate then
+    TDocVariantData(AVar).Value[LColName] := VarFromDateWithTimeLog(ACell.AsDateTime) //TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
+  else
+  if AColumn.ColumnType = ctBoolean then
+    TDocVariantData(AVar).Value[LColName] := ACell.AsBoolean
+  else
+    TDocVariantData(AVar).Value[LColName] := ACell.AsString;
 end;
 
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
 var
   LStrList: TStringList;
   i, j: integer;
-  LColumnName: string;
+  LColName: string;
   LUtf8: RawUTF8;
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
-  LV: variant;
+
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   if ASaveFileName = '' then
     exit;
 
   LStrList := TStringList.Create;
   try
-    TDocVariant.New(LV);
+    TDocVariant.New(LCellValue);
     LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
 
-    for i := 0 to AGrid.RowCount - 1 do
+    with AGrid do
     begin
-      for j := 0 to AGrid.Columns.Count - 1 do
+      for i := 0 to RowCount - 1 do
       begin
-        LColumnName := AGrid.Columns.Item[j].Name;
+        for j := 0 to Columns.Count - 1 do
+        begin
+          LColName := AGrid.Columns.Item[j].Name;
+          LColumn := ColumnByName[LColName];
+          LCell := CellByName[LColName, i];
 
-        TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
+          SetNxGridCellValue2Var(LColumn, LCell, LCellValue);
+        end;
+
+        LUtf8 := LCellValue;
+        LDynArr.Add(LUtf8);
       end;
-
-      LUtf8 := LV;
-      LDynArr.Add(LUtf8);
     end;
 
-    LV := LDynArr.SaveToJSON;
-    LStrList.Text := VariantToUtf8(LV);
+    LCellValue := LDynArr.SaveToJSON;
+    LStrList.Text := VariantToUtf8(LCellValue);
     LStrList.SaveToFile(ASaveFileName, TEncoding.UTF8);
   finally
     LStrList.Free;
@@ -491,6 +579,10 @@ var
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
   LV: variant;
+
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   TDocVariant.New(Result);
   TDocVariant.New(LV);
@@ -517,6 +609,10 @@ var
   i, j: integer;
   LColumnName: string;
   LV, LValue: variant;
+
+  LCellValue: variant;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
 begin
   TDocVariant.New(LV);
 

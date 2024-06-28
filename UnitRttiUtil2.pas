@@ -1474,7 +1474,7 @@ begin
         tkEnumeration: LDict.B[LComp.Name] := LValue.AsBoolean;
         tkFloat: begin
           LDate := LValue.AsDouble;
-          LDict.F[LComp.Name] := TimeLogFromDateTime(LDate);
+          LDict.I[LComp.Name] := TimeLogFromDateTime(LDate);
         end;
       end;
       if LValue.Kind = tkString then

@@ -29,7 +29,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Rtti, Generics.Collections, Vcl.StdCtrls,
-  Generics.Nullable;
+  Generics.Nullable, mormot.core.collections;
 
 type
   EStateMachineException = class(Exception);
@@ -59,14 +59,14 @@ type
 
   TStateHolder<TState, TTrigger> = class
   strict private
-    FTriggers: TObjectDictionary<TTrigger, TTriggerHolder<TState, TTrigger>>;
+    FTriggers: IKeyValue<TTrigger, TTriggerHolder<TState, TTrigger>>;
     FState: TState;
     FStateMachine: TStateMachine<TState, TTrigger>;
     FOnEntry: TTransitionProc;
     FOnExit: TTransitionProc;
 
     function GetTriggerCount: Integer;
-    function GetTriggers: TObjectDictionary<TTrigger, TTriggerHolder<TState, TTrigger>>;
+    function GetTriggers: IKeyValue<TTrigger, TTriggerHolder<TState, TTrigger>>;
   protected
     procedure Enter;
     procedure Exit;
@@ -86,7 +86,7 @@ type
     function TriggerExists(ATrigger: TTrigger) : boolean;
     function GetTrigger(ATrigger: TTrigger) : TTriggerHolder<TState, TTrigger>;
 
-    property Triggers: TObjectDictionary<TTrigger, TTriggerHolder<TState, TTrigger>> read GetTriggers;
+    property Triggers: IKeyValue<TTrigger, TTriggerHolder<TState, TTrigger>> read GetTriggers;
     property TriggerCount: Integer read GetTriggerCount;
     property State: TState read FState;
   end;
@@ -107,7 +107,7 @@ type
   /// </typeparam>
   TStateMachine<TState, TTrigger> = class
   strict private
-    FStates: TObjectDictionary<TState, TStateHolder<TState, TTrigger>>;
+    FStates: IKeyValue<TState, TStateHolder<TState, TTrigger>>;
     FCurrentState: TState;
     FInitialState: TNullable<TState>;
     FActive: boolean;
@@ -149,7 +149,7 @@ type
     property InitialState: TStateHolder<TState, TTrigger>
       read GetInitialState;
     property Active: boolean read FActive write SetActive;
-    property States: TObjectDictionary<TState, TStateHolder<TState, TTrigger>> read FStates;
+    property States: IKeyValue<TState, TStateHolder<TState, TTrigger>> read FStates;
   end;
 
 implementation
@@ -191,23 +191,33 @@ constructor TStateHolder<TState, TTrigger>.Create(AStateMachine
 begin
   inherited Create;
   FStateMachine := AStateMachine;
-  FTriggers := TObjectDictionary < TTrigger, TTriggerHolder < TState,
-    TTrigger >>.Create([doOwnsValues]);
+  FTriggers := Collections.NewKeyValue<TTrigger, TTriggerHolder<TState, TTrigger>>;
   FState := AState;
 end;
 
 function TStateHolder<TState, TTrigger>.Destinations: TList<TState>;
 var
-  LTriggerHolder: TTriggerHolder<TState, TTrigger>;
+  LValue: TPair<TTrigger, TTriggerHolder<TState, TTrigger>>;
+//  LTriggerHolder: TTriggerHolder<TState, TTrigger>;
 begin
   Result := TList<TState>.Create;
-  for LTriggerHolder in FTriggers.Values do
-    Result.Add(LTriggerHolder.Destination);
+
+  for LValue in FTriggers do
+    Result.Add(LValue.Value.Destination);
+//    Result.Add(LTriggerHolder.Destination);
 end;
 
 destructor TStateHolder<TState, TTrigger>.Destroy;
+//var
+//  LTrigger: TPair<TTrigger, TTriggerHolder<TState, TTrigger>>;
 begin
-  FreeAndNil(FTriggers);
+//  for LTrigger in FTriggers do
+//  begin
+//    LTrigger.Value.Free;
+//  end;
+
+//  FreeAndNil(FTriggers);
+
   inherited;
 end;
 
@@ -254,7 +264,7 @@ begin
     Result := FTriggers.Count;
 end;
 
-function TStateHolder<TState, TTrigger>.GetTriggers: TObjectDictionary<TTrigger, TTriggerHolder<TState, TTrigger>>;
+function TStateHolder<TState, TTrigger>.GetTriggers: IKeyValue<TTrigger, TTriggerHolder<TState, TTrigger>>;
 begin
   Result := FTriggers;
 end;
@@ -291,12 +301,17 @@ end;
 constructor TStateMachine<TState, TTrigger>.Create;
 begin
   inherited Create;
-  FStates := TObjectDictionary <TState, TStateHolder<TState, TTrigger>>.Create([doOwnsValues]);
+  FStates := Collections.NewKeyValue<TState, TStateHolder<TState, TTrigger>>;
 end;
 
 destructor TStateMachine<TState, TTrigger>.Destroy;
+//var
+//  LStateValue: TPair<TState, TStateHolder<TState, TTrigger>>;
 begin
-  FStates.Free;
+//    for LStateValue in FStates do
+//      LStateValue.Value.Free;
+
+//  FStates.Free;
   inherited;
 end;
 
@@ -318,7 +333,9 @@ function TStateMachine<TState, TTrigger>.GetStateNTriggers2Strings(const AState:
 var
   LStr: string;
   LState: TStateHolder<TState, TTrigger>;
-  LTrigger: TTriggerHolder<TState, TTrigger>;
+//  LTrigger: TTriggerHolder<TState, TTrigger>;
+  LTrigger: TPair<TTrigger, TTriggerHolder<TState, TTrigger>>;
+  LStateValue: TPair<TState, TStateHolder<TState, TTrigger>>;
 begin
   Result := TStringList.Create;
 
@@ -326,24 +343,26 @@ begin
 
   if Assigned(LState) then //특정 State의 Trigger들을 반환함
   begin
-    for LTrigger in LState.Triggers.Values do
+//    for LTrigger in LState.Triggers.Values do
+    for LTrigger in LState.Triggers do
     begin
       LStr := TValue.From<TState>(LState.State).ToString + ' -> ' +
-        TValue.From<TTrigger>(LTrigger.Trigger).ToString + ' -> ' +
-        TValue.From<TState>(LTrigger.Destination).ToString;
+        TValue.From<TTrigger>(LTrigger.Key).ToString + ' -> ' +
+        TValue.From<TState>(LTrigger.Value.Destination).ToString;
 
       Result.Add(LStr);
     end;
   end
   else
   begin //State가 Null 이면 State Machine에 있는 모든 State + Trigger를 반환함
-    for LState in FStates.Values do
+//    for LState in FStates.Values do
+    for LStateValue in FStates do
     begin
-      for LTrigger in LState.Triggers.Values do
+      for LTrigger in LStateValue.Value.Triggers do
       begin
-        LStr := TValue.From<TState>(LState.State).ToString + ' -> ' +
-          TValue.From<TTrigger>(LTrigger.Trigger).ToString + ' -> ' +
-          TValue.From<TState>(LTrigger.Destination).ToString;
+        LStr := TValue.From<TState>(LStateValue.Key).ToString + ' -> ' +
+          TValue.From<TTrigger>(LTrigger.Key).ToString + ' -> ' +
+          TValue.From<TState>(LTrigger.Value.Destination).ToString;
 
         Result.Add(LStr);
       end;
@@ -354,13 +373,16 @@ end;
 function TStateMachine<TState, TTrigger>.GetAllStates2Strings: TStrings;
 var
   LStr: string;
-  LState: TStateHolder<TState, TTrigger>;
+//  LState: TStateHolder<TState, TTrigger>;
+  LStateValue: TPair<TState, TStateHolder<TState, TTrigger>>;
 begin
   Result := TStringList.Create;
 
-  for LState in FStates.Values do
+//  for LState in FStates.Values do
+  for LStateValue in FStates do
   begin
-    LStr := TValue.From<TState>(LState.State).ToString;
+    LStr := TValue.From<TState>(LStateValue.Key).ToString;
+//    LStr := TValue.From<TState>(LState.State).ToString;
 
     Result.Add(LStr);
   end;//for
@@ -368,13 +390,16 @@ end;
 
 function TStateMachine<TState, TTrigger>.GetAllTriggerCount: integer;
 var
-  LState: TStateHolder<TState, TTrigger>;
+//  LState: TStateHolder<TState, TTrigger>;
+  LStateValue: TPair<TState, TStateHolder<TState, TTrigger>>;
 begin
   Result := 0;
 
-  for LState in FStates.Values do
+//  for LState in FStates.Values do
+  for LStateValue in FStates do
   begin
-    Result := Result + LState.TriggerCount;
+    Result := Result + LStateValue.Value.TriggerCount;
+//    Result := Result + LState.TriggerCount;
   end;
 end;
 
@@ -484,6 +509,7 @@ var
   LState: TState;
   LDestinations : TList<TState>;
   LValid : boolean;
+  LStateValue: TPair<TState, TStateHolder<TState, TTrigger>>;
 begin
   // State Machine has initial state?
   LInitialState := InitialState;
@@ -491,17 +517,19 @@ begin
   LUnreachableStates := TList<TState>.Create;
   try
     // fill all states
-    for LState in FStates.Keys do
+//    for LState in FStates.Keys do
+    for LStateValue in FStates do
     begin
-      LUnreachableStates.Add(LState);
+      LUnreachableStates.Add(LStateValue.Key);
     end;
     // remove initial state, as it is valid to have an initial state with
     // no incoming trigger
     LUnreachableStates.Remove(InitialState.State);
     // remove those which are destinations of triggers
-    for LStateHolder in FStates.Values do
+//    for LStateHolder in FStates.Values do
+    for LStateValue in FStates do
     begin
-      LDestinations := LStateHolder.Destinations;
+      LDestinations := LStateValue.Value.Destinations;
       try
         for LState in LDestinations do
           LUnreachableStates.Remove(LState);

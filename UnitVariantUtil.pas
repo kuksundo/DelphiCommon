@@ -3,7 +3,7 @@ unit UnitVariantUtil;
 interface
 
 uses Winapi.Activex, System.Variants, System.VarUtils,
-  mormot.core.datetime;
+  mormot.core.datetime, mormot.core.variants;
 
 function SafeArrayGetVarType(psa: PSafeArray): TVarType; safecall; external 'OleAut32.dll';
 function PSafeArrayToVariant(psa: PSafeArray): OleVariant;
@@ -55,7 +55,8 @@ end;
 
 function VarFromDateWithTimeLog(ADate: TDateTime): Variant;
 begin
-
+  TDocVariant.New(Result);
+  Result := TimeLogFromDateTime(ADate);
 end;
 
 end.
