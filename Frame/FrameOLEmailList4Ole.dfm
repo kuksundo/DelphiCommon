@@ -18,7 +18,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
     ParentBackground = False
     TabOrder = 0
     StyleElements = [seFont, seClient]
-    ExplicitHeight = 705
     DesignSize = (
       1214
       651)
@@ -29,7 +28,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       Height = 561
       Align = alClient
       TabOrder = 0
-      ExplicitHeight = 615
       object StatusBar: TStatusBar
         Left = 4
         Top = 538
@@ -63,7 +61,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
         ShowHint = True
         SizeGrip = False
         UseSystemFont = False
-        ExplicitTop = 592
       end
       object EmailTab: TAdvOfficeTabSet
         Left = 4
@@ -989,7 +986,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
         TabOrder = 2
         TabStop = True
         OnCellDblClick = grid_MailCellDblClick
-        ExplicitHeight = 559
         object NxIncrementColumn1: TNxIncrementColumn
           Alignment = taCenter
           DefaultWidth = 30
@@ -1373,7 +1369,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       BevelOuter = bvNone
       ParentBackground = False
       TabOrder = 1
-      ExplicitTop = 672
       object btnStartProgram: TBitBtn
         Left = 128
         Top = 6
@@ -1461,7 +1456,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
       ParentBackground = False
       TabOrder = 2
       Visible = False
-      ExplicitTop = 650
       DesignSize = (
         205
         18)
@@ -1576,7 +1570,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
     DragTypes = [dtCopy, dtLink]
     OnDrop = DropEmptyTarget1Drop
     Target = grid_Mail
-    WinTarget = 0
     Left = 28
     Top = 140
   end
@@ -1719,7 +1712,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C01012F009800C80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01012F009800D00610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000C0000000010020000000000000C0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

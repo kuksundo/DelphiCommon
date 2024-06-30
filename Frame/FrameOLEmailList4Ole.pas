@@ -142,19 +142,21 @@ type
     procedure DescriptionButtonClick(Sender: TObject);
   private
     FOLControlWorker: TOLControlWorker;
-    FCommandQueue    : TOmniMessageQueue;
-    FResponseQueue   : TOmniMessageQueue;
-    FSendMsgQueue    : TOmniMessageQueue;
+    FCommandQueue,
+    FResponseQueue,
+    FSendMsgQueue,
+    FOLEmailQueue
+    : TOmniMessageQueue;
+
     FPJHTimerPool: TPJHTimerPool;
 
     FLogProc: TLogProc;
     FMainFormHandle,
-    FMyWnd: THandle;
+    FFrameOLEmailListWnd: THandle;
 
     FEntryIdRecord: TEntryIdRecord;
 
     FCurrentMailCount: integer;
-//    FpjhSTOMPClass: TpjhSTOMPClass;
     FEmailDBName: string;
 //{$IFDEF USE_OMNITHREAD}
 //    FOLMsg2MQ: TOmniMessageQueue;
@@ -229,7 +231,9 @@ type
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-//    constructor Create(AOwner: TComponent); override;
+    procedure InitVarFromOwner(ARec: TOLEmailSrchRec); //본 Frame를 생성하는 Owner가 환경 변수 설정 후 실행하는 함수
+
+    //    constructor Create(AOwner: TComponent); override;
 //    constructor CreateWithOLFolderList(AFolderListFileName, AProdCode: string);
 
     procedure SendCmd2WorkerThrd(const ACmd: TOLCommandKind; const AValue: TOmniValue);
@@ -498,32 +502,14 @@ begin
   InitVar();
 
   FEmailDBName := '';
-//  DOC_DIR := IncludeTrailingPathDelimiter(ExtractFilePath(Application.ExeName) + 'Doc');
-//  FContext4OLEmail := TContext4OLEmail.Create;
   SetCurrentDir(ExtractFilePath(Application.ExeName));
   FFolderListFromOL := TStringList.Create;
   FTempEmailMsgFileListFromRemote := TStringList.Create;
   FRemoteIPAddress := '';
-//  FpjhSTOMPClass := nil;
   FIsSaveEmail2DBWhenDropped := False;
-//  FWorker4OLMsg2MQ := TWorker4OLMsg2MQ.Create(FOLMsg2MQ);
-
-//  if FOLFolderListFileName = '' then
-//    FOLFolderListFileName := '.\'+OLFOLDER_LIST_FILE_NAME;
 
   if FileExists(FOLFolderListFileName) then
     FFolderListFromOL.LoadFromFile(FOLFolderListFileName);
-
-//  MoveFolderCBDropDown(nil);
-
-//  if FMQInfoRec.FIsEnableMQ then
-//  begin
-//{$IFDEF USE_OMNITHREAD}
-//    FOLMsg2MQ := TOmniMessageQueue.Create(100);
-//{$ENDIF}
-//    InitSTOMP(FMQInfoRec.FUserId,FMQInfoRec.FPasswd,FMQInfoRec.FIPAddr,
-//      FMQInfoRec.FPortNo,FMQInfoRec.FTopic);
-//  end;
 
   inherited;
 end;
@@ -614,12 +600,14 @@ end;
 procedure TOutlookEmailListFr.DestroyVar;
 begin
 //  MAPIUninitialize;
-  DeallocateHWnd(FMyWnd);
+  DeallocateHWnd(FFrameOLEmailListWnd);
 
   FPJHTimerPool.RemoveAll();
   FPJHTimerPool.Free;
 
-  StopWorker();
+  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorker then
+    StopWorker();
+
 //  DestroyOLEmailMsg(); //UnitOLEmailRecord2.finalization에서 실행 함
 end;
 
@@ -629,14 +617,16 @@ var
   OutlookDataFormat: TOutlookDataFormat;
   LIsMultiDrop: boolean;
   i, LDroppedCount: integer;
-  LIds: TIDDynArray;
-  LIsNewMailAdded: Boolean;
-  LDroppedMailList, LNewAddedEmailList: TStringList;
-  LOriginalEntryId, LOriginalStoreId,
-  LJson, LNewStoreId, LNewStorePath: string;
-
-  LMessage: IMessage;
-  LMailItem: _MailItem;
+  LOLRespondRec: TOLRespondRec;
+  LOmniValue: TOmniValue;
+//  LIds: TIDDynArray;
+//  LIsNewMailAdded: Boolean;
+//  LDroppedMailList, LNewAddedEmailList: TStringList;
+//  LOriginalEntryId, LOriginalStoreId,
+//  LJson, LNewStoreId, LNewStorePath: string;
+//
+//  LMessage: IMessage;
+//  LMailItem: _MailItem;
 begin
   // 윈도우 탐색기에서 Drag 했을 경우 LFileName에 Drag한 File Name이 존재함
   // OutLook에서 Drag한 경우에는 LFileName = '' 임
@@ -646,77 +636,13 @@ begin
     LDroppedCount := OutlookDataFormat.Messages.Count; //Drop한 파일 갯수
     LIsMultiDrop := LDroppedCount > 1;
 
-//    LDroppedMailList := TStringList.Create;
-//    LNewAddedEmailList := TStringList.Create;
-//    try
-      // Get all the dropped messages
-//      for i := 0 to LDroppedCount - 1 do
-//      begin
-        //Outlook 에서 선택된 메일 들을 OLControlWorker 에 요청함
-        //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkSelMail4Explore) Grid에 표시
-        SendCmd2WorkerThrd(olckGetSelectedMailItemFromExplorer, TOmniValue.CastFrom(LDroppedCount));
+    LOLRespondRec.FID := LDroppedCount;
+    LOLRespondRec.FSenderHandle := FFrameOLEmailListWnd;
+    LOmniValue := TOmniValue.FromRecord(LOLRespondRec);
 
-        // Get an IMessage interface
-//        if (Supports(OutlookDataFormat.Messages[i], IMessage, LMessage)) then
-//        begin
-//          try
-//
-//          finally
-//
-//          end;
-//        end;
-
-//        LJson := LDroppedMailList.Values['MailInfos'];
-//ShowMessage('LJson :' + #13#10 + LJson);
-        //Email List를 DB에 저장
-//        if FIsSaveEmail2DBWhenDropped then
-//          LIsNewMailAdded := AddOLMail2DBFromDroppedMail(FDBKey, FHullNo, LJson, LNewAddedEmailList)
-//        else
-//          LIsNewMailAdded := AddEmail2GridNList(FDBKey, LJson, LNewAddedEmailList);
-//      end;//for
-
-      //새 메일이 그리드에 추가 되었으면 Refresh
-//      if LIsNewMailAdded then
-//      begin
-//        if (MoveFolderCB.ItemIndex > -1) and (AutoMoveCB.Checked) then
-//        begin
-//          LNewStoreId := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
-//          LNewStorePath := FFolderListFromOL.Names[MoveFolderCB.ItemIndex];
-//        end
-//        else
-//        begin
-//          LNewStoreId := '';
-//          LNewStorePath := '';
-//        end;
-//
-//        if (LNewStoreId <> '') and (LNewStorePath <> '') then
-//        begin
-//          for i := 0 to LNewAddedEmailList.Count - 1 do
-//          begin
-//            LOriginalEntryId := LNewAddedEmailList.Names[i];
-//            LOriginalStoreId := LNewAddedEmailList.ValueFromIndex[i];
-//            MoveEmail2Folder(LOriginalEntryId, LOriginalStoreId, LNewStoreId, LNewStorePath, False);
-//
-////            if SendCmd2OL4MoveFolderEmail_WS(LOriginalEntryId, LOriginalStoreId,
-////              LStoreId, LStorePath, LSubFolder, LHullNo, LDroppedMailList, FWSInfoRec) then
-////            begin
-////              UpdateOlMail2DBFromMovedMail(LDroppedMailList);
-////            end;
-//          end;
-//
-//          ShowMessage('Email move to folder( ' + LNewStorePath + ' ) completed!' + #13#10 +
-//            '( ' + IntToStr(OutlookDataFormat.Messages.Count) + ' 건 )');
-//        end;
-
-//        SendOLEmail2MQ(LNewAddedEmailList);
-
-//        if FIsSaveEmail2DBWhenDropped then
-//          MailCount := ShowEmailListFromDBKey(grid_Mail, FDBKey);
-//      end;
-//    finally
-//      LNewAddedEmailList.Free;
-//      LDroppedMailList.Free;
-//    end;
+    //Outlook 에서 선택된 메일 들을 OLControlWorker 에 요청함
+    //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkSelMail4Explore) Grid에 표시
+    SendCmd2WorkerThrd(olckGetSelectedMailItemFromExplorer, LOmniValue);
   end;
 end;
 
@@ -811,7 +737,7 @@ begin
   begin
     OnWorkerResult(Message);
   end else
-    Message.Result := DefWindowProc(FMyWnd, Message.Msg, Message.WParam, Message.LParam);
+    Message.Result := DefWindowProc(FFrameOLEmailListWnd, Message.Msg, Message.WParam, Message.LParam);
 end;
 
 function TOutlookEmailListFr.GetEmailIDFromGrid(ARow: integer): TID;
@@ -944,15 +870,26 @@ end;
 
 procedure TOutlookEmailListFr.InitVar;
 begin
-  FMyWnd := AllocateHWnd(FrameWndProc);
+  FFrameOLEmailListWnd := AllocateHWnd(FrameWndProc);
 
   FPJHTimerPool := TPJHTimerPool.Create(Self);
+
+  InitEmailClient();
+//  InitMAPI();
+end;
+
+procedure TOutlookEmailListFr.InitVarFromOwner(ARec: TOLEmailSrchRec);
+begin
+  SetOLEmailSrchRec(ARec);
+
+  if ARec.FTaskEditConfig.IsUseOLControlWorker then
+  begin
+    StartWorker();
+  end;
+
   FPJHTimerPool.AddOneShot(OnInitVarTimer,1000);
   FPJHTimerPool.AddOneShot(OnGetOLFolderListTimer,2000);
 
-  InitEmailClient();
-  StartWorker();
-//  InitMAPI();
 end;
 
 //procedure TOutlookEmailListFr.Korean1Click(Sender: TObject);
@@ -999,9 +936,9 @@ begin
   try
     if (ANewStoreId <> '') and (ANewStorePath <> '') then
     begin
-      FEntryIdRecord := Default(TEntryIdRecord);
+//      FEntryIdRecord := Default(TEntryIdRecord);
 
-      SendCmd2WorkerThrd(olckMoveMail2Folder, TOmniValue.CastFrom(''));
+      SendCmd2WorkerThrd(olckMoveMail2Folder, TOmniValue.CastFrom(FFrameOLEmailListWnd));
 
 //      if (AOriginalEntryID, AOriginalStoreID, ANewStoreId, ANewStorePath, LSubFolder, LHullNo, LMovedMailList) then
       begin
@@ -1054,25 +991,29 @@ end;
 procedure TOutlookEmailListFr.OnGetOLFolderListTimer(Sender: TObject;
   Handle: Integer; Interval: Cardinal; ElapsedTime: Integer);
 begin
-  SendCmd2WorkerThrd(olckGetFolderList, TOmniValue.CastFrom(''));
+  SendCmd2WorkerThrd(olckGetFolderList, TOmniValue.CastFrom(FFrameOLEmailListWnd));
 end;
 
 procedure TOutlookEmailListFr.OnInitVarTimer(Sender: TObject; Handle: Integer;
   Interval: Cardinal; ElapsedTime: Integer);
 begin
-  SendCmd2WorkerThrd(olckInitVar, TOmniValue.CastFrom(''));
+  SendCmd2WorkerThrd(olckInitVar, TOmniValue.CastFrom(FFrameOLEmailListWnd));
 end;
 
 procedure TOutlookEmailListFr.OnWorkerResult(var Msg: Winapi.Messages.TMessage);
 var
   LOLRespondRec: TOLRespondRec;
   LMsg  : TOmniMessage;
+//  LMsgQ: TOmniMessageQueue;
 begin
-  if FResponseQueue.TryDequeue(LMsg) then
+  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorker then
   begin
-    LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
+    if FResponseQueue.TryDequeue(LMsg) then
+    begin
+      LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
 
-    ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
+      ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
+    end;
   end;
 end;
 
@@ -1142,6 +1083,7 @@ begin
     //이동할 Folder Path를 저장: RootFolder + ';' + SubFolder
     LDestFolder := FFolderListFromOL.Names[MoveFolderCB.ItemIndex] + ';' + SubFolderNameEdit.Text;;
     FEntryIdRecord.FFolderPath4Move := LDestFolder;
+    FEntryIdRecord.FSenderHandle := FFrameOLEmailListWnd;
 
     LOmniValue := TOmniValue.FromRecord(FEntryIdRecord);
     //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
@@ -1238,9 +1180,21 @@ end;
 
 procedure TOutlookEmailListFr.SendCmd2WorkerThrd(const ACmd: TOLCommandKind;
   const AValue: TOmniValue);
+var
+  LMsgQ: TOmniMessageQueue;
 begin
-  if not FCommandQueue.Enqueue(TOmniMessage.Create(Ord(ACmd), AValue)) then
-    raise System.SysUtils.Exception.Create('Command queue is full!');
+  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorker then
+  begin
+    if not FCommandQueue.Enqueue(TOmniMessage.Create(Ord(ACmd), AValue)) then
+      raise System.SysUtils.Exception.Create('TOutlookEmailListFr.SendCmd2WorkerThrd->Command queue is full!');
+  end
+  else
+  begin
+    LMsgQ := FOLEmailSrchRec.FTaskEditConfig.IPCMQFromOLEmail;
+
+    if not LMsgQ.Enqueue(TOmniMessage.Create(Ord(ACmd), AValue)) then
+      raise System.SysUtils.Exception.Create('TOutlookEmailListFr.SendCmd2WorkerThrd->IPCMQFromOLEmail queue is full!');
+  end;
 end;
 
 procedure TOutlookEmailListFr.SendOLEmail2MQ(AEntryIdList: TStrings);
@@ -1396,6 +1350,7 @@ var
 begin
   LEntryIdRecord.FEntryId := AGrid.CellsByName['LocalEntryId', ARow];
   LEntryIdRecord.FStoreId := AGrid.CellsByName['LocalStoreId', ARow];
+  LEntryIdRecord.FSenderHandle := FFrameOLEmailListWnd;
 //  LEntryIdRecord.FFolderPath := AGrid.CellsByName['SavedOLFolderPath', ARow];
 
   LValue := TOmniValue.FromRecord(LEntryIdRecord);
@@ -1468,7 +1423,7 @@ begin
   FResponseQueue := TOmniMessageQueue.Create(1000, false);
   FSendMsgQueue := TOmniMessageQueue.Create(1000);
 
-  FOLControlWorker := TOLControlWorker.Create(FCommandQueue, FResponseQueue, FSendMsgQueue, FMyWnd);
+  FOLControlWorker := TOLControlWorker.Create(FCommandQueue, FResponseQueue, FSendMsgQueue, FFrameOLEmailListWnd);
 end;
 
 procedure TOutlookEmailListFr.StopWorker;

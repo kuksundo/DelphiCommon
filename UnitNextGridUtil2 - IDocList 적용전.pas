@@ -283,11 +283,10 @@ function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
 var
   i, j, LRow, LCount: integer;
   LColName: string;
-//  LDynUtf8: TRawUTF8DynArray;
-//  LDynArr: TDynArray;
-  LDocList: IDocList;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
   LUtf8: RawUTF8;
-  LVar: variant;
+  LDoc: variant;
 
   LCellValue: variant;
   LColumn: TnxCustomColumn;
@@ -344,12 +343,15 @@ begin
   try
     if AIsArray then
     begin
-//      LUtf8 := VariantToUTF8(ADoc);
-      LUtf8 := ADoc;
-      LDocList := DocList(LUtf8);
+      LUtf8 := VariantToUTF8(ADoc);
+      LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+      LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
 
-      for LVar in LDocList do
-        AddRowFromVar(LVar);
+      for i := 0 to LDynArr.Count - 1 do
+      begin
+        LDoc := _JSON(LDynUtf8[i]);
+        AddRowFromVar(LDoc);
+      end;
     end
     else
     begin
@@ -359,7 +361,7 @@ begin
     AGrid.EndUpdate;
 
     if AIsArray then
-      Result :=  LDocList.Len
+      Result :=  LDynArr.Count
     else
       Result :=  TDocVariantData(ADoc).Count;
   end;
@@ -371,7 +373,8 @@ var
   i, j: integer;
   LColName: string;
   LUtf8: RawUTF8;
-  LDocList: IDocList;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
 
   LCellValue: variant;
   LColumn: TnxCustomColumn;
@@ -379,7 +382,7 @@ var
 begin
   TDocVariant.New(Result);
   TDocVariant.New(LCellValue);
-  LDocList := DocList('[]');
+  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
 
   with AGrid do
   begin
@@ -398,11 +401,12 @@ begin
         SetNxGridCellValue2Var(LColumn, LCell, LCellValue);
       end;
 
-      LDocList.Append(LCellValue);
+      LUtf8 := LCellValue;
+      LDynArr.Add(LUtf8);
     end;
   end;//with
 
-  Result := LDocList.Json;
+  Result := LDynArr.SaveToJSON;
 end;
 
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
@@ -494,7 +498,8 @@ var
   i, j: integer;
   LColName: string;
   LUtf8: RawUTF8;
-  LDocList: IDocList;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
 
   LCellValue: variant;
   LColumn: TnxCustomColumn;
@@ -506,7 +511,7 @@ begin
   LStrList := TStringList.Create;
   try
     TDocVariant.New(LCellValue);
-    LDocList := DocList('[]');
+    LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
 
     with AGrid do
     begin
@@ -521,11 +526,12 @@ begin
           SetNxGridCellValue2Var(LColumn, LCell, LCellValue);
         end;
 
-        LDocList.Append(LCellValue);
+        LUtf8 := LCellValue;
+        LDynArr.Add(LUtf8);
       end;
     end;
 
-    LCellValue := LDocList.Json;
+    LCellValue := LDynArr.SaveToJSON;
     LStrList.Text := VariantToUtf8(LCellValue);
     LStrList.SaveToFile(ASaveFileName, TEncoding.UTF8);
   finally
@@ -537,9 +543,10 @@ procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow:
 var
   LStrList: TStringList;
   LStr: string;
-  LDocList: IDocList;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
   LUtf8: RawUTF8;
-  LVar: variant;
+  LDoc: variant;
   i: integer;
 begin
   LStrList := TStringList.Create;
@@ -549,10 +556,14 @@ begin
     LStr := LStrList.Text;
     LUtf8 := StringToUtf8(LStr);
 
-    LDocList := DocList(LUtf8);
+    LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
+    LDynArr.LoadFromJSON(PUTF8Char(LUtf8));
 
-    for LVar in LDocList do
-      GetListFromVariant2NextGrid(AGrid, LVar, True);
+    for i := 0 to LDynArr.Count - 1 do
+    begin
+      LDoc := _JSON(LDynUtf8[i]);
+      GetListFromVariant2NextGrid(AGrid, LDoc, True);
+    end;
 
   finally
     LStrList.Free;
@@ -565,15 +576,17 @@ var
   i, j: integer;
   LColumnName: string;
   LUtf8: RawUTF8;
-  LDocList: IDocList;
-  LVar: variant;
+  LDynUtf8: TRawUTF8DynArray;
+  LDynArr: TDynArray;
+  LV: variant;
 
   LCellValue: variant;
   LColumn: TnxCustomColumn;
   LCell: TCell;
 begin
   TDocVariant.New(Result);
-  TDocVariant.New(LVar);
+  TDocVariant.New(LV);
+  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
 
   for i := 0 to AGrid.RowCount - 1 do
   begin
@@ -581,13 +594,14 @@ begin
     begin
       LColumnName := AGrid.Columns.Item[AColIndexAry[j]].Name;
 
-      TDocVariantData(LVar).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
+      TDocVariantData(LV).Value[LColumnName] := AGrid.CellsByName[LColumnName, i];
     end;
 
-    LDocList.Append(LVar);
+    LUtf8 := LV;
+    LDynArr.Add(LUtf8);
   end;
 
-  Result := LDocList.Json;
+  Result := LDynArr.SaveToJSON;
 end;
 
 function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean): string;
