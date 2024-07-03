@@ -2,7 +2,7 @@ object ToDoListF2: TToDoListF2
   Left = 0
   Top = 0
   Caption = 'To-Do List'
-  ClientHeight = 619
+  ClientHeight = 639
   ClientWidth = 966
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -10,7 +10,6 @@ object ToDoListF2: TToDoListF2
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  Menu = MainMenu1
   OldCreateOrder = False
   Position = poMainFormCenter
   PixelsPerInch = 96
@@ -385,6 +384,7 @@ object ToDoListF2: TToDoListF2
         Align = alRight
         Caption = #51312#54924
         TabOrder = 0
+        OnClick = btn_SearchClick
       end
       object btn_Close: TAeroButton
         AlignWithMargins = True
@@ -438,7 +438,7 @@ object ToDoListF2: TToDoListF2
         #45796#51020#51089#50629)
     end
     object ClaimNoEdit: TEdit
-      Left = 637
+      Left = 639
       Top = 11
       Width = 112
       Height = 21
@@ -486,6 +486,14 @@ object ToDoListF2: TToDoListF2
       ImeName = 'Microsoft IME 2010'
       ParentFont = False
       TabOrder = 12
+    end
+    object TaskIDEdit: TEdit
+      Left = 557
+      Top = 88
+      Width = 36
+      Height = 21
+      TabOrder = 13
+      Visible = False
     end
   end
   object TaskTab: TAdvOfficeTabSet
@@ -890,7 +898,7 @@ object ToDoListF2: TToDoListF2
     Left = 0
     Top = 167
     Width = 966
-    Height = 433
+    Height = 453
     Touch.InteractiveGestures = [igPan, igPressAndTap]
     Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia, igoPanGutter, igoParentPassthrough]
     Align = alClient
@@ -901,6 +909,7 @@ object ToDoListF2: TToDoListF2
     Options = [goGrid, goHeader, goSelectFullRow]
     RowSize = 18
     PopupMenu = PopupMenu1
+    SelectionColor = 16777175
     TabOrder = 2
     TabStop = True
     OnCellDblClick = TodoGridCellDblClick
@@ -1547,7 +1556,7 @@ object ToDoListF2: TToDoListF2
   end
   object StatusBarPro1: TStatusBarPro
     Left = 0
-    Top = 600
+    Top = 620
     Width = 966
     Height = 19
     Panels = <
@@ -1576,7 +1585,7 @@ object ToDoListF2: TToDoListF2
     Left = 16
     Top = 208
     Bitmap = {
-      494C010101007000AC0318001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010101007000BC0318001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000600000001800000001002000000000000024
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000005C43
@@ -1886,7 +1895,7 @@ object ToDoListF2: TToDoListF2
     Left = 104
     Top = 208
     Bitmap = {
-      494C010102005402BC0310001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010102005402CC0310001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       000000000000000000000000000000000000000000000505052E101010521717
       17611D1D1D6C1F1D1E6D272425792523257825232578262425791F1E1E6E1E1E
@@ -2036,34 +2045,6 @@ object ToDoListF2: TToDoListF2
       Caption = '-'
     end
   end
-  object MainMenu1: TMainMenu
-    Left = 16
-    Top = 264
-    object MenuItem1: TMenuItem
-      Caption = #50629#47924#51208#52264
-      object MenuItem2: TMenuItem
-        Caption = #49436#48708#49828#47532#54252#53944' '#51077#49688' '#54980' '#50629#47924' '#51208#52264
-        object Invoice1: TMenuItem
-          Caption = 'Invoice '#51089#49457
-        end
-        object Invoice2: TMenuItem
-          Caption = 'Invoice '#49569#48512' -> '#44256#44061
-        end
-        object InvoiceConfirm1: TMenuItem
-          Caption = 'Invoice Confirm <- '#44256#44061
-        end
-        object MenuItem3: TMenuItem
-          Caption = #49688#53685' '#44552#50529' '#49688#51221
-        end
-        object MenuItem4: TMenuItem
-          Caption = #49688#53685' '#51116#49849#51064
-        end
-        object N5: TMenuItem
-          Caption = #47588#52636' '#52376#47532' '#50836#52397
-        end
-      end
-    end
-  end
   object ImageList32x32: TImageList
     ColorDepth = cd32Bit
     Height = 32
@@ -2071,7 +2052,7 @@ object ToDoListF2: TToDoListF2
     Left = 56
     Top = 208
     Bitmap = {
-      494C01010400C800F00420002000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01010400C800000520002000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000800000004000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

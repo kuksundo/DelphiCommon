@@ -2,7 +2,7 @@ unit UnitVariantUtil;
 
 interface
 
-uses Winapi.Activex, System.Variants, System.VarUtils,
+uses Winapi.Activex, System.Variants, System.VarUtils, System.DateUtils,
   mormot.core.datetime, mormot.core.variants;
 
 function SafeArrayGetVarType(psa: PSafeArray): TVarType; safecall; external 'OleAut32.dll';
@@ -49,6 +49,9 @@ begin
 
   if StrIsNumeric(LStr) then
     Result := TimelogToDateTime(StrToInt64(LStr))
+  else
+  if VarIsStr(AVar) then
+    Result := Iso8601ToDateTime(LStr)
   else
     Result := VarToDateTIme(AVar);
 end;

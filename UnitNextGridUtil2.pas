@@ -305,6 +305,7 @@ var
       else
         LRow := SelectedRow;
 
+      //한글 깨지면 Count = 0
       for Li := 0 to TDocVariantData(AJson).Count - 1 do
       begin
         LColName := TDocVariantData(AJson).Names[Li];
@@ -344,12 +345,17 @@ begin
   try
     if AIsArray then
     begin
-//      LUtf8 := VariantToUTF8(ADoc);
       LUtf8 := ADoc;
       LDocList := DocList(LUtf8);
 
       for LVar in LDocList do
-        AddRowFromVar(LVar);
+      begin
+        //LVar은 한글 깨짐
+        LUtf8 := VariantToUTF8(LVar);
+        ADoc := _JSON(LUtf8);
+        AddRowFromVar(ADoc);
+      end;
+
     end
     else
     begin
@@ -468,7 +474,10 @@ begin
     ACell.AsDateTime := VarToDateWithTimeLog(AVar)//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
   else
   if AColumn.ColumnType = ctBoolean then //CheckBox Type
-    ACell.AsBoolean := VariantToBoolean(AVar, LBool)
+  begin
+    VariantToBoolean(AVar, LBool);
+    ACell.AsBoolean := LBool;
+  end
   else //반드시 String Type만 대입 할 것
     ACell.AsString := VariantToString(AVar);
 end;

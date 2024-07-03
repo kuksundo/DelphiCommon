@@ -3,8 +3,11 @@ unit JHP.Util.Bit32Helper;
 interface
 //»ç¿ë¹ý
 {  var x: Integer := 123;
-  Writeln(TpjhBit32Helper(x).Bit[4]); // read
-  TpjhBit32Helper(x).Bit[6] := False; // write
+       LpjhBit32: TpjhBit32;
+
+  LpjhBit32 := x;
+  Writeln(LpjhBit32.Bit[4]); // read
+  LpjhBit32.Bit[6] := False; // write
 }
 type
   TpjhBit32 = type Integer;

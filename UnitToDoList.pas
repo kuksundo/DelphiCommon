@@ -4,10 +4,14 @@ interface
 
 uses System.Classes, DateUtils, TodoList,
   mormot.rest.client, mormot.core.base, mormot.core.data, mormot.core.variants,
-  mormot.core.text, mormot.core.datetime, mormot.core.collections
+  mormot.core.text, mormot.core.datetime, mormot.core.collections,
+  UnitEnumHelper
   ;
 
 type
+  TTodoQueryDateType = (tdqdtNull, tdqdtCreation, tdqdtDuedate, tdqdtCompletion,
+    tdqdtModDate, tdqdtAlarmTime, tdqdtFinal);
+
   TpjhTodoItemRec = packed record
     RowID: TID; //DB ID
     TaskID: TID;
@@ -52,8 +56,21 @@ type
     AlarmTime: TTimeLog; //Alarm을 발생 시켜야할 시각
   end;
 
-  TpjhToDoList = IList<TpjhTodoItemRec>;
+  //key = UniqueID
+  TpjhToDoList = IKeyValue<string, TpjhTodoItemRec>;//IList<TpjhTodoItemRec>;
+
+const
+  R_TodoQueryDateType : array[Low(TTodoQueryDateType)..High(TTodoQueryDateType)] of string =
+    ('',
+      '일정생성일자기준', '만료일기준', '완료일기준', '일정수정일자기준', '알람발생시각기준',
+    '');
+
+var
+  g_TodoQueryDateType: TLabelledEnum<TTodoQueryDateType>;
 
 implementation
+
+initialization
+//  g_TodoQueryDateType.InitArrayRecord(R_TodoQueryDateType);
 
 end.

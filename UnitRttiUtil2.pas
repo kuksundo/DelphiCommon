@@ -86,7 +86,8 @@ function GetValueByPropertyName(AClass: TObject; APropertyName : String): TValue
 procedure SetClassPropertyValue(AClass, AData: TObject; APropertyName : String);
 
 procedure LoadRecordPropertyFromVariant(AClass: TObject; const ADoc: Variant; AIsPadFirstChar: Boolean=False);
-procedure LoadRecordPropertyToVariant(const AClass: TObject; var ADoc: Variant; AIsPadFirstChar: Boolean=False; AIsPropertyOnly: Boolean=False);
+//AIncludeID: True = ID 를 ADoc에 저장함
+procedure LoadRecordPropertyToVariant(const AClass: TObject; var ADoc: Variant; AIsPadFirstChar: Boolean=False; AIsPropertyOnly: Boolean=False; AIncludeID: Boolean=False);
 procedure PersistentCopy(const ASrc: TPersistent; var ADest: TPersistent);
 procedure ObjectCopyWithRtti(const ASrc: TObject; var ADest: TObject);
 procedure CreatePersistentAssignFile(const ASrc: TPersistent; AFileName: string);
@@ -646,7 +647,7 @@ begin
 end;
 
 procedure LoadRecordPropertyToVariant(const AClass: TObject; var ADoc: Variant;
-  AIsPadFirstChar: Boolean; AIsPropertyOnly: Boolean);
+  AIsPadFirstChar: Boolean; AIsPropertyOnly: Boolean; AIncludeID: Boolean);
 var
  ctx : TRttiContext;
  objType : TRttiType;
@@ -662,11 +663,14 @@ begin
 
     for Prop in objType.GetProperties do
     begin
-      if not Prop.IsWritable then
-        continue;
+      if not (AIncludeID and (Prop.Name = 'ID'))then
+      begin
+        if not Prop.IsWritable then
+          continue;
 
-      if Prop.Visibility <> mvPublished then
-        Continue;
+        if Prop.Visibility <> mvPublished then
+          Continue;
+      end;
 
       LPropName := Prop.Name;
 
@@ -685,6 +689,9 @@ begin
       end
       else
       begin
+        if LPropName = 'ID' then
+          LPropName := 'RowID';
+
         Value := Prop.GetValue(AClass);
 
         //tkSet Type은 value.AsVariant에서 지원 안함 (type cast error 발생함)
@@ -1296,13 +1303,21 @@ var
   rttiType: TRttiType;
   LField : TRTTIField;
   Value : TValue;
+  LVar: variant;
 begin
   rttiType := rttiContext.GetType(ATypeInfo);//TypeInfo(THiMECSMenuRecord));
 
   for LField in rttiType.GetFields do
   begin
-    Value := LField.GetValue(@ARec);
-    TDocVariantData(ADoc).Value[LField.Name] := Value.AsVariant;
+    if LField.FieldType.TypeKind <> tkMethod then
+    begin
+//      Value := LField.GetValue(@ARec);
+//      Value := Value.FromVariant(TDocVariantData(ADoc).Value[LField.Name]);
+      LVar := TDocVariantData(ADoc).Value[LField.Name];
+      Value := TValue.FromVariant(LVar);
+      LField.SetValue(@ARec, Value);
+//      TDocVariantData(ADoc).Value[LField.Name] := Value.AsVariant;
+    end;
   end;
 end;
 

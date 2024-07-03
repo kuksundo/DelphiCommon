@@ -145,7 +145,10 @@ type
     FCommandQueue,
     FResponseQueue,
     FSendMsgQueue,
-    FOLEmailQueue
+    FOLEmailQueue,
+
+    FIPCMQFromEmail,
+    FIPCMQ2Email
     : TOmniMessageQueue;
 
     FPJHTimerPool: TPJHTimerPool;
@@ -605,7 +608,7 @@ begin
   FPJHTimerPool.RemoveAll();
   FPJHTimerPool.Free;
 
-  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorker then
+  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorkerFromEmailList then
     StopWorker();
 
 //  DestroyOLEmailMsg(); //UnitOLEmailRecord2.finalization에서 실행 함
@@ -882,12 +885,18 @@ procedure TOutlookEmailListFr.InitVarFromOwner(ARec: TOLEmailSrchRec);
 begin
   SetOLEmailSrchRec(ARec);
 
-  if ARec.FTaskEditConfig.IsUseOLControlWorker then
+  //OLControlWorker를 Frame에서 생성함
+  if ARec.FTaskEditConfig.IsUseOLControlWorkerFromEmailList then
   begin
     StartWorker();
+    FPJHTimerPool.AddOneShot(OnInitVarTimer,1000);
+  end
+  else
+  //OLControlWorker를 HiconisASManager에서 생성함
+  begin
+
   end;
 
-  FPJHTimerPool.AddOneShot(OnInitVarTimer,1000);
   FPJHTimerPool.AddOneShot(OnGetOLFolderListTimer,2000);
 
 end;
@@ -1006,14 +1015,25 @@ var
   LMsg  : TOmniMessage;
 //  LMsgQ: TOmniMessageQueue;
 begin
-  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorker then
+  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorkerFromEmailList then
   begin
+    //OLControlWorker에서 직접 수신함
     if FResponseQueue.TryDequeue(LMsg) then
     begin
       LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
 
       ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
     end;
+  end
+  else
+  begin
+    //HiconisASManage에서 전달 받음
+    while FOLEmailSrchRec.FTaskEditConfig.IPCMQ2OLEmail.TryDequeue(LMsg) do
+    begin
+        LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
+
+        ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
+    end;//while
   end;
 end;
 
@@ -1030,7 +1050,10 @@ begin
       SetMoveFolderCBByFolderPath();
       FLogProc(ARec.FMsg);
     end;
-    olrkLog: FLogProc(ARec.FMsg);
+    olrkLog: begin
+      if Assigned(FLogProc) then
+        FLogProc(ARec.FMsg);
+    end;
     //Outlook 에서 DragDrop 되었을때 현재 Outlook에서 Select된 Mail 정보를 Json Array로 가져옴
     olrkSelMail4Explore: begin
       LUtf8 := StringToUtf8(ARec.FMsg);
@@ -1183,7 +1206,7 @@ procedure TOutlookEmailListFr.SendCmd2WorkerThrd(const ACmd: TOLCommandKind;
 var
   LMsgQ: TOmniMessageQueue;
 begin
-  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorker then
+  if FOLEmailSrchRec.FTaskEditConfig.IsUseOLControlWorkerFromEmailList then
   begin
     if not FCommandQueue.Enqueue(TOmniMessage.Create(Ord(ACmd), AValue)) then
       raise System.SysUtils.Exception.Create('TOutlookEmailListFr.SendCmd2WorkerThrd->Command queue is full!');

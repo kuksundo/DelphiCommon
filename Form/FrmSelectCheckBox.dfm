@@ -79,7 +79,7 @@ object SelectChcekBoxF: TSelectChcekBoxF
       TabOrder = 1
     end
   end
-  object ProductTypesGrp: TAdvOfficeCheckGroup
+  object CheckBoxGrp: TAdvOfficeCheckGroup
     Left = 0
     Top = 41
     Width = 582
@@ -90,8 +90,6 @@ object SelectChcekBoxF: TSelectChcekBoxF
     TabOrder = 1
     Columns = 3
     Ellipsis = False
-    ExplicitTop = 64
-    ExplicitHeight = 108
   end
   object Panel2: TPanel
     Left = 0
@@ -100,7 +98,6 @@ object SelectChcekBoxF: TSelectChcekBoxF
     Height = 41
     Align = alTop
     TabOrder = 2
-    ExplicitWidth = 339
     object Label1: TLabel
       Left = 16
       Top = 10
