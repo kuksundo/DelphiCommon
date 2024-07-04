@@ -198,7 +198,7 @@ type
 
     procedure DeleteMail(ARow: integer);
 
-    function GetEmailIDFromGrid(ARow: integer): TID;
+    function GetEmailIDFromGrid(ARow: integer): string;
     procedure ShowMailContents(AGrid: TNextGrid; ARow: integer);
     procedure SendOLEmail2MQ(AEntryIdList: TStrings);
     procedure UpdateEmailId2GridFromJson(AJson: string);
@@ -223,7 +223,8 @@ type
     FRemoteIPAddress: string;
     FHullNo, FDBNameSuffix: string;
     FDBKey: TID; //TaskID를 사용함
-    FOLFolderListFileName: string;
+    FOLFolderListFileName,
+    FDefaultMoveFolder: string;
     //Strategy Design Pattern
 //    FContext4OLEmail: TContext4OLEmail;
 //    FWSInfoRec: TWSInfoRec;
@@ -295,7 +296,7 @@ uses
   ComObj,
   //UnitGAMakeReport,
   UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
-  UnitNextGridUtil2, UnitOutlookUtil2, FrmStringsEdit;
+  UnitNextGridUtil2, UnitOutlookUtil2, FrmStringsEdit, FrmEditEmailInfo2;
 
 {$R *.dfm}
 
@@ -519,15 +520,16 @@ end;
 
 procedure TOutlookEmailListFr.DeleteEmialFromGrid2DB;
 var
-  i, LID: integer;
+  i: integer;
+  LEntryID: string;
 begin
   for i := grid_Mail.RowCount - 1 downto 0 do
   begin
     if not grid_Mail.RowVisible[i] then
     begin
-      LID := GetEmailIDFromGrid(i);
+      LEntryID := GetEmailIDFromGrid(i);
 
-      if DeleteOLMail2DBFromID(LID) then
+      if DeleteOLMail2DBFromEntryID(LEntryID) then
         grid_Mail.DeleteRow(i);
     end;
   end;
@@ -651,52 +653,31 @@ end;
 
 procedure TOutlookEmailListFr.EditMailInfo1Click(Sender: TObject);
 var
-//  LEmailInfoF: TEmailInfoF;
-  LEmailID: integer;
+  LEmailInfoF: TEmailInfoF;
   LContainData, LProcDirection: integer;
-  LContainData2, LProcDirection2: string;
+  LContainData2, LProcDirection2,
+  LStr: string;
 begin
-  LEmailID := -1;
+  LEmailInfoF := TEmailInfoF.Create(nil);
+  try
+    with LEmailInfoF do
+    begin
+      LStr := grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow];
+      ContainDataCB.ItemIndex := StrToIntDef(LStr,0);//g_ContainData4Mail.ToOrdinal(
+      LStr := grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow];
+      EmailDirectionCB.ItemIndex := StrToIntDef(LStr,0);//g_ProcessDirection.ToOrdinal(
+      Description.Text := grid_Mail.CellsByName['Description', grid_Mail.SelectedRow];;
 
-  if grid_Mail.CellsByName['RowID', grid_Mail.SelectedRow] <> '' then
-  begin
-    LEmailID := GetEmailIDFromGrid(grid_Mail.SelectedRow);
-
-//    if LEmailID > -1 then
-//      GetContainDataNDirFromID(LEmailID, LContainData, LProcDirection);
+      if LEmailInfoF.ShowModal = mrOK then
+      begin
+        grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow] := IntToStr(EmailDirectionCB.ItemIndex);
+        grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow] := IntToStr(ContainDataCB.ItemIndex);
+        grid_Mail.CellsByName['Description', grid_Mail.SelectedRow] := Description.Text;
+      end;
+    end;//with
+  finally
+    LEmailInfoF.Free;
   end;
-
-//  LProcDirection := g_ProcessDirection.ToOrdinal(grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow]);
-//  LContainData := g_ContainData4Mail.ToOrdinal(grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow]);
-//
-//  LEmailInfoF := TEmailInfoF.Create(nil);
-//  try
-//    //데이터가 있으면
-////    if (LContainData <> -1) and (LProcDirection = -1) then
-////    begin
-//      LEmailInfoF.ContainDataCB.ItemIndex := LContainData;
-//      LEmailInfoF.EmailDirectionCB.ItemIndex := LProcDirection;
-////    end;
-//
-//    if LEmailInfoF.ShowModal = mrOK then
-//    begin
-//      LContainData2 := g_ContainData4Mail.ToString(LEmailInfoF.ContainDataCB.ItemIndex);
-//      LProcDirection2 := g_ProcessDirection.ToString(LEmailInfoF.EmailDirectionCB.ItemIndex);
-//
-//      grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow] := LProcDirection2;
-//      grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow] := LContainData2;
-//
-////      if LEmailID = -1 then
-////        UpdateOLMail2DBFromContainDataNProcdir(LEmailID, LContainData2, LProcDirection2);
-////
-////      ShowEmailListFromDBKey(grid_Mail, FDBKey);
-//    end;
-//  finally
-//    LEmailInfoF.Free;
-//  end;
-
-//    FTask.EmailMsg.ManyDelete(g_ProjectDB, FTask.ID, LEmailID);
-//    g_ProjectDB.Delete(TSQLEmailMsg, LEmailID);
 end;
 
 procedure TOutlookEmailListFr.Englisth1Click(Sender: TObject);
@@ -721,12 +702,23 @@ end;
 
 procedure TOutlookEmailListFr.FillInMoveFolderCB;
 var
-  i: integer;
+  i,
+  LItemIndex: integer;
 begin
   MoveFolderCB.Clear;
-
+  LItemIndex := -1;
   for i := 0 to FFolderListFromOL.Count - 1 do
+  begin
     MoveFolderCB.Items.Add(FFolderListFromOL.Names[i]);
+
+    if FDefaultMoveFolder <> '' then
+    begin
+      if FFolderListFromOL.Names[i] = FDefaultMoveFolder then
+        LItemIndex := i;
+    end;
+  end;
+
+  MoveFolderCB.ItemIndex := LItemIndex;
 end;
 
 procedure TOutlookEmailListFr.FinilizeFolderListMenu;
@@ -743,14 +735,14 @@ begin
     Message.Result := DefWindowProc(FFrameOLEmailListWnd, Message.Msg, Message.WParam, Message.LParam);
 end;
 
-function TOutlookEmailListFr.GetEmailIDFromGrid(ARow: integer): TID;
+function TOutlookEmailListFr.GetEmailIDFromGrid(ARow: integer): string;
 begin
   if ARow <> -1 then
   begin
-    Result := grid_Mail.CellByName['RowID', ARow].AsInteger
+    Result := grid_Mail.CellsByName['LocalEntryID', ARow]
   end
   else
-    Result := -1;
+    Result := '';
 end;
 
 function TOutlookEmailListFr.GetEntryIdFromGridJson(

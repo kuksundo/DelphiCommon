@@ -634,13 +634,6 @@ begin
       SetValue(Data, Value);
       Prop.SetValue(AClass,Value);
     end;
-
-//    for Field in objType.GetFields do
-//    begin
-//      Value := Field.GetValue(AClass);
-//      SetValue(Data,Value);
-//      Field.SetValue(AClass,Value);
-//    end;
   finally
     ctx.Free;
   end;

@@ -1544,6 +1544,8 @@ object OutlookEmailListFr: TOutlookEmailListFr
         Width = 115
         Height = 17
         Caption = 'To Sub-Folder :'
+        Checked = True
+        State = cbChecked
         TabOrder = 2
         OnClick = SubFolderCBClick
       end
@@ -1562,6 +1564,8 @@ object OutlookEmailListFr: TOutlookEmailListFr
         Width = 272
         Height = 17
         Caption = 'Email To Move Folder when drag drop'
+        Checked = True
+        State = cbChecked
         TabOrder = 4
       end
     end
@@ -1713,7 +1717,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C01012F009800D80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01012F009800DC0610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000C0000000010020000000000000C0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
