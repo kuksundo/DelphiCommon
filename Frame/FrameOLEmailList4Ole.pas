@@ -193,7 +193,7 @@ type
     procedure MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID, ANewStoreId,
       ANewStorePath: string; AIsShowResult: Boolean = True);
       //ADynArry: Move할 Email List임
-    procedure ReqMoveEmailFolder2Worker(ADynAry: TRawUTF8DynArray);
+    function ReqMoveEmailFolder2Worker(ADynAry: TRawUTF8DynArray): integer;
     function GetEntryIdFromGridJson(ADoc: variant): TEntryIdRecord;
 
     procedure DeleteMail(ARow: integer);
@@ -296,7 +296,8 @@ uses
   ComObj,
   //UnitGAMakeReport,
   UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
-  UnitNextGridUtil2, UnitOutlookUtil2, FrmStringsEdit, FrmEditEmailInfo2;
+  UnitNextGridUtil2, UnitOutlookUtil2, FrmStringsEdit, FrmEditEmailInfo2,
+  UnitComboBoxUtil;
 
 {$R *.dfm}
 
@@ -657,13 +658,22 @@ var
   LContainData, LProcDirection: integer;
   LContainData2, LProcDirection2,
   LStr: string;
+  Li: integer;
+  LStrList: TStringList;
 begin
   LEmailInfoF := TEmailInfoF.Create(nil);
   try
     with LEmailInfoF do
     begin
-      LStr := grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow];
-      ContainDataCB.ItemIndex := StrToIntDef(LStr,0);//g_ContainData4Mail.ToOrdinal(
+      LStrList := g_ContainData4Mail.GetTypeLabels();
+      try
+        ContainDataCB.Items.Assign(LStrList);
+      finally
+        LStrList.Free;
+      end;
+      Li := StrToIntDef(grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow], 0);
+      SetCheckBoxBySetValue(ContainDataCB, Li);
+//      ContainDataCB.ItemIndex := StrToIntDef(LStr,0);//g_ContainData4Mail.ToOrdinal(
       LStr := grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow];
       EmailDirectionCB.ItemIndex := StrToIntDef(LStr,0);//g_ProcessDirection.ToOrdinal(
       Description.Text := grid_Mail.CellsByName['Description', grid_Mail.SelectedRow];;
@@ -671,7 +681,8 @@ begin
       if LEmailInfoF.ShowModal = mrOK then
       begin
         grid_Mail.CellsByName['ProcDirection', grid_Mail.SelectedRow] := IntToStr(EmailDirectionCB.ItemIndex);
-        grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow] := IntToStr(ContainDataCB.ItemIndex);
+        Li := GetSetFromCheckCombo(ContainDataCB);
+        grid_Mail.CellsByName['ContainData', grid_Mail.SelectedRow] := IntToStr(Li);
         grid_Mail.CellsByName['Description', grid_Mail.SelectedRow] := Description.Text;
       end;
     end;//with
@@ -1064,8 +1075,8 @@ begin
 end;
 
 //ADynAry: Grid에 Drag Drop 되어 OL에서 Selected된 Email List를 Json Array로 전달
-procedure TOutlookEmailListFr.ReqMoveEmailFolder2Worker(
-  ADynAry: TRawUTF8DynArray);
+function TOutlookEmailListFr.ReqMoveEmailFolder2Worker(
+  ADynAry: TRawUTF8DynArray): integer;
 var
   i, LFolderIdx: integer;
   LDoc: variant;
@@ -1073,6 +1084,7 @@ var
   LDestFolder: string;
 //  LUtf8: RawUtf8;
 begin
+  Result := -1;
   LFolderIdx := MoveFolderCB.ItemIndex;
 
   if LFolderIdx < 0 then
@@ -1104,6 +1116,8 @@ begin
     //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
     SendCmd2WorkerThrd(olckMoveMail2Folder, LOmniValue);
   end;//for
+
+  Result := 1;
 end;
 
 procedure TOutlookEmailListFr.ReqVDRAPTCoC(ALang: integer);
@@ -1170,7 +1184,7 @@ begin
 
   LStrList := TStringList.Create;
   try
-    //Grid의 RowID를 기준으로 삭제함
+    //Grid의 EntryID를 기준으로 DB를 삭제함
     DeleteEmialFromGrid2DB;
     LDoc := NextGrid2Variant(grid_Mail);
     LJsonArray := LDoc;
@@ -1381,6 +1395,7 @@ var
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
   LDestFolder: string;
+  LReqResult: integer;
 begin
   //AJson = [] 형식의 Email List임
 //  LVar := _JSON(AJson);
@@ -1393,7 +1408,15 @@ begin
 //  AddNextGridRowsFromVariant(grid_Mail, LDynUtf8, False);
 
   if AutoMoveCB.Checked then
-    ReqMoveEmailFolder2Worker(LDynUtf8)//Move 완료 후 수정된 EntryId를 Grid에 갱신해야 함
+  begin
+    LReqResult := ReqMoveEmailFolder2Worker(LDynUtf8);//Move 완료 후 수정된 EntryId를 Grid에 갱신해야 함
+
+    if LReqResult = -1 then
+    begin
+      UpdateHullNo2GridIfCellEmpty();
+      ShowMessage('Email Move fail.');
+    end;
+  end
   else
   begin
     UpdateHullNo2GridIfCellEmpty();

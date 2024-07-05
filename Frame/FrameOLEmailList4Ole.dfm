@@ -1047,6 +1047,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
           Position = 3
           SortType = stAlphabetic
+          Visible = False
         end
         object ClaimNo: TNxTextColumn
           Alignment = taCenter
@@ -1064,6 +1065,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
         end
         object Description: TNxButtonColumn
           Alignment = taCenter
+          DefaultWidth = 300
           Header.Caption = #49444#47749
           Header.Alignment = taCenter
           Header.Font.Charset = DEFAULT_CHARSET
@@ -1074,10 +1076,11 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
           Position = 5
           SortType = stAlphabetic
+          Width = 300
           OnButtonClick = DescriptionButtonClick
         end
         object Subject: TNxTextColumn
-          DefaultWidth = 300
+          DefaultWidth = 150
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -11
@@ -1093,7 +1096,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
           ParentFont = False
           Position = 6
           SortType = stAlphabetic
-          Width = 300
+          Width = 150
         end
         object RecvDate: TNxDateColumn
           Alignment = taCenter
@@ -1717,7 +1720,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C01012F009800DC0610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01012F009800E00610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000C0000000010020000000000000C0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
