@@ -6,11 +6,11 @@ Uses System.SysUtils, Windows, Messages;
 
 function GetCharFromVKey(vkey: Word): string;
 function GetVKeyFromChar(AChar: string): Cardinal;
+function GetUnicodeFromVKey(AVKey: Word): string;
 function KeyToString(aCode: Cardinal): string;
 function StringToKey(S: string): Cardinal;
 
 procedure SendAltNChar(AChar: Char);
-
 
 implementation
 
@@ -24,7 +24,7 @@ begin
 {$IFDEF UNICODE}
   SetLength(Result, 256);
   ZeroMemory(@Result[1], SizeOf(Result));
-  retcode := ToUnicode(vkey, MapVirtualKey(vkey, 0), keystate, @Result[1], Length(Result), 0);
+  retcode := ToUnicodeEx(vkey, MapVirtualKey(vkey, 0), keystate, @Result[1], Length(Result), 0, 0);
 {$ELSE}
   SetLength(Result, 2);
   retcode := ToAsciiEx(vkey,
@@ -44,6 +44,54 @@ end;
 function GetVKeyFromChar(AChar: string): Cardinal;
 begin
   Result := MapVirtualKey(Ord(AChar[1]), 0);
+end;
+
+function GetUnicodeFromVKey(AVKey: Word): string;
+var
+  wScanCode: UINT;
+  lpKeyState: TKeyboardState;
+  pwszBuff: array[0..4] of WideChar;  // Buffer for Unicode characters
+  cchBuff: Integer;
+  wFlags: UINT;
+  dwhkl: HKL;
+  LResult: Integer;
+begin
+  // Example: Virtual key code for 'A' key
+  wScanCode := MapVirtualKey(AVKey, MAPVK_VK_TO_VSC);
+
+  // Get the current keyboard layout
+  dwhkl := GetKeyboardLayout(0);
+
+  // Get the current key state
+  GetKeyboardState(lpKeyState);
+
+  // Initialize the buffer
+  cchBuff := Length(pwszBuff);
+
+  // Set any necessary flags
+  wFlags := 0;
+
+  // Call ToUnicodeEx
+  LResult := ToUnicodeEx(AVKey, wScanCode, @lpKeyState[0], pwszBuff, cchBuff, wFlags, dwhkl);
+
+  // Check the result
+  if LResult > 0 then
+  begin
+    // Successfully translated to one or more Unicode characters
+    // The Unicode characters are in pwszBuff
+    SetString(Result, pwszBuff, LResult);
+//    Result := pwszBuff;
+  end
+  else if LResult < 0 then
+  begin
+    // Dead key; to be combined with the next character input
+    Result := '';
+  end
+  else
+  begin
+    // No translation available
+    Result := '';
+  end;
 end;
 
 function KeyToString(aCode: Cardinal): string;
