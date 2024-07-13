@@ -29,11 +29,11 @@ type
 
     class function GetIniAttribute(Obj : TRttiObject) : JHPIniAttribute;
 
-    class procedure LoadConfig2Form(AForm: TForm; ASettings: TObject); virtual;
-    class procedure LoadConfigForm2Object(AForm: TForm; ASettings: TObject); virtual;
+    class procedure LoadConfig2Form(AForm: TForm; ASettings: TObject; AIsUseTag: Boolean=True); virtual;
+    class procedure LoadConfigForm2Object(AForm: TForm; ASettings: TObject; AIsUseTag: Boolean=True); virtual;
 
-    class procedure LoadObject2Form(AForm, ASettings: TObject; AIsForm: Boolean);virtual;
-    class procedure LoadForm2Object(AForm, ASettings: TObject; AIsForm: Boolean);virtual;
+    class procedure LoadObject2Form(AForm, ASettings: TObject; AIsForm: Boolean; AIsUseTag: Boolean=True);virtual;
+    class procedure LoadForm2Object(AForm, ASettings: TObject; AIsForm: Boolean; AIsUseTag: Boolean=True);virtual;
 
     class procedure SetTagNo2ComponentFromForm(AForm: TObject); virtual;
     class procedure GetValueFromTagNo(var AValue: TValue; const ATagNo: integer); virtual;
@@ -124,7 +124,7 @@ begin
 end;
 
 //Component의 Hint에 값이 저장되는 필드명이 저장되어 있어야 함
-class procedure TJHPIniConfigBase.LoadConfig2Form(AForm: TForm; ASettings: TObject);
+class procedure TJHPIniConfigBase.LoadConfig2Form(AForm: TForm; ASettings: TObject; AIsUseTag: Boolean);
 var
   ctx, ctx2 : TRttiContext;
   objType, objType2 : TRttiType;
@@ -135,7 +135,8 @@ var
   LControl: TControl;
 
   i, LTagNo: integer;
-  LStr, s: string;
+  LStr, s, LCompName: string;
+  LIsSetValue: Boolean;
 begin
   ctx := TRttiContext.Create;
   ctx2 := TRttiContext.Create;
@@ -155,8 +156,6 @@ begin
       if LStr = '' then
         Continue;
 
-      LTagNo := LControl.Tag;
-
       objType := ctx.GetType(LControl.ClassInfo);
 
       Prop := nil;
@@ -171,13 +170,27 @@ begin
 
       if Assigned(Prop) then
       begin
+        if AIsUseTag then
+        begin
+          LTagNo := LControl.Tag;
+        end
+        else
+        begin
+          LCompName := LControl.Name;
+        end;
+
         for Prop2 in objType2.GetProperties do
         begin
           IniValue := TJHPIniPersist.GetIniAttribute(Prop2);
 
           if Assigned(IniValue) then
           begin
-            if IniValue.TagNo = LTagNo then
+            if AIsUseTag then
+              LIsSetValue := StrToIntDef(IniValue.TagNoOrCompName,0) = LTagNo
+            else
+              LIsSetValue := IniValue.TagNoOrCompName = LCompName;
+
+            if LIsSetValue then
             begin
               Value := Prop2.GetValue(ASettings);
 //              Data := TIniPersist.GetValue(Value);
@@ -197,17 +210,18 @@ begin
  end;
 end;
 
-class procedure TJHPIniConfigBase.LoadConfigForm2Object(AForm: TForm; ASettings: TObject);
+class procedure TJHPIniConfigBase.LoadConfigForm2Object(AForm: TForm; ASettings: TObject; AIsUseTag: Boolean);
 var
   ctx, ctx2 : TRttiContext;
   objType, objType2 : TRttiType;
   Prop, Prop2  : TRttiProperty;
   Value : TValue;
   IniValue : JHPIniAttribute;
-  Data : String;
+  Data, LCompName : String;
   LControl: TControl;
 
   i, LTagNo: integer;
+  LIsSetValue: Boolean;
   LStr: string;
 begin
   ctx := TRttiContext.Create;
@@ -228,8 +242,6 @@ begin
       if LStr = '' then
         Continue;
 
-      LTagNo := LControl.Tag;
-
       objType := ctx.GetType(LControl.ClassInfo);
 
       Prop := nil;
@@ -244,6 +256,15 @@ begin
 
       if Assigned(Prop) then
       begin
+        if AIsUseTag then
+        begin
+          LTagNo := LControl.Tag;
+        end
+        else
+        begin
+          LCompName := LControl.Name;
+        end;
+
         for Prop2 in objType2.GetProperties do
         begin
           if Prop2.Name = '' then
@@ -253,7 +274,12 @@ begin
 
           if Assigned(IniValue) then
           begin
-            if IniValue.TagNo = LTagNo then
+            if AIsUseTag then
+              LIsSetValue := StrToIntDef(IniValue.TagNoOrCompName,0) = LTagNo
+            else
+              LIsSetValue := IniValue.TagNoOrCompName = LCompName;
+
+            if LIsSetValue then
             begin
               if LControl.ClassType = TAdvGroupBox then
                 Value := Prop.GetValue(TAdvGroupBox(LControl).CheckBox)
@@ -273,7 +299,7 @@ begin
   end;
 end;
 
-class procedure TJHPIniConfigBase.LoadForm2Object(AForm, ASettings: TObject; AIsForm: Boolean);
+class procedure TJHPIniConfigBase.LoadForm2Object(AForm, ASettings: TObject; AIsForm: Boolean; AIsUseTag: Boolean);
 var
   ctx, ctx2 : TRttiContext;
   objType, objType2 : TRttiType;
@@ -285,7 +311,8 @@ var
   LObj: TObject;
 
   i, LCount, LTagNo: integer;
-  LStr: string;
+  LStr, LCompName: string;
+  LIsSetValue: Boolean;
 begin
   ctx := TRttiContext.Create;
   ctx2 := TRttiContext.Create;
@@ -325,9 +352,18 @@ begin
           if LStr = '' then
             Continue;
 
-          LTagNo := LControl.Tag;
+          if AIsUseTag then
+          begin
+            LTagNo := LControl.Tag;
+            LIsSetValue := StrToIntDef(IniValue.TagNoOrCompName,0) = LTagNo
+          end
+          else
+          begin
+            LCompName := LControl.Name;
+            LIsSetValue := IniValue.TagNoOrCompName = LCompName;
+          end;
 
-          if IniValue.TagNo = LTagNo then
+          if LIsSetValue then
           begin
             objType := ctx.GetType(LControl.ClassInfo);
 
@@ -364,7 +400,7 @@ begin
   end;
 end;
 
-class procedure TJHPIniConfigBase.LoadObject2Form(AForm, ASettings: TObject; AIsForm: Boolean);
+class procedure TJHPIniConfigBase.LoadObject2Form(AForm, ASettings: TObject; AIsForm: Boolean; AIsUseTag: Boolean);
 var
   ctx, ctx2: TRttiContext;
   objType, objType2: TRttiType;
@@ -375,7 +411,8 @@ var
   LObj: TObject;
 
   i, LCount, LTagNo: integer;
-  LStr, s: string;
+  LStr, s, LCompName: string;
+  LIsSetValue: Boolean;
 begin
   ctx := TRttiContext.Create;
   ctx2 := TRttiContext.Create;
@@ -396,7 +433,7 @@ begin
         if IniValue.DefaultValue = '->' then
         begin
           LObj := Prop2.GetValue(ASettings).AsType<TObject>;
-          LoadObject2Form(AForm, LObj, AIsForm);
+          LoadObject2Form(AForm, LObj, AIsForm, AIsUseTag);
         end;
 
         for i := 0 to LCount - 1 do
@@ -415,9 +452,18 @@ begin
           if LStr = '' then
             Continue;
 
-          LTagNo := LControl.Tag;
+          if AIsUseTag then
+          begin
+            LTagNo := LControl.Tag;
+            LIsSetValue := StrToIntDef(IniValue.TagNoOrCompName,0) = LTagNo
+          end
+          else
+          begin
+            LCompName := LControl.Name;
+            LIsSetValue := IniValue.TagNoOrCompName = LCompName;
+          end;
 
-          if IniValue.TagNo = LTagNo then
+          if LIsSetValue then
           begin
             objType := ctx.GetType(LControl.ClassInfo);
 

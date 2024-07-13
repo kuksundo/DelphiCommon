@@ -24,10 +24,11 @@ begin
   Result := Frac(AValue) <> 0;
 end;
 
-//단위는 Meter임을 주의
+//Parameter 단위는 mm임을 주의
+//Result 단위는 Meter임을 주의
 function CalculateCBM(Length, Width, Height: Double): Double;
 begin
-  Result := Length * Width * Height;
+  Result := (Length * Width * Height) / 1e9;
 end;
 
 end.

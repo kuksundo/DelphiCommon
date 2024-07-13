@@ -626,13 +626,17 @@ begin
       if AIsPadFirstChar then
         Insert('F', LPropName,1);
 
-      //Enumeration 값은 값을 스트링으로 변환한 값이어야 함
-      Data := TDocVariantData(ADoc).GetValueOrEmpty(LPropName);
-      //Property Field Address 가져옴
-      Value := Prop.GetValue(AClass);
-      //Field Value에 Data를 Assign함
-      SetValue(Data, Value);
-      Prop.SetValue(AClass,Value);
+      //LPropName이 ADoc Name에 존재하면 Update
+      if TDocVariantData(ADoc).Exists(LPropName) then
+      begin
+        //Enumeration 값은 값을 스트링으로 변환한 값이어야 함
+        Data := TDocVariantData(ADoc).GetValueOrEmpty(LPropName);
+        //Property Field Address 가져옴
+        Value := Prop.GetValue(AClass);
+        //Field Value에 Data를 Assign함
+        SetValue(Data, Value);
+        Prop.SetValue(AClass,Value);
+      end;
     end;
   finally
     ctx.Free;

@@ -11,16 +11,16 @@ type
     FName: string;
     FTypeKind: TTypeKind;
     FDefaultValue: string;
-    FTagNo: integer;
+    FTagNoOrCompName: string;
   published
     constructor Create(const aSection : String; const aName : string;
-      const aDefaultValue : String; const aTagNo : integer; const ATypeKind: TTypeKind);
+      const aDefaultValue, aTagNoOrCompName : String;const ATypeKind: TTypeKind);
 
     property Section : string read FSection write FSection;
     property Name : string read FName write FName;
     property TypeKind : TTypeKind read FTypeKind write FTypeKind;
     property DefaultValue : string read FDefaultValue write FDefaultValue;
-    property TagNo : integer read FTagNo write FTagNo;
+    property TagNoOrCompName : string read FTagNoOrCompName write FTagNoOrCompName;
   end;
 
   EJHPIniPersist = class(Exception);
@@ -174,14 +174,14 @@ end;
 
 { JHPIniAttribute }
 
-constructor JHPIniAttribute.Create(const aSection, aName, aDefaultValue: String;
-  const aTagNo: integer; const ATypeKind: TTypeKind);
+constructor JHPIniAttribute.Create(const aSection, aName, aDefaultValue, aTagNoOrCompName: String;
+  const ATypeKind: TTypeKind);
 begin
   FSection := aSection;
   FName := aName;
   FTypeKind := ATypeKind;
   FDefaultValue := aDefaultValue;
-  FTagNo := aTagNo;
+  TagNoOrCompName := aTagNoOrCompName;
 end;
 
 end.
