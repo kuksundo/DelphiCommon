@@ -1031,7 +1031,7 @@ begin
   else
   begin
     //HiconisASManage에서 전달 받음
-    while FOLEmailSrchRec.FTaskEditConfig.IPCMQ2OLEmail.TryDequeue(LMsg) do
+    while FOLEmailSrchRec.FTaskEditConfig.IPCMQ2RespondOLEmail.TryDequeue(LMsg) do
     begin
         LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
 
@@ -1219,10 +1219,10 @@ begin
   end
   else
   begin
-    LMsgQ := FOLEmailSrchRec.FTaskEditConfig.IPCMQFromOLEmail;
+    LMsgQ := FOLEmailSrchRec.FTaskEditConfig.IPCMQCommandOLEmail;
 
     if not LMsgQ.Enqueue(TOmniMessage.Create(Ord(ACmd), AValue)) then
-      raise System.SysUtils.Exception.Create('TOutlookEmailListFr.SendCmd2WorkerThrd->IPCMQFromOLEmail queue is full!');
+      raise System.SysUtils.Exception.Create('TOutlookEmailListFr.SendCmd2WorkerThrd->IPCMQCommandOLEmail queue is full!');
   end;
 end;
 

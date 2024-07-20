@@ -164,6 +164,7 @@ begin
 
       if Result = mrOK then
       begin
+//        if FpjhToDoList.Count then
 
       end;
     end;//with

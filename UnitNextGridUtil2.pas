@@ -14,7 +14,7 @@ procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
 //ADoc Name이 Grid의 Column Name임
 //AIsFromValue : False = Json의 Key 값을 Value로 저장함
 //               True = Json의 Value 값을 Value로 저장함
-procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; ARow: integer=-1);
+function AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false; ARow: integer=-1): integer;
 //ADoc Name이 Grid의 Cell Data 임
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 //첫번쨰 행이 Grid의 Column Name 임
@@ -157,8 +157,8 @@ begin
   end;
 end;
 
-procedure AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant;
-  AIsFromValue: Boolean; ARow: integer);
+function AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant;
+  AIsFromValue: Boolean; ARow: integer): integer;
 var
   i: integer;
   LColName: string;
@@ -168,7 +168,7 @@ var
 begin
   with AGrid do
   begin
-    BeginUpdate;
+//    BeginUpdate;
     try
       if ARow = -1 then
         ARow := AddRow();
@@ -192,9 +192,11 @@ begin
       end;//for
 
     finally
-      EndUpdate;
+//      EndUpdate;
     end;
   end;//with
+
+  Result := ARow;
 end;
 
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
@@ -228,18 +230,24 @@ var
   i: integer;
   LDoc: variant;
 begin
-  for i := Low(ADynAry) to High(ADynAry) do
-  begin
-    LDoc := _JSON(ADynAry[i]);
-
-    if AIsAddColumn then
+  AGrid.BeginUpdate;
+  try
+    for i := Low(ADynAry) to High(ADynAry) do
     begin
-      if i = Low(ADynAry) then
-        AddNextGridColumnFromVariant(AGrid, LDoc, False);
-    end;
+      LDoc := _JSON(ADynAry[i]);
 
-    AddNextGridRowFromVariant(AGrid, LDoc, True);
-  end;//for
+      if AIsAddColumn then
+      begin
+        if i = Low(ADynAry) then
+          AddNextGridColumnFromVariant(AGrid, LDoc, False);
+      end;
+
+      AddNextGridRowFromVariant(AGrid, LDoc, True);
+    end;//for
+
+  finally
+    AGrid.EndUpdate();
+  end;
 end;
 
 //ADoc는 TRawUTF8DynArray에 대한 Json 임
@@ -260,9 +268,23 @@ begin
   LUtf8 := ADoc;
   LDocList := DocList(LUtf8);
 
-  for LVar in LDocList do
-  begin
-    AddNextGridRowFromVariant(AGrid, LVar, True);
+  AGrid.BeginUpdate;
+  try
+    if AIsAddColumn then
+    begin
+      if LDocList.Value^.Count > 0 then
+      begin
+        LVar := LDocList.Item[0];
+        AddNextGridColumnFromVariant(AGrid, LVar, False);
+      end;
+    end;
+
+    for LVar in LDocList do
+    begin
+      AddNextGridRowFromVariant(AGrid, LVar, True);
+    end;
+  finally
+    AGrid.EndUpdate();
   end;
 
 //  LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
