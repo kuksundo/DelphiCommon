@@ -12,6 +12,7 @@ object ToDoListF2: TToDoListF2
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object CurvyPanel1: TCurvyPanel
@@ -117,7 +118,7 @@ object ToDoListF2: TToDoListF2
       Height = 25
       Alignment = taCenter
       AutoSize = False
-      Caption = #51228#54408#44396#48516
+      Caption = #49436#48708#49828#44396#48516
       Color = 14671839
       FrameColor = clGrayText
       Font.Charset = ANSI_CHARSET
@@ -297,7 +298,7 @@ object ToDoListF2: TToDoListF2
         TabOrder = 3
       end
     end
-    object ProductTypeCombo: TComboBox
+    object ClaimServiceKindCB: TComboBox
       Left = 442
       Top = 68
       Width = 109
@@ -951,7 +952,7 @@ object ToDoListF2: TToDoListF2
       Position = 1
       SortType = stAlphabetic
     end
-    object AppointmentEntryId: TNxTextColumn
+    object EntryId: TNxTextColumn
       Alignment = taCenter
       DefaultWidth = 110
       Font.Charset = ANSI_CHARSET
@@ -959,7 +960,7 @@ object ToDoListF2: TToDoListF2
       Font.Height = -13
       Font.Name = #47569#51008' '#44256#46357
       Font.Style = []
-      Header.Caption = 'AppointmentEntry'
+      Header.Caption = 'Entry'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
       Header.Font.Color = clWindowText
@@ -971,7 +972,7 @@ object ToDoListF2: TToDoListF2
       SortType = stAlphabetic
       Width = 110
     end
-    object AppointmentStoreId: TNxTextColumn
+    object StoreId: TNxTextColumn
       Alignment = taCenter
       DefaultWidth = 110
       Font.Charset = ANSI_CHARSET
@@ -979,7 +980,7 @@ object ToDoListF2: TToDoListF2
       Font.Height = -13
       Font.Name = #47569#51008' '#44256#46357
       Font.Style = []
-      Header.Caption = 'AppointmentStore'
+      Header.Caption = 'Store'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
       Header.Font.Color = clWindowText
@@ -989,6 +990,7 @@ object ToDoListF2: TToDoListF2
       ParentFont = False
       Position = 3
       SortType = stAlphabetic
+      Visible = False
       Width = 110
     end
     object EmailEntryId: TNxTextColumn
@@ -1008,6 +1010,7 @@ object ToDoListF2: TToDoListF2
       ParentFont = False
       Position = 4
       SortType = stAlphabetic
+      Visible = False
     end
     object EmailStoreId: TNxTextColumn
       DefaultWidth = 300
@@ -1026,6 +1029,7 @@ object ToDoListF2: TToDoListF2
       ParentFont = False
       Position = 5
       SortType = stAlphabetic
+      Visible = False
       Width = 300
     end
     object UniqueID: TNxTextColumn
@@ -1046,6 +1050,7 @@ object ToDoListF2: TToDoListF2
       ParentFont = False
       Position = 6
       SortType = stAlphabetic
+      Visible = False
       Width = 200
     end
     object Plan_Code: TNxTextColumn
@@ -1553,6 +1558,23 @@ object ToDoListF2: TToDoListF2
       SortType = stAlphabetic
       Visible = False
     end
+    object OLObjectKind: TNxTextColumn
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      Header.Caption = 'OL Kind'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 34
+      SortType = stAlphabetic
+    end
   end
   object StatusBarPro1: TStatusBarPro
     Left = 0
@@ -1585,7 +1607,7 @@ object ToDoListF2: TToDoListF2
     Left = 16
     Top = 208
     Bitmap = {
-      494C010101007000BC0318001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010101007000CC0318001800FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000600000001800000001002000000000000024
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000005C43
@@ -1895,7 +1917,7 @@ object ToDoListF2: TToDoListF2
     Left = 104
     Top = 208
     Bitmap = {
-      494C010102005402CC0310001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010102005402DC0310001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       000000000000000000000000000000000000000000000505052E101010521717
       17611D1D1D6C1F1D1E6D272425792523257825232578262425791F1E1E6E1E1E
@@ -2044,6 +2066,10 @@ object ToDoListF2: TToDoListF2
     object N2: TMenuItem
       Caption = '-'
     end
+    object ShowFromOL1: TMenuItem
+      Caption = 'Show From OL'
+      OnClick = ShowFromOL1Click
+    end
   end
   object ImageList32x32: TImageList
     ColorDepth = cd32Bit
@@ -2052,7 +2078,7 @@ object ToDoListF2: TToDoListF2
     Left = 56
     Top = 208
     Bitmap = {
-      494C01010400C800000520002000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01010400C800100520002000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000800000004000000001002000000000000080
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

@@ -8,7 +8,7 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode,
     mormot.core.text, mormot.core.datetime;
 
-procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
+procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean=True);
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
   AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
 //ADoc NameÀÌ GridÀÇ Column NameÀÓ
@@ -54,7 +54,7 @@ implementation
 
 uses UnitStringUtil, UnitVariantUtil;
 
-procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid);
+procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean);
 var
   LColCount, i, j: integer;
   LCsv, LHeader: string;
@@ -64,6 +64,11 @@ begin
   try
     for j := 0 to ANextGrid.RowCount - 1 do
     begin
+      if ASkipHideRow and (not ANextGrid.Row[j].Visible) then
+      begin
+        continue;
+      end;
+
       for i := 0 to ANextGrid.Columns.Count - 1 do
       begin
         if j = 0 then
@@ -275,7 +280,7 @@ begin
       if LDocList.Value^.Count > 0 then
       begin
         LVar := LDocList.Item[0];
-        AddNextGridColumnFromVariant(AGrid, LVar, False);
+        AddNextGridColumnFromVariant(AGrid, LVar, False, True);
       end;
     end;
 
@@ -441,7 +446,7 @@ var
   LColumn: TnxCustomColumn;
   LCell: TCell;
 begin
-  TDocVariant.New(Result);
+//  TDocVariant.New(Result);
 
   with AGrid do
   begin

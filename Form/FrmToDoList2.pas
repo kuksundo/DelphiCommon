@@ -8,12 +8,13 @@ uses
   NxColumnClasses, NxColumns, NxScrollControl, NxCustomGridControl,
   NxCustomGrid, NxGrid, AdvOfficeTabSet, Vcl.StdCtrls, AeroButtons,
   Vcl.ExtCtrls, Vcl.ComCtrls, AdvGroupBox, AdvOfficeButtons, JvExControls,
-  JvLabel, CurvyControls,
+  JvLabel, CurvyControls, OtlCommon, OtlComm,
 
   mormot.core.base, mormot.core.collections, mormot.core.json, mormot.core.variants,
   mormot.core.datetime, mormot.core.unicode, mormot.orm.base, mormot.core.rtti,
 
-  UnitToDoList, UnitHiASToDoRecord, UnitHiconisMasterRecord, UnitOLEmailRecord2
+  UnitToDoList, UnitHiASToDoRecord, UnitHiconisMasterRecord, UnitOLEmailRecord2,
+  UnitOutLookDataType
   ;
 
 type
@@ -32,7 +33,7 @@ type
     dt_begin: TDateTimePicker;
     dt_end: TDateTimePicker;
     PeriodCombo: TComboBox;
-    ProductTypeCombo: TComboBox;
+    ClaimServiceKindCB: TComboBox;
     HullNoEdit: TEdit;
     ShipNameEdit: TEdit;
     BefAftCB: TComboBox;
@@ -50,8 +51,8 @@ type
     TodoGrid: TNextGrid;
     NxIncrementColumn1: TNxIncrementColumn;
     TaskID: TNxTextColumn;
-    AppointmentEntryId: TNxTextColumn;
-    AppointmentStoreId: TNxTextColumn;
+    EntryId: TNxTextColumn;
+    StoreId: TNxTextColumn;
     EmailEntryId: TNxTextColumn;
     EmailStoreId: TNxTextColumn;
     UniqueID: TNxTextColumn;
@@ -91,12 +92,16 @@ type
     AlarmFlag: TNxTextColumn;
     AlarmType: TNxComboBoxColumn;
     TaskIDEdit: TEdit;
+    ShowFromOL1: TMenuItem;
+    OLObjectKind: TNxTextColumn;
     procedure ClearBtnClick(Sender: TObject);
     procedure TodoGridCellDblClick(Sender: TObject; ACol, ARow: Integer);
     procedure btn_CloseClick(Sender: TObject);
     procedure AeroButton1Click(Sender: TObject);
     procedure DeleteTask1Click(Sender: TObject);
     procedure btn_SearchClick(Sender: TObject);
+    procedure ShowFromOL1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     procedure AddTodoItemFromJson2Grid(AItemJson: RawUtf8; const AIsRowClear: Boolean=False);
     procedure AddOrUpdateTodoItemRec2TodoListByJson(ARow: integer; AItemJson: string);
@@ -105,6 +110,7 @@ type
     procedure DeleteToDoItem;
     function GetNewToDoItemRec: TpjhTodoItemRec;
     function GetNewToDoItemRec2Json: string;
+    procedure ReqDisplayTodoItem2OL(AEntryId: string);
   public
     FpjhToDoList: TpjhToDoList;
     FSrchRec: TToDoSearchRec;
@@ -114,6 +120,7 @@ type
     procedure GetSrchRecFromForm();
     procedure ShowHeaderInfoFromTaskId(ATaskId: TID);
     procedure ShowTodolist2GridFromSrchRec();
+    procedure ShowTodoItemBySelected2OL();
   end;
 
   //ATaskId = TaskID
@@ -127,7 +134,8 @@ var
 
 implementation
 
-uses UnitNextGridUtil2, FrmTodo_Detail, UnitStringUtil;
+uses UnitNextGridUtil2, FrmTodo_Detail, UnitStringUtil, UnitIPCMsgQUtil,
+  UnitElecServiceData2;
 
 {$R *.dfm}
 
@@ -196,6 +204,7 @@ begin
     AlarmTime := TimeLogFromDateTIme(Now);;
     Priority := Ord(tpNormal);
     Resource := 'Unassigned';
+//    Categories := ClaimServiceKindCB.Text;
   end;
 end;
 
@@ -231,8 +240,29 @@ end;
 procedure TToDoListF2.InitEnum;
 begin
   g_TodoQueryDateType.InitArrayRecord(R_TodoQueryDateType);
-
   g_TodoQueryDateType.SetType2Combo(PeriodCombo);
+  g_ClaimServiceKind.SetType2Combo(ClaimServiceKindCB);
+  g_TodoCategory.InitArrayRecord(R_TodoCategory);
+end;
+
+procedure TToDoListF2.ReqDisplayTodoItem2OL(AEntryId: string);
+var
+  LOLObjRec: TOLObjectRec;
+  LValue: TOmniValue;
+  LMsgQ: TOmniMessageQueue;
+begin
+  LOLObjRec.EntryID := AEntryId;
+
+  LOLObjRec.FSenderHandle := Handle;
+  LValue := TOmniValue.FromRecord(LOLObjRec);
+  LMsgQ := FTaskEditConfig.IPCMQCommandOLCalendar;
+
+  SendCmd2OmniMsgQ(Ord(olckShowObject), LValue, LMsgQ);
+end;
+
+procedure TToDoListF2.ShowFromOL1Click(Sender: TObject);
+begin
+  ShowTodoItemBySelected2OL();
 end;
 
 procedure TToDoListF2.ShowHeaderInfoFromTaskId(ATaskId: TID);
@@ -247,11 +277,27 @@ begin
       ShipNameEdit.Text := LOrmHiconisASTask.ShipName;
       ClaimNoEdit.Text := LOrmHiconisASTask.ClaimNo;
       OrderNoEdit.Text := LOrmHiconisASTask.Order_No;
+      ClaimServiceKindCB.ItemIndex := LOrmHiconisASTask.ClaimServiceKind;
     end;
 
     TaskIDEdit.Text := IntToStr(ATaskId);
   finally
     LOrmHiconisASTask.Free;
+  end;
+end;
+
+procedure TToDoListF2.ShowTodoItemBySelected2OL;
+var
+  LEntryID: string;
+begin
+  if TodoGrid.SelectedRow <> -1 then
+  begin
+    LEntryID :=TodoGrid.CellsByName['EntryId', TodoGrid.SelectedRow];
+
+    if LEntryID <> '' then
+    begin
+      ReqDisplayTodoItem2OL(LEntryID);
+    end;
   end;
 end;
 
@@ -335,7 +381,7 @@ begin
   ShipNameEdit.Text := '';
   OrderNoEdit.Text := '';
   CurWorkCB.ItemIndex := -1;
-  ProductTypeCombo.ItemIndex := -1;
+  ClaimServiceKindCB.ItemIndex := -1;
 end;
 
 procedure TToDoListF2.DeleteTask1Click(Sender: TObject);
@@ -410,6 +456,11 @@ begin
   finally
     FreeAndNil(LToDoDetailF);
   end;//try
+end;
+
+procedure TToDoListF2.FormCreate(Sender: TObject);
+begin
+  InitEnum();
 end;
 
 procedure TToDoListF2.TodoGridCellDblClick(Sender: TObject; ACol,

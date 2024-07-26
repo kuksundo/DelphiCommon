@@ -12,10 +12,15 @@ type
   TTodoQueryDateType = (tdqdtNull, tdqdtCreation, tdqdtDuedate, tdqdtCompletion,
     tdqdtModDate, tdqdtAlarmTime, tdqdtFinal);
 
+  TTodoCategory = (tdcSE, tdcMatPOR, tdcMatReclaim, tdcFinal);
+
   TpjhTodoItemRec = packed record
     RowID: TID; //DB ID
     TaskID: TID;
+    ClaimServiceKind,
+    OLObjectKind,//UnitOutLookDataType.TOLObjectKind
     ImageIndex: Integer;
+    EntryId,
     UniqueID: string;
     Notes: string;
     Tag: Integer;
@@ -35,7 +40,7 @@ type
     CompletionDate: TTimeLog; //완료한 일자
     Resource: string;
     Project: string;
-    Category: string;
+    Categories: string;
 
     PlanCode,
     ModId: string;
@@ -65,12 +70,19 @@ const
       '일정생성일자기준', '만료일기준', '완료일기준', '일정수정일자기준', '알람발생시각기준',
     '');
 
+  R_TodoCategory : array[Low(TTodoCategory)..High(TTodoCategory)] of string =
+    (
+    'SE방선', '자재-POR', '자재-ReClaim',
+    '');
+
 var
   g_TodoQueryDateType: TLabelledEnum<TTodoQueryDateType>;
+  g_TodoCategory: TLabelledEnum<TTodoCategory>;
 
 implementation
 
 initialization
 //  g_TodoQueryDateType.InitArrayRecord(R_TodoQueryDateType);
+//  g_TodoCategory.InitArrayRecord(R_TodoCategory);
 
 end.
