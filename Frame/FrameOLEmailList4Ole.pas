@@ -10,7 +10,7 @@ uses
   Vcl.StdCtrls, Vcl.ToolWin, Vcl.ActnCtrls, Vcl.ExtCtrls, NxColumnClasses,
   NxColumns, NxScrollControl, NxCustomGridControl, NxCustomGrid, NxGrid,
   AdvOfficeTabSet, System.Rtti, DateUtils, System.SyncObjs,
-  DragDrop, DropTarget, MapiDefs, TimerPool,
+  DragDrop, DropTarget, TimerPool, MapiDefs,
   OtlCommon, OtlComm, OtlTaskControl, OtlContainerObserver, otlTask, OtlParallel,
 {$IFDEF USE_CROMIS_IPC}
   // cromis units
