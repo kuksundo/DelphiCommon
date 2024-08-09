@@ -110,6 +110,7 @@ type
     procedure DeleteToDoItem;
     function GetNewToDoItemRec: TpjhTodoItemRec;
     function GetNewToDoItemRec2Json: string;
+    function GetTodoBodyWithHullnoFromForm: string;
     procedure ReqDisplayTodoItem2OL(AEntryId: string);
   public
     FpjhToDoList: TpjhToDoList;
@@ -189,8 +190,9 @@ begin
   with Result do
   begin
     TaskID := StrToIntDef(TaskIDEdit.Text,0);
-    Subject := '새 일정';
-    Notes := '일정 상세';
+    Plan_Code := HullNoEdit.Text + '-' + ClaimNoEdit.Text;
+    Subject := Plan_Code + ': ';
+    Notes := GetTodoBodyWithHullnoFromForm();
     UniqueID := NewGUID(True, True);
     DueDate := TimeLogFromDateTIme(Now + 60);
     CreationDate := TimeLogFromDateTIme(Now);
@@ -237,6 +239,11 @@ begin
 //  FSrchRec.AlarmTime1 :=
 end;
 
+function TToDoListF2.GetTodoBodyWithHullnoFromForm: string;
+begin
+  Result := HullNoEdit.Text + '-' + ClaimNoEdit.Text + '-' + ShipNameEdit.Text + '-' + OrderNoEdit.Text;
+end;
+
 procedure TToDoListF2.InitEnum;
 begin
   g_TodoQueryDateType.InitArrayRecord(R_TodoQueryDateType);
@@ -269,6 +276,10 @@ procedure TToDoListF2.ShowHeaderInfoFromTaskId(ATaskId: TID);
 var
   LOrmHiconisASTask: TOrmHiconisASTask;
 begin
+  //특정 Task가 아닌 여러 Task를 표시함
+  if ATaskId = -1 then
+    exit;
+
   LOrmHiconisASTask := GetLoadTask(ATaskId);
   try
     if LOrmHiconisASTask.IsUpdate then

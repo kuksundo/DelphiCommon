@@ -42,7 +42,7 @@ type
     Project: string;
     Categories: string;
 
-    PlanCode,
+    Plan_Code,
     ModId: string;
 
     AlarmType,  //미리알림유형
