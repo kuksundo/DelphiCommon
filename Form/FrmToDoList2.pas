@@ -136,7 +136,7 @@ var
 implementation
 
 uses UnitNextGridUtil2, FrmTodo_Detail, UnitStringUtil, UnitIPCMsgQUtil,
-  UnitElecServiceData2;
+  UnitElecServiceData2, UnitHiconisASData;
 
 {$R *.dfm}
 

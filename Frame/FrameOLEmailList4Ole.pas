@@ -10,7 +10,7 @@ uses
   Vcl.StdCtrls, Vcl.ToolWin, Vcl.ActnCtrls, Vcl.ExtCtrls, NxColumnClasses,
   NxColumns, NxScrollControl, NxCustomGridControl, NxCustomGrid, NxGrid,
   AdvOfficeTabSet, System.Rtti, DateUtils, System.SyncObjs,
-  DragDrop, DropTarget, TimerPool, MapiDefs,
+  DragDrop, DropTarget, TimerPool, MapiDefs, AeroButtons, Vcl.ImgList,
   OtlCommon, OtlComm, OtlTaskControl, OtlContainerObserver, otlTask, OtlParallel,
 {$IFDEF USE_CROMIS_IPC}
   // cromis units
@@ -24,7 +24,8 @@ uses
   UnitWorker4OmniMsgQ,
   UnitOLControlWorker,
   UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2,
-  AeroButtons, Vcl.ImgList;
+  UnitHiconisASData
+  ;
 
 type
   TLogProc = procedure(AMsg: string) of object;
