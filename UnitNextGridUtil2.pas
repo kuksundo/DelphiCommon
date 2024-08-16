@@ -49,6 +49,9 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
   AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false; AColName: string=''): integer;
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
+function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
+function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor; AIsBold: Boolean=True): TColor;
+procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid);
 
 implementation
 
@@ -801,6 +804,81 @@ begin
     if ANextGrid.Selected[Result] then
       Break;
   end;
+end;
+
+function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
+var
+  i: integer;
+begin
+  Result := AGrid.Cell[0, ARowIndex].Color;
+
+  for i := 0 to AGrid.Columns.Count - 1 do
+  begin
+    AGrid.Cell[i, ARowIndex].Color := AColor;
+  end;
+end;
+
+function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer;
+  AColor: TColor; AIsBold: Boolean): TColor;
+var
+  i: integer;
+begin
+  Result := AGrid.Cell[0, ARowIndex].TextColor;
+
+  for i := 0 to AGrid.Columns.Count - 1 do
+  begin
+    AGrid.Cell[i, ARowIndex].TextColor := AColor;
+
+    if AIsBold then
+      AGrid.Cell[i, ARowIndex].FontStyle := [fsBold];
+  end;
+end;
+
+procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid);
+var
+  csv : TextFile;
+  csvLine: String;
+  vList: TStringList;
+  iy, icnt, ix: Integer;
+begin
+  if not FileExists(ACsvFileName) then
+    exit;
+
+  vList := TStringList.Create;
+  AssignFile(csv, ACsvFileName);
+  Reset(csv);
+  iy := 0;
+  ix := 0;
+
+  with ANextGrid do
+  begin
+    BeginUpdate;
+    ClearRows;
+
+    while not eof(csv) do
+    Begin
+      AddRow();
+      Readln(csv, csvLine);
+      csvLine := StringReplace(csvLine, ',', '","', [rfReplaceAll]);
+      csvLine := '"' + csvLine;
+
+      if csvLine[Length(csvLine)] <> '"' Then
+        csvLine := csvLine + '"';
+
+      vList.CommaText := csvLine;
+
+      if (vLIst.Count+1) > ix Then
+        ix := vLIst.Count+1;
+
+      for icnt := 0 to vLIst.Count - 1 do
+        Cells[icnt+1, iy] := vLIst.Strings[icnt];
+      inc(iy);
+    end;
+
+  end;
+
+  CloseFile(csv);
+  vList.Free;
 end;
 
 end.

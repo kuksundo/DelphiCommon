@@ -1301,6 +1301,7 @@ var
   LField : TRTTIField;
   Value : TValue;
   LVar: variant;
+//  LStr: string;
 begin
   rttiType := rttiContext.GetType(ATypeInfo);//TypeInfo(THiMECSMenuRecord));
 
@@ -1310,7 +1311,8 @@ begin
     begin
 //      Value := LField.GetValue(@ARec);
 //      Value := Value.FromVariant(TDocVariantData(ADoc).Value[LField.Name]);
-      LVar := TDocVariantData(ADoc).Value[LField.Name];
+//      LStr := TDocVariantData(ADoc).Value[LField.Name];
+      LVar := TDocVariantData(ADoc).GetValueOrEmpty(LField.Name);
       Value := TValue.FromVariant(LVar);
       LField.SetValue(@ARec, Value);
 //      TDocVariantData(ADoc).Value[LField.Name] := Value.AsVariant;

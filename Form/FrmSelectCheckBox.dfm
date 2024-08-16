@@ -90,6 +90,7 @@ object SelectChcekBoxF: TSelectChcekBoxF
     TabOrder = 1
     Columns = 3
     Ellipsis = False
+    ExplicitTop = 47
   end
   object Panel2: TPanel
     Left = 0

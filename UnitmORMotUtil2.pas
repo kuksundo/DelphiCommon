@@ -3,12 +3,15 @@ unit UnitmORMotUtil2;
 interface
 
 uses System.SysUtils,
-  mormot.core.base, mormot.core.datetime, mormot.net.client, UnitStringUtil;
+  mormot.core.base, mormot.core.datetime, mormot.net.client,
+  mormot.net.server;
 
 function GetTimeLogFromStr(AStr: string): TTimeLog;
 procedure SendPostUsingSynCrt(AUrl: string; AJson: variant);
 
 implementation
+
+uses UnitStringUtil;
 
 function GetTimeLogFromStr(AStr: string): TTimeLog;
 var
