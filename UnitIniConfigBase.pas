@@ -160,7 +160,7 @@ begin
 
       Prop := nil;
 
-      if LStr = 'TAdvGroupBox' then  //TAdvGroupBox老 版快
+      if LControl.ClassName = 'TAdvGroupBox' then  //TAdvGroupBox老 版快
       begin
         objType := ctx.GetType(TAdvGroupBox(LControl).CheckBox.ClassInfo);
         LStr := 'Checked';
@@ -575,7 +575,7 @@ begin
       begin
         objType := ctx.GetType(LControl.ClassInfo);
 
-        if LValueFieldName = 'TAdvGroupBox' then  //TAdvGroupBox老 版快
+        if LControl.ClassName = 'TAdvGroupBox' then  //TAdvGroupBox老 版快
         begin
           objType := ctx.GetType(TAdvGroupBox(LControl).CheckBox.ClassInfo);
           LValueFieldName := 'Checked';

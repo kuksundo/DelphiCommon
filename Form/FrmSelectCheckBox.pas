@@ -58,7 +58,7 @@ begin//ACkeckBoxList: 콤마로 분리된 Item list임
   try
     with LSelectChcekBoxF do
     begin
-      LoadCheckItems2CheckGrpFromCommaStr(AEnum, ACheckValueList);
+      LoadCheckItems2CheckGrpFromCSV(AEnum, ACheckValueList);
 
       if ShowModal = mrOK then
       begin
@@ -82,7 +82,7 @@ begin//ACheckValueList: 콤마로 분리된 Item list임
   try
     with LSelectChcekBoxF do
     begin
-      LoadCheckItems2CheckGrpFromCommaStr(AEnum, ACheckValueList);
+      LoadCheckItems2CheckGrpFromCSV(AEnum, ACheckValueList);
 
       if ShowModal = mrOK then
       begin
@@ -167,7 +167,7 @@ var
   LStrList: TStringList;
   i,j: integer;
 begin
-  FillInCheckGrpByArrayString(AEnum);
+  FillCheckGrpByArrayString(AEnum);
 
   LStrList := TStringList.Create;
   try
@@ -197,7 +197,7 @@ var
 begin
   Label1.Caption := ALabelName;
 
-  FillInCheckGrpByArrayString(AEnum);
+  FillCheckGrpByArrayString(AEnum);
 
   LpjhBit32 := ACheckValueSet;
 

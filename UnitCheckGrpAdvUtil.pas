@@ -5,8 +5,8 @@ interface
 uses System.Classes, AdvOfficeButtons, AdvGroupBox, ArrayHelper;
 
 //AEnum: String Array를 CheckBox 생성함
-//ACommaStr: Comma(,)로 분류된 String list -> Checked = True로 설정함
 procedure FillInCheckGrpByArrayString(AEnum: TArrayRecord<string>; ACheckGrp: TAdvOfficeCheckGroup);
+//ACommaStr: Comma(,)로 분류된 String list -> Checked = True로 설정함
 procedure LoadCheckItems2CheckGrpFromCommaStr(AEnum: TArrayRecord<string>; ACommaStr: string; ACheckGrp: TAdvOfficeCheckGroup);
 procedure LoadCheckItems2CheckGrpFromIntSet(AEnum: TArrayRecord<string>; ACheckValueSet: integer; ACheckGrp: TAdvOfficeCheckGroup);
 

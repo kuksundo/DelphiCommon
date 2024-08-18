@@ -11,6 +11,7 @@ procedure LoadVariantFromEdit1(const AEdit: TEdit; var ADoc: Variant);
 procedure LoadVariantFromCombo1(const ACombo: TComboBox; var ADoc: Variant; const AIsSaveIndex: Boolean = False);
 procedure LoadVariantFromCheckBox1(const ACheckBox: TCheckBox; var ADoc: Variant);
 procedure LoadVariantFromDatePicker1(const ADatePicker: TDateTimePicker; var ADoc: Variant);
+
 procedure LoadVariantFromEdit(const AForm: TForm; var ADoc: Variant);
 procedure LoadVariantFromCombo(const AForm: TForm; var ADoc: Variant; const AIsSaveIndex: Boolean = False);
 procedure LoadVariantFromCheckBox(const AForm: TForm; var ADoc: Variant);

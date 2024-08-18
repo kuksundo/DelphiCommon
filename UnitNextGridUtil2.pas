@@ -19,7 +19,11 @@ function AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant; AIsFromValue
 procedure AddNextGridRowFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsFromValue: Boolean=false);
 //첫번쨰 행이 Grid의 Column Name 임
 procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray; AIsAddColumn: Boolean=false);
+//ADoc는 TRawUTF8DynArray에 대한 Json 임
+//ADoc Name이 Grid의 Column Name임
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean=false);
+//AJsonAry은 복수개의 레코드에 대한 Json 임(Orm.GetJsonValues로 만듬)
+function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false): integer;
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
@@ -52,6 +56,11 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
 function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor; AIsBold: Boolean=True): TColor;
 procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid);
+
+//AJson은 한개의 레코드에 대한 Json임
+//AJson Name : Grid의 Column Name
+//AJson Value : Grid Cell Value
+procedure AddNextGridRowFromVarOnlyColumnExist(AGrid: TNextGrid; AJson: Variant);
 
 implementation
 
@@ -258,9 +267,6 @@ begin
   end;
 end;
 
-//ADoc는 TRawUTF8DynArray에 대한 Json 임
-//ADoc Name이 Grid의 Column Name임
-//AIsUsePosFunc : True = Pos함수를 사용하여 LCompName이 Column Name에 포함되어 있으면 처리
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean);
 var
   LUtf8: RawUTF8;
@@ -304,6 +310,27 @@ begin
 
 //    AddNextGridRowsFromVariant(AGrid, LDynUtf8, AIsAddColumn);
 //  end;
+end;
+
+function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false): integer;
+var
+  LDocList: IDocList;
+  LVar: variant;
+  LUtf8: RawUtf8;
+  LRow: integer;
+begin
+  AGrid.ClearRows();
+
+  LDocList := DocList(AJsonAry);
+
+  for LVar in LDocList do
+  begin
+    //LVar Name : Grid의 Column Name
+    //LVar Value : Grid Cell Value
+    AddNextGridRowFromVarOnlyColumnExist(AGrid, LVar);
+  end;//for
+
+  Result :=  LDocList.Len;
 end;
 
 //ADoc는 복수개의 레코드에 대한 Json 임
@@ -879,6 +906,39 @@ begin
 
   CloseFile(csv);
   vList.Free;
+end;
+
+procedure AddNextGridRowFromVarOnlyColumnExist(AGrid: TNextGrid; AJson: Variant);
+var
+  LRow, Li, Lj: integer;
+  LColName: string;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
+  LCellValue: Variant;
+begin
+  with AGrid do
+  begin
+    LRow := AddRow();
+
+    //한글 깨지면 Count = 0
+    for Li := 0 to TDocVariantData(AJson).Count - 1 do
+    begin
+      LColName := TDocVariantData(AJson).Names[Li];
+
+      for Lj := 0 to Columns.Count - 1 do
+      begin
+        //Grid에 Column Name이 존재하면
+        if POS(LColName, Columns[Lj].Name) > 0 then
+        begin
+          LColumn := ColumnByName[LColName];
+          LCell := CellByName[LColName, LRow];
+          LCellValue := TDocVariantData(AJson).Values[Li];
+
+          SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
+        end;
+      end;
+    end;//for
+  end;//with
 end;
 
 end.
