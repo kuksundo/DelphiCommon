@@ -8,9 +8,23 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode,
     mormot.core.text, mormot.core.datetime;
 
+type
+  TCellHelper = class helper for TCell
+    function AsVariant: variant;
+  end;
+
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean=True);
+//ADoc : {Column Name: Caption} 형식임
+//ACaptionIsFromValue : True = Caption 위치 지정
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
-  AIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
+  ACaptionIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
+//AVarType: Variant Type from VarType()-varInteter/varString...
+function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption, AName: string): string;
+function AddNextGridTextColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+function AddNextGridDateColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+function AddNextGridNumColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+function AddNextGridCheckBoxColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+
 //ADoc Name이 Grid의 Column Name임
 //AIsFromValue : False = Json의 Key 값을 Value로 저장함
 //               True = Json의 Value 값을 Value로 저장함
@@ -22,12 +36,12 @@ procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray
 //ADoc는 TRawUTF8DynArray에 대한 Json 임
 //ADoc Name이 Grid의 Column Name임
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean=false);
-//AJsonAry은 복수개의 레코드에 대한 Json 임(Orm.GetJsonValues로 만듬)
+//AJsonAry은 복수개의 레코드에 대한 Json Array 임(Orm.FillTable.ToIList<TOrmType>로 만듬-Orm.GetJsonValues는 한개의 레코드에 대한 Json을 반환함)
 function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false): integer;
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
-function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): variant;
+function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True): variant;
 //ARow 행의 데이터만 Variant로 반환함 : '{ColumnName=Value}'
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
 //ARow에 Variant를 Cell에 표시함
@@ -40,7 +54,7 @@ procedure SetNxGridCellValue2Var(AColumn: TnxCustomColumn; ACell: TCell; var AVa
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
 procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean=False);
 function NextGrid2VariantFromColIndexAry(AGrid: TNextGrid; AColIndexAry: TArrayRecord<integer>): variant;
-function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): string;
+function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False): RawUTF8;
 procedure NextGridScrollToRow(AGrid: TNextGrid; ARow: integer=-1);
 procedure DeleteSelectedRow(ANextGrid: TNextGrid);
 procedure DeleteCurrentRow(ANextGrid: TNextGrid);
@@ -106,27 +120,98 @@ begin
   end;
 end;
 
-procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
-  AIsFromValue: Boolean; AIsIgnoreSaveFile: Boolean; AAddIncCol: Boolean);
+function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption, AName: string): string;
+begin
+  Result := '';
+
+  case AVarType of
+    varEmpty, varNull: ;
+    varShortInt,
+    varByte,
+    varWord,
+    varLongWord,
+    varInt64,
+    varUInt64,
+    varSmallint,
+    varInteger: Result := AddNextGridNumColumn(AGrid, ACaption, AName);
+    varSingle,
+    varDouble,
+    varCurrency,
+    varDate: Result := AddNextGridDateColumn(AGrid, ACaption, AName);
+    varOleStr,
+    varString,
+    varUString: Result := AddNextGridTextColumn(AGrid, ACaption, AName);
+    varBoolean: Result := AddNextGridCheckBoxColumn(AGrid, ACaption, AName);
+    varUnknown:;
+    varRecord:;
+  end;
+end;
+
+function AddNextGridTextColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
 var
   LnxTextColumn: TnxTextColumn;
+begin
+  LnxTextColumn := TnxTextColumn(AGrid.Columns.Add(TnxTextColumn, ACaption));
+  LnxTextColumn.Name := RemoveSpaceBetweenStrings(AName);
+  LnxTextColumn.Editing := True;
+  LnxTextColumn.Header.Alignment := taCenter;
+  LnxTextColumn.Alignment := taCenter;
+  LnxTextColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+
+  Result := AName + ':TnxTextColumn;';
+end;
+
+function AddNextGridDateColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+var
+  LnxDateColumn: TnxDateColumn;
+begin
+  LnxDateColumn := TnxDateColumn(AGrid.Columns.Add(TnxDateColumn, ACaption));
+  LnxDateColumn.Name := RemoveSpaceBetweenStrings(AName);
+  LnxDateColumn.Editing := True;
+  LnxDateColumn.Header.Alignment := taCenter;
+  LnxDateColumn.Alignment := taCenter;
+  LnxDateColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+
+  Result := AName + ':TnxDateColumn;';
+end;
+
+function AddNextGridNumColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+var
+  LnxNumColumn: TnxNumberColumn;
+begin
+  LnxNumColumn := TnxNumberColumn(AGrid.Columns.Add(TnxNumberColumn, ACaption));
+  LnxNumColumn.Name := RemoveSpaceBetweenStrings(AName);
+  LnxNumColumn.Editing := True;
+  LnxNumColumn.Header.Alignment := taCenter;
+  LnxNumColumn.Alignment := taCenter;
+  LnxNumColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+
+  Result := AName + ':TnxNumberColumn;';
+end;
+
+function AddNextGridCheckBoxColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+var
+  LnxCheckBoxColumn: TnxCheckBoxColumn;
+begin
+  LnxCheckBoxColumn := TnxCheckBoxColumn(AGrid.Columns.Add(TnxCheckBoxColumn, ACaption));
+  LnxCheckBoxColumn.Name := RemoveSpaceBetweenStrings(AName);
+  LnxCheckBoxColumn.Editing := True;
+  LnxCheckBoxColumn.Header.Alignment := taCenter;
+  LnxCheckBoxColumn.Alignment := taCenter;
+  LnxCheckBoxColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+
+  Result := AName + ':TnxCheckBoxColumn;';
+end;
+
+procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
+  ACaptionIsFromValue: Boolean; AIsIgnoreSaveFile: Boolean; AAddIncCol: Boolean);
+var
   LNxComboBoxColumn: TNxComboBoxColumn;
   LnxIncrementColumn: TnxCustomColumn;
-  i: integer;
+  i, LVarType: integer;
   LTitle, LCompName: string;
+  LVarValue: variant;
   LStrList: TStringList;
-
-  procedure SetTextColumn(ATitle, AName: string);
-  begin
-    LnxTextColumn := TnxTextColumn(AGrid.Columns.Add(TnxTextColumn, ATitle));
-    LnxTextColumn.Name := RemoveSpaceBetweenStrings(AName);
-    LnxTextColumn.Editing := True;
-    LnxTextColumn.Header.Alignment := taCenter;
-    LnxTextColumn.Alignment := taCenter;
-    LnxTextColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
-
-    LStrList.Add(AName + ':' + 'TnxTextColumn;');
-  end;
 begin
 //
   LStrList := TStringList.Create;
@@ -149,13 +234,16 @@ begin
         for i := 0 to TDocVariantData(ADoc).Count - 1 do
         begin
           LCompName := TDocVariantData(ADoc).Names[i];
+          LVarValue := TDocVariantData(ADoc).Values[i];
 
-          if AIsFromValue then
-            LTitle := TDocVariantData(ADoc).Values[i]
+          if ACaptionIsFromValue then
+            LTitle := LVarValue
           else
             LTitle := LCompName;
 
-          SetTextColumn(LTitle, LCompName);
+          LVarType := VarType(LVarValue) and VarTypeMask;
+
+          LStrList.Add(AddNextGridColumnByVarType(AGrid, LVarType, LTitle, LCompName));//AddNextGridTextColumn(AGrid, LTitle, LCompName));
         end;
   //    end;
     end;//with
@@ -164,7 +252,7 @@ begin
     //Column 자동 생성 후 아래 파일 내용을 복사하여 TForm에 추가해 주어야 함
     if not AIsIgnoreSaveFile then
     begin
-      LStrList.SaveToFile('c:\temp\NextGridTextColumnList.txt');
+      LStrList.SaveToFile('c:\temp\NextGridColumnList.txt');
       ShowMessage('c:\temp\NextGridTextColumnList.txt is saved.' + #13#10 +
         'NextGrid Column을 추가하면 TForm 선언부에 ColumnName: ColumnType 이 추가 되므로' + #13#10 +
         'Column 자동 생성 후 아래 파일 내용을 복사하여 TForm에 추가해 주어야 함.');
@@ -325,6 +413,8 @@ begin
 
   for LVar in LDocList do
   begin
+    if AIsAddColumn then
+      AddNextGridColumnFromVariant(AGrid, LVar, False, False, True);
     //LVar Name : Grid의 Column Name
     //LVar Value : Grid Cell Value
     AddNextGridRowFromVarOnlyColumnExist(AGrid, LVar);
@@ -428,8 +518,8 @@ begin
   end;
 end;
 
-//Result에 [{"NextGrid.ColumnName": NextGrid.CelsByName}] Array 형식으로 저장됨
-function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean): variant;
+//Result에 [{"NextGrid.ColumnName": NextGrid.CellsByName}] Array 형식으로 저장됨
+function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean; ASkipInVisible: Boolean): variant;
 var
   i, j: integer;
   LColName: string;
@@ -448,6 +538,10 @@ begin
   begin
     for i := 0 to RowCount - 1 do
     begin
+      if ASkipInVisible then
+        if not Row[i].Visible then
+          Continue;
+
       for j := 0 to Columns.Count - 1 do
       begin
         LColName := Columns.Item[j].Name;
@@ -462,7 +556,7 @@ begin
       end;
 
       LDocList.Append(LCellValue);
-    end;
+    end;//for
   end;//with
 
   Result := LDocList.Json;
@@ -530,6 +624,11 @@ begin
   if AColumn.ColumnType = ctDate then
     ACell.AsDateTime := VarToDateWithTimeLog(AVar)//TimelogToDateTime(StrToInt64(TDocVariantData(AJson).Values[Li]))
   else
+  if AColumn.ColumnType = ctFloat then
+  begin
+    ACell.AsFloat := StrToFloatDef(VariantToString(AVar), 0.0);
+  end
+  else
   if AColumn.ColumnType = ctBoolean then //CheckBox Type
   begin
     VariantToBoolean(AVar, LBool);
@@ -547,6 +646,9 @@ begin
 
   if AColumn.ColumnType = ctDate then
     TDocVariantData(AVar).Value[LColName] := VarFromDateWithTimeLog(ACell.AsDateTime) //TimeLogFromDateTime(AGrid.CellByName[LColumnName, ARow].AsDateTime)
+  else
+  if AColumn.ColumnType = ctFloat then
+    TDocVariantData(AVar).Value[LColName] := ACell.AsFloat
   else
   if AColumn.ColumnType = ctBoolean then
     TDocVariantData(AVar).Value[LColName] := ACell.AsBoolean
@@ -656,7 +758,7 @@ begin
   Result := LDocList.Json;
 end;
 
-function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean): string;
+function GetJsonFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean): RawUTF8;
 var
   i, j: integer;
   LColumnName: string;
@@ -675,7 +777,7 @@ begin
     if ARemoveUnderBar then
       LColumnName := strToken(LColumnName, '_');
 
-    LValue := AGrid.Cells[j, AGrid.SelectedRow];
+    LValue := AGrid.Cell[j, AGrid.SelectedRow].AsVariant;
     TDocVariantData(LV).AddValue(LColumnName, LValue);
   end;//for
 
@@ -939,6 +1041,29 @@ begin
       end;
     end;//for
   end;//with
+end;
+
+{ TCellHelper }
+
+function TCellHelper.AsVariant: variant;
+begin
+  if ClassName = 'TStringCell' then
+    Result := TVariantCls.GetAsVariant<String>(AsString)
+  else
+  if ClassName = 'TDateTimeCell' then
+    Result := TVariantCls.GetAsVariant<TDateTime>(AsDateTime)
+  else
+  if ClassName = 'TIntegerCell' then
+    Result := TVariantCls.GetAsVariant<Integer>(AsInteger)
+  else
+  if ClassName = 'TBooleanCell' then
+    Result := TVariantCls.GetAsVariant<Boolean>(AsBoolean)
+  else
+  if ClassName = 'TFloatCell' then
+    Result := TVariantCls.GetAsVariant<Double>(AsFloat)
+  else
+  if ClassName = 'TIncrementCell' then
+    Result := TVariantCls.GetAsVariant<Integer>(AsInteger);
 end;
 
 end.

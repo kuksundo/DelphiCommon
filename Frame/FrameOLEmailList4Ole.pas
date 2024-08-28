@@ -127,6 +127,7 @@ type
     ProjectNo: TNxTextColumn;
     Description: TNxButtonColumn;
     TaskID: TNxTextColumn;
+    BitBtn2: TBitBtn;
 
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
@@ -141,6 +142,7 @@ type
     procedure Timer1Timer(Sender: TObject);
     procedure AeroButton1Click(Sender: TObject);
     procedure DescriptionButtonClick(Sender: TObject);
+    procedure BitBtn2Click(Sender: TObject);
   private
     FOLControlWorker: TOLControlWorker;
     FCommandQueue,
@@ -196,6 +198,7 @@ type
       //ADynArry: Move할 Email List임
     function ReqMoveEmailFolder2Worker(ADynAry: TRawUTF8DynArray): integer;
     function GetEntryIdFromGridJson(ADoc: variant): TEntryIdRecord;
+    function ReqGotoFolder2Worker(): integer;
 
     procedure DeleteMail(ARow: integer);
 
@@ -499,6 +502,11 @@ end;
 procedure TOutlookEmailListFr.AeroButton1Click(Sender: TObject);
 begin
   SaveEmailFromGrid2DB();
+end;
+
+procedure TOutlookEmailListFr.BitBtn2Click(Sender: TObject);
+begin
+  ReqGotoFolder2Worker();
 end;
 
 constructor TOutlookEmailListFr.Create(AOwner: TComponent);
@@ -1076,6 +1084,21 @@ begin
 end;
 
 //ADynAry: Grid에 Drag Drop 되어 OL에서 Selected된 Email List를 Json Array로 전달
+function TOutlookEmailListFr.ReqGotoFolder2Worker: integer;
+var
+  LOmniValue: TOmniValue;
+begin
+  if MoveFolderCB.ItemIndex <> -1 then
+  begin
+    //이동할 Folder Path를 저장: RootFolder + ';' + SubFolder
+    FEntryIdRecord.FFolderPath4Move := FFolderListFromOL.Names[MoveFolderCB.ItemIndex] + ';' + SubFolderNameEdit.Text;;
+    FEntryIdRecord.FSenderHandle := FFrameOLEmailListWnd;
+
+    LOmniValue := TOmniValue.FromRecord(FEntryIdRecord);
+    SendCmd2WorkerThrd(olcGotoFolder, LOmniValue);
+  end;
+end;
+
 function TOutlookEmailListFr.ReqMoveEmailFolder2Worker(
   ADynAry: TRawUTF8DynArray): integer;
 var
@@ -1098,9 +1121,6 @@ begin
 
     //Move Folder를 위한 정보 가져옴(Mail.EntryID, Mail.StoreID, FFolderPath)
     FEntryIdRecord := GetEntryIdFromGridJson(LDoc);
-
-    //이동할 폴더 명 :
-//    LDestFolder := MoveFolderCB.Text + ';' + SubFolderNameEdit.Text;
 
     //이동할 Root Folder EntryId + ';' + Folder StoreId로 저장됨
     LDestFolder := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
