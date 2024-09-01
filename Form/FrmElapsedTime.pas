@@ -12,6 +12,7 @@ type
   TElapsedTimeF = class(TForm)
     iSevenSegmentClock1: TiSevenSegmentClock;
     procedure FormCreate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
   public
@@ -31,7 +32,8 @@ implementation
 
 procedure ShowElapsedTimeForm();
 begin
-  ElapsedTimeF := TElapsedTimeF.Create(nil);
+  if not Assigned(ElapsedTimeF) then
+    ElapsedTimeF := TElapsedTimeF.Create(nil);
 
   with ElapsedTimeF do
   begin
@@ -54,6 +56,12 @@ begin
 end;
 
 { TElapsedTimeF }
+
+procedure TElapsedTimeF.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+//  QProgress1.Active := False;
+//  QProgress1.SetStopEvent;
+end;
 
 procedure TElapsedTimeF.FormCreate(Sender: TObject);
 begin
