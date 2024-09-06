@@ -12,6 +12,11 @@ type
     function GetDescription(const ASvcName: string): String;
   end;
 
+  TSvcUtilHelper = class helper for TSvcUtils
+  public
+    class function GetGlobalSvcUtil(): ISvcUtils;
+  end;
+
 const
   R_ServiceState_Eng : array[Low(TServiceState)..High(TServiceState)] of string =
     ('Stopped', 'Start Pending', 'Stop Pending', 'Running',
@@ -29,19 +34,20 @@ function GetServiceDescription(const ServiceName: string): string;
 
 var
   g_ServiceState: TLabelledEnum<TServiceState>;
+  g_ISvcUtils: ISvcUtils;
 
 implementation
 
 function GetServiceInfoByName(const ASvcName: string): ISvcInfo;
 begin
-  Result:= TSvcUtils.New.GetServiceByName(ASvcName);
+  Result:= TSvcUtils.GetGlobalSvcUtil.GetServiceByName(ASvcName);
 end;
 
 function GetServiceStateByName(const ASvcName: string): TServiceState;
 var
   LSvcInfo: ISvcInfo;
 begin
-  LSvcInfo:= TSvcUtils.New.GetServiceByName(ASvcName);
+  LSvcInfo:= TSvcUtils.GetGlobalSvcUtil.GetServiceByName(ASvcName);
   Result := LSvcInfo.GetState;
 end;
 
@@ -51,7 +57,7 @@ var
   LVar: variant;
 begin
   TDocVariant.New(LVar);
-  LSvcInfo:= TSvcUtils.New.GetServiceByName(ASvcName);
+  LSvcInfo:= TSvcUtils.GetGlobalSvcUtil.GetServiceByName(ASvcName);
 
   LVar.ServiceName := LSvcInfo.ServiceName;
   LVar.DisplayName := LSvcInfo.DisplayName;
@@ -70,7 +76,7 @@ var
 begin
   LVar := _Json(StringToUtf8(AJson));
 
-  LSvcInfo:= TSvcUtils.New.GetServiceByName(LVar.ServiceName);
+  LSvcInfo:= TSvcUtils.GetGlobalSvcUtil.GetServiceByName(LVar.ServiceName);
 
 //  LSvcInfo.DisplayName := LVar.DisplayName;
   LSvcInfo.ChangeBinaryPath(LVar.BinaryPath);
@@ -122,6 +128,16 @@ begin
   finally
     CloseServiceHandle(hSCManager);
   end;
+end;
+
+{ TSvcUtilHelper }
+
+class function TSvcUtilHelper.GetGlobalSvcUtil: ISvcUtils;
+begin
+  if not Assigned(g_ISvcUtils) then
+    g_ISvcUtils := TSvcUtils.New;
+
+  Result := g_ISvcUtils;
 end;
 
 initialization

@@ -3,7 +3,7 @@ object ElapsedTimeF: TElapsedTimeF
   Top = 0
   Caption = #44221#44284#49884#44036
   ClientHeight = 82
-  ClientWidth = 239
+  ClientWidth = 215
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

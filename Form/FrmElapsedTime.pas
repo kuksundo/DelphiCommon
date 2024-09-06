@@ -39,6 +39,7 @@ begin
   begin
     iSevenSegmentClock1.CountTimerEnabled := True;
     Show();
+    Refresh();
   end;
 end;
 

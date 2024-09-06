@@ -80,21 +80,31 @@ begin
   ShowElapsedTimeForm();
   FServiceInfo.ServiceStart(True);
   ElapsedTimeF.Close;
+  RefreshForm();
 end;
 
 procedure TWinServiceEditF.Button2Click(Sender: TObject);
 begin
+  ShowElapsedTimeForm();
   FServiceInfo.ServiceStop(True);
+  ElapsedTimeF.Close;
+  RefreshForm();
 end;
 
 procedure TWinServiceEditF.Button3Click(Sender: TObject);
 begin
+  ShowElapsedTimeForm();
   FServiceInfo.ServicePause(True);
+  ElapsedTimeF.Close;
+  RefreshForm();
 end;
 
 procedure TWinServiceEditF.Button4Click(Sender: TObject);
 begin
+  ShowElapsedTimeForm();
   FServiceInfo.ServiceContinue(True);
+  ElapsedTimeF.Close;
+  RefreshForm();
 end;
 
 procedure TWinServiceEditF.FormClose(Sender: TObject; var Action: TCloseAction);

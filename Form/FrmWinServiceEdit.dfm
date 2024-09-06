@@ -603,7 +603,7 @@ object WinServiceEditF: TWinServiceEditF
     Left = 141
     Top = 368
     Width = 292
-    Height = 26
+    Height = 27
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -13
