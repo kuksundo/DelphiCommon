@@ -94,7 +94,11 @@ function GetServiceDescription(const ServiceName: string): string;
 var
   hSCManager: SC_HANDLE;
   hService: SC_HANDLE;
+  {$IFDEF CPUX64}
+  ServiceConfig: LPQUERY_SERVICE_CONFIG;
+  {$ELSE}
   ServiceConfig: TQueryServiceConfig;
+  {$ENDIF}
   BytesNeeded: DWORD;
   Buffer: array[0..1023] of Byte;
 begin
@@ -112,15 +116,26 @@ begin
       // Query the size needed for the buffer
       if not QueryServiceConfig(hService, nil, 0, BytesNeeded) and (GetLastError = ERROR_INSUFFICIENT_BUFFER) then
       begin
+        {$IFDEF CPUX64}
+        GetMem(ServiceConfig, BytesNeeded);
+        try
+          if not QueryServiceConfig(hService, ServiceConfig, BytesNeeded, BytesNeeded) then
+            RaiseLastOSError;
+
+          Result := ServiceConfig.lpDisplayName;
+        finally
+          FreeMem(ServiceConfig);
+        end;
+        {$ELSE}
         // Allocate a buffer for the service configuration
         if not QueryServiceConfig(hService, @Buffer[0], BytesNeeded, BytesNeeded) then
           RaiseLastOSError;
 
         ServiceConfig := PQueryServiceConfig(@Buffer[0])^;
-
         // Extract the service description from the buffer
         // Note: In some Windows versions, the description might be stored in another place
         Result := ServiceConfig.lpDisplayName;
+        {$ENDIF}
       end;
     finally
       CloseServiceHandle(hService);
