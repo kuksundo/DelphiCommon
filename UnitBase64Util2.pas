@@ -3,12 +3,14 @@ unit UnitBase64Util2;
 interface
 
 uses System.Classes, Dialogs, System.Rtti, DateUtils, System.SysUtils,
-  mormot.core.base,
+  mormot.core.base, mormot.core.unicode,
   mormot.core.buffers,
   mormot.core.os;
 
 function MakeRawUTF8ToBin64(AUTF8: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
 function MakeRawByteStringToBin64(ARaw: RawByteString; AIsCompress: Boolean = True): RawUTF8;
+function MakeStringToBin64(AStr: string; AIsCompress: Boolean = True): RawUTF8;
+
 function MakeBase64ToString(AStr: RawUTF8; AIsCompress: Boolean = True): string;
 function MakeBase64ToUTF8(AStr: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
 function GetBase64ByFileName(AFileName: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
@@ -16,7 +18,7 @@ function FileToBase64(const AFileName: RawUTF8): RawUTF8;
 
 implementation
 
-function MakeRawUTF8ToBin64(AUTF8: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
+function MakeRawUTF8ToBin64(AUTF8: RawUTF8; AIsCompress: Boolean): RawUTF8;
 var
   LRaw: RawByteString;
 begin
@@ -24,7 +26,7 @@ begin
   Result := MakeRawByteStringToBin64(LRaw, AIsCompress);
 end;
 
-function MakeRawByteStringToBin64(ARaw: RawByteString; AIsCompress: Boolean = True): RawUTF8;
+function MakeRawByteStringToBin64(ARaw: RawByteString; AIsCompress: Boolean): RawUTF8;
 var
   LUTF8 : RawUTF8;
   LRaw: RawByteString;
@@ -37,7 +39,16 @@ begin
   Result := LUTF8;
 end;
 
-function MakeBase64ToString(AStr: RawUTF8; AIsCompress: Boolean = True): string;
+function MakeStringToBin64(AStr: string; AIsCompress: Boolean): RawUTF8;
+var
+  LUtf8: RawUTF8;
+begin
+  LUtf8 := StringToUtf8(AStr);
+  Result := MakeRawUTF8ToBin64(LUtf8, AIsCompress);
+//  Result := Utf8ToString(LUtf8);
+end;
+
+function MakeBase64ToString(AStr: RawUTF8; AIsCompress: Boolean): string;
 var
   LRaw: RawByteString;
 begin
@@ -49,7 +60,7 @@ begin
   Result := Utf8ToString(LRaw);
 end;
 
-function MakeBase64ToUTF8(AStr: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
+function MakeBase64ToUTF8(AStr: RawUTF8; AIsCompress: Boolean): RawUTF8;
 var
 //  LUTF8 : RawUTF8;
   LRaw: RawByteString;
@@ -62,7 +73,7 @@ begin
   Result := LRaw;
 end;
 
-function GetBase64ByFileName(AFileName: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
+function GetBase64ByFileName(AFileName: RawUTF8; AIsCompress: Boolean): RawUTF8;
 var
   LRaw: RawByteString;
 begin

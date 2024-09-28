@@ -41,7 +41,8 @@ function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddC
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
-function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True): variant;
+function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): variant;
+function NextGrid2DocList(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): IDocList;
 //ARow 행의 데이터만 Variant로 반환함 : '{ColumnName=Value}'
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
 //ARow에 Variant를 Cell에 표시함
@@ -376,14 +377,14 @@ begin
     begin
       if LDocList.Value^.Count > 0 then
       begin
-        LVar := LDocList.Item[0];
-        AddNextGridColumnFromVariant(AGrid, LVar, False, True);
+        LVar := _JSON(LDocList.Item[0]);
+        AddNextGridColumnFromVariant(AGrid, LVar, False, True, True);
       end;
     end;
 
     for LVar in LDocList do
     begin
-      AddNextGridRowFromVariant(AGrid, LVar, True);
+      AddNextGridRowFromVariant(AGrid, _JSON(LVar), True);
     end;
   finally
     AGrid.EndUpdate();
@@ -519,20 +520,27 @@ begin
 end;
 
 //Result에 [{"NextGrid.ColumnName": NextGrid.CellsByName}] Array 형식으로 저장됨
-function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean; ASkipInVisible: Boolean): variant;
+function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar, ASkipInVisible, ASelectedOnly: Boolean): variant;
+var
+  LDocList: IDocList;
+begin
+  TDocVariant.New(Result);
+  LDocList := NextGrid2DocList(AGrid, ARemoveUnderBar, ASkipInVisible);
+  Result := LDocList.Json;
+end;
+
+function NextGrid2DocList(AGrid: TNextGrid; ARemoveUnderBar,ASkipInVisible,ASelectedOnly: Boolean): IDocList;
 var
   i, j: integer;
   LColName: string;
   LUtf8: RawUTF8;
-  LDocList: IDocList;
 
   LCellValue: variant;
   LColumn: TnxCustomColumn;
   LCell: TCell;
 begin
-  TDocVariant.New(Result);
+  Result := DocList('[]');
   TDocVariant.New(LCellValue);
-  LDocList := DocList('[]');
 
   with AGrid do
   begin
@@ -540,6 +548,10 @@ begin
     begin
       if ASkipInVisible then
         if not Row[i].Visible then
+          Continue;
+
+      if ASelectedOnly then
+        if not Row[i].Selected then
           Continue;
 
       for j := 0 to Columns.Count - 1 do
@@ -555,11 +567,9 @@ begin
         SetNxGridCellValue2Var(LColumn, LCell, LCellValue);
       end;
 
-      LDocList.Append(LCellValue);
+      Result.Append(LCellValue);
     end;//for
   end;//with
-
-  Result := LDocList.Json;
 end;
 
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;

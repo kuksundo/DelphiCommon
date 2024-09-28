@@ -41,8 +41,9 @@ function GetAdvPropertyListFromRegByIdx(const AIdx: string): TStringList;
  }
 procedure GetWmiPropsSources(Const NameSpace, ClassName: string);
 
-function GetNetworkAdapterRegistryKeyFromIpAddr(const AIpAddr: string): string;
+function GetAdvNICProp2JsonFromRegKeyByIpAddr(const AIpAddr: string): string;
 function SetNetworkAdapterRegistryKeyFromIpAddr(const AIpAddr: string): integer;
+function GetNICGUIDFromRegistryKeyByIpAddr(const AIpAddr: string): string;
 
 {
 // Example command to set Flow Control for a network adapter named "Ethernet"
@@ -59,6 +60,8 @@ procedure Set_NetAdapterAdvancedPropertyUsingPowerShell(const ACommand: string);
 //procedure QueryNetworkAdapterSettings;
 
 implementation
+
+uses UnitRegistryUtil;
 
 procedure DisableNIC_WMI();
 //Disable a NIC
@@ -335,45 +338,92 @@ begin
     end;
 end;
 
-function GetNetworkAdapterRegistryKeyFromIpAddr(const AIpAddr: string): string;
+function GetAdvNICProp2JsonFromRegKeyByIpAddr(const AIpAddr: string): string;
 var
-  Reg: TRegistry;
-  SubKeys: TStringList;
-  KeyPath: string;
-  I: Integer;
-  DriverDesc: string;
+  Reg, Reg2: TRegistry;
+  SubKeys, LProps, LParams: TStringList;
+  KeyPath, LKeyPath2, LStr: string;
+  I, j, k: Integer;
+  LNICClassID, LNetCfgInstanceId: string;
+  LDict, LDict2: IDocDict;
+  LList: IDocList;
 begin
   Result := '';
-  KeyPath := 'SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}';
+  LList := DocList('[]');
+  LDict := DocDict('{}');
+  LDict2 := DocDict('{}');
 
-  Reg := TRegistry.Create(KEY_READ);
-  SubKeys := TStringList.Create;
-  try
-    Reg.RootKey := HKEY_LOCAL_MACHINE;
-    if Reg.OpenKey(KeyPath, False) then
-    begin
-      Reg.GetKeyNames(SubKeys);
-      Reg.CloseKey;
-      for I := 0 to SubKeys.Count - 1 do
+  LNICClassID := GetNICGUIDFromRegistryKeyByIpAddr(AIpAddr);
+
+  if LNICClassID <> '' then
+  begin
+    KeyPath := 'SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}';
+
+    Reg := TRegistry.Create(KEY_READ);
+    Reg2 := TRegistry.Create(KEY_READ);
+    SubKeys := TStringList.Create;
+    LProps := TStringList.Create;
+    LParams := TStringList.Create;
+    try
+      Reg.RootKey := HKEY_LOCAL_MACHINE;
+      Reg2.RootKey := HKEY_LOCAL_MACHINE;
+
+      if Reg.OpenKey(KeyPath, False) then
       begin
-        if Reg.OpenKey(KeyPath + '\' + SubKeys[I], False) then
+        Reg.GetKeyNames(SubKeys);
+        Reg.CloseKey;
+
+        //SubKeys = 0000/0001...
+        for I := 0 to SubKeys.Count - 1 do
         begin
-          if Reg.ValueExists('DriverDesc') then
+          LKeyPath2 := KeyPath + '\' + SubKeys.Strings[I];
+
+          if Reg.OpenKey(LKeyPath2, False) then
           begin
-            DriverDesc := Reg.ReadString('DriverDesc');
-            if SameText(DriverDesc, AIpAddr) then
+            if Reg.ValueExists('NetCfgInstanceId') then
             begin
-              Result := KeyPath + '\' + SubKeys[I];
-              Exit;
+              LNetCfgInstanceId := Reg.ReadString('NetCfgInstanceId');
+
+              if SameText(LNetCfgInstanceId, LNICClassID) then
+              begin
+                LProps.Clear;
+
+                Reg.GetValueNames(LProps);
+
+                //Adv Properties (*Flow Control ...)
+                for j := 0 to LProps.Count - 1 do
+                begin
+                  LStr := LProps.Strings[j];
+
+                  LDict.S['Name'] := LStr;
+                  LDict.S['Value'] := Reg.GetDataAsString(LStr);
+
+                  LKeyPath2 := KeyPath + '\' + SubKeys.Strings[I] + '\Ndi\Params\' + LStr;
+                  LDict.S['Params'] := Reg.GetValues2Json(LKeyPath2);
+
+                  LKeyPath2 := KeyPath + '\' + SubKeys.Strings[I] + '\Ndi\Params\' + LStr + '\Enum';
+                  LDict.S['Enum'] := Reg.GetValues2Json(LKeyPath2);
+
+                  LList.Append(LDict.Json);
+                  LDict.Clear;
+                end;//for j
+
+                Result := Utf8ToString(LList.Json);
+                Exit;
+              end;
             end;
+
+            Reg.CloseKey;
           end;
-          Reg.CloseKey;
-        end;
+        end;//for i
       end;
+    finally
+      SubKeys.Free;
+      LProps.Free;
+      LParams.Free;
+      Reg.Free;
+      Reg2.Free;
     end;
-  finally
-    SubKeys.Free;
-    Reg.Free;
   end;
 end;
 
@@ -415,6 +465,56 @@ begin
     end;
   finally
     SubKeys.Free;
+    Reg.Free;
+  end;
+end;
+
+function GetNICGUIDFromRegistryKeyByIpAddr(const AIpAddr: string): string;
+var
+  Reg: TRegistry;
+  SubKeys: TStringList;
+  LIpAddrValues: TStringList;
+  KeyPath, LIpAddr: string;
+  I, j: Integer;
+begin
+  Result := '';
+  KeyPath := 'SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces';
+
+  Reg := TRegistry.Create(KEY_READ);
+  SubKeys := TStringList.Create;
+  LIpAddrValues := TStringList.Create;
+  try
+    Reg.RootKey := HKEY_LOCAL_MACHINE;
+
+    if Reg.OpenKey(KeyPath, False) then
+    begin
+      Reg.GetKeyNames(SubKeys);
+      Reg.CloseKey;
+
+      for I := 0 to SubKeys.Count - 1 do
+      begin
+        if Reg.OpenKey(KeyPath + '\' + SubKeys[I], False) then
+        begin
+          if Reg.ValueExists('IPAddress') then
+          begin
+            if Reg.ReadMultiSz('IPAddress', TStrings(LIpAddrValues)) then
+            begin
+              for j := 0 to LIpAddrValues.Count - 1 do
+
+              if SameText(LIpAddrValues[j], AIpAddr) then
+              begin
+                Result := SubKeys[I];
+                Exit;
+              end;
+            end;
+          end;
+          Reg.CloseKey;
+        end;
+      end;//for i
+    end;
+  finally
+    SubKeys.Free;
+    LIpAddrValues.Free;
     Reg.Free;
   end;
 end;

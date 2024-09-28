@@ -4,7 +4,11 @@ interface
 
 uses Classes, RegularExpressions;
 
+const
+  REGEX_HANGLE = '.*[¤¡-¤¾|¤¿-¤Ó|°¡-ÆR]+.*';
+
 function ExtractTextBetweenTags(const htmlContent: string): TStringList;
+function CheckIfExistHangulUsingRegEx(const AText: string): Boolean;
 
 implementation
 
@@ -30,5 +34,9 @@ begin
   end;
 end;
 
+function CheckIfExistHangulUsingRegEx(const AText: string): Boolean;
+begin
+  Result := TRegEx.IsMatch(AText, REGEX_HANGLE);
+end;
 
 end.
