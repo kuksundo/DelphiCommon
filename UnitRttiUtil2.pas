@@ -623,7 +623,7 @@ begin
   if ACompName = 'TEdit' then
     Result := 'Text'
   else
-  if ACompName = 'TDateTimePicker' then
+  if (ACompName = 'TDateTimePicker') or (ACompName = 'TAdvDateTimePicker') then
     Result := 'DateTime'
   else
   if ACompName = 'TMemo' then
@@ -1660,7 +1660,7 @@ var
   LUtf8: RawUtf8;
   LDate: TDate;
   LTimeLog: TTimeLog;
-  LFieldName: string;
+  LFieldName, LStr: string;
 begin
   LUtf8 := StringToUtf8(AJson);
   LDict := DocDict(LUtf8);
@@ -1680,7 +1680,10 @@ begin
         LValue := GetValueByPropertyName(TObject(LComp), LFieldName);
 
         case LValue.Kind of
-          tkString, tkLString, tkWString, tkUString: LValue := TValue.From(LDict.S[LComp.Name]);
+          tkString, tkLString, tkWString, tkUString: begin
+            LStr := LDict[LComp.Name];//LDict.S[LComp.Name]
+            LValue := TValue.From(LStr);
+          end;
           tkInteger, tkInt64: LValue := TValue.From(StrToIntDef(LDict.S[LComp.Name],0));
           tkEnumeration: LValue := TValue.From(LDict.B[LComp.Name]);
           tkFloat: begin

@@ -558,6 +558,10 @@ begin
       begin
         LColName := Columns.Item[j].Name;
 
+        //Increment Cell이 자동 추가 된 경우 Name = '' 이므로 Skip
+        if LColName = '' then
+          Continue;
+
         if ARemoveUnderBar then
           LColName := strToken(LColName, '_');
 

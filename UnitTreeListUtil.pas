@@ -11,6 +11,8 @@ uses Classes, SysUtils, ComCtrls, inifiles,
 procedure LoadTreeListFromIni(ATreeList: TTreeList; const IniFileName: string);
 procedure SaveTreeListToIni(ATreeList: TTreeList; const IniFileName: string);
 
+procedure LoadSecName2TLFromIni(ATreeList: TTreeList; const IniFileName, ASecction, AName: string);
+
 procedure LoadTreeListFromIniJson(ATreeList: TTreeList; const AJson: RawUtf8);
 procedure SaveTreeListToIniJson(ATreeList: TTreeList; const AJson: RawUtf8);
 
@@ -92,6 +94,30 @@ end;
 procedure SaveTreeListToIni(ATreeList: TTreeList; const IniFileName: string);
 begin
 
+end;
+
+procedure LoadSecName2TLFromIni(ATreeList: TTreeList; const IniFileName, ASecction, AName: string);
+var
+  IniFile: TIniFile;
+  RootNode: TTreeNode;
+  LStr, LValueText: string;
+begin
+  IniFile := TIniFile.Create(IniFileName);
+
+  ATreeList.Items.BeginUpdate;
+  try
+    ATreeList.Items.Clear;
+    ATreeList.Columns.Clear;
+    ATreeList.Separator := ';';
+    ATreeList.Columns.Add.Header := 'Section-Name';
+    ATreeList.Columns.Add.Header := 'Value';
+
+    LValueText := IniFile.ReadString(ASecction, AName, '');
+
+  finally
+    IniFile.Free;
+    ATreeList.Items.EndUpdate;
+  end;
 end;
 
 function FindAndFocusTreeListFromTxt(ASrchText: string; ASrchColIndex, ANthStart: integer; ATreeList: TTreeList): integer;

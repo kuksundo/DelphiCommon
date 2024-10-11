@@ -138,11 +138,17 @@ begin
 
   if Assigned(LTreeNode) then
   begin
+    if LTreeNode.Level = 0 then
+    exit;
+
     LResult := LTreeNode.Text;
     LLabel := StrToken(LResult, ';');
     LDefault := StrToken(LResult, ';');
 
-    LCaption := LTreeNode.Parent.Text;
+    if Assigned(LTreeNode.Parent) then
+      LCaption := LTreeNode.Parent.Text
+    else
+      LCaption := LTreeNode.Text;
 
     LResult := CreateInputEdit(LCaption, LLabel, LDefault);
 
