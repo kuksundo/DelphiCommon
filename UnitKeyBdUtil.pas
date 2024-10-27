@@ -11,6 +11,7 @@ function KeyToString(aCode: Cardinal): string;
 function StringToKey(S: string): Cardinal;
 
 procedure SendAltNChar(AChar: Char);
+procedure SendCtlNChar(AChar: Char);
 
 implementation
 
@@ -196,5 +197,12 @@ begin
   SendInput(Length(LKeyInputs), LKeyInputs[0], SizeOf(LKeyInputs[0]));
 end;
 
+procedure SendCtlNChar(AChar: Char);
+begin
+  KeyBd_Event(VK_CONTROL, 0, 0, 0);
+  KeyBd_Event(Byte(AChar), 0, 0, 0);
+  KeyBd_Event(Byte(AChar), 0, KEYEVENTF_KEYUP, 0);
+  KeyBd_Event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+end;
 
 end.
