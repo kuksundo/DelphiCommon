@@ -1703,6 +1703,10 @@ object OutlookEmailListFr: TOutlookEmailListFr
       Caption = 'Edit Mail Info'
       OnClick = EditMailInfo1Click
     end
+    object CopyHullNoClaimNoSubject1: TMenuItem
+      Caption = 'Copy HullNo+ClaimNo+Subject'
+      OnClick = CopyHullNoClaimNoSubject1Click
+    end
     object N1: TMenuItem
       Caption = '-'
     end
@@ -1755,7 +1759,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C01012F009800E80610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C01012F009800EC0610001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000C0000000010020000000000000C0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000

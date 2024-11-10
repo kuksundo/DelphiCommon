@@ -125,12 +125,14 @@ function GetCompNameValue2JsonFromForm(AForm: TForm): string;
 //각 Component Hint를 참조하지 않고 Component.TypeKind로 Field명을 판단함
 //Grid의 Column Component는 Skip함
 function GetCompNameValue2JsonFromFormByClassType(AForm: TForm): string;
+function GetCompNameValue2JsonFromFrameByClassType(AFrame: TFrame; var ADict: IDocDict): string;
 //AJson: {Component Name = Value} 형식 -
 //Form의 Component Hint = Value가 있는 Field 명이 입력 되어 있어야 함(예: Text/Checked/ItemIndex)
 function SetCompNameValueFromJson2Form(AForm: TForm; AJson: string): string;
 //AJson: {Component Name = Value} 형식 -
 //각 Component Hint를 참조하지 않고 Component.TypeKind로 Field명을 판단함
 function SetCompNameValueFromJson2FormByClassType(AForm: TForm; AJson: string): string;
+function SetCompNameValueFromJson2FrameByClassType(AFrame: TFrame; ADict: IDocDict): string;
 
 implementation
 
@@ -642,6 +644,9 @@ begin
     Result := 'Checked'
   else
   if ACompName = 'TAdvEditBtn' then
+    Result := 'Text'
+  else
+  if ACompName = 'TNxButtonEdit' then
     Result := 'Text'
   else
     Result := '';
@@ -1573,7 +1578,13 @@ begin
   begin
     for i := 0 to ComponentCount - 1 do
     begin
-      LComp := AForm.Components[i];
+      LComp := Components[i];
+
+      if LComp.ClassType.InheritsFrom(TFrame) then
+      begin
+        GetCompNameValue2JsonFromFrameByClassType(TFrame(LComp), LDict);
+        Continue;
+      end;
 
       LFieldName := GetEditFieldNameByClassName(TControl(LComp).ClassName);
 
@@ -1603,6 +1614,48 @@ begin
   end;
 
   Result := Utf8ToString(LDict.ToJson(jsonUnquotedPropNameCompact));
+end;
+
+function GetCompNameValue2JsonFromFrameByClassType(AFrame: TFrame; var ADict: IDocDict): string;
+var
+  i: integer;
+  LComp: TComponent;
+  LValue: TValue;
+  LDate: Double;
+  LFieldName: string;
+begin
+  with AFrame do
+  begin
+    for i := 0 to ComponentCount - 1 do
+    begin
+      LComp := Components[i];
+
+      LFieldName := GetEditFieldNameByClassName(TControl(LComp).ClassName);
+
+      if LFieldName = '' then
+        Continue;
+
+      LValue := GetValueByPropertyName(TObject(LComp), LFieldName);
+
+      case LValue.Kind of
+        tkString, tkLString, tkWString, tkUString: ADict.S[LComp.Name] := LValue.AsString;
+        tkInteger, tkInt64: ADict.I[LComp.Name] := LValue.AsInteger;
+        tkEnumeration: ADict.B[LComp.Name] := LValue.AsBoolean;
+        tkFloat: begin
+          LDate := LValue.AsDouble;
+          ADict.I[LComp.Name] := TimeLogFromDateTime(LDate);
+        end;
+      end;
+      if LValue.Kind = tkString then
+      begin
+
+      end
+      else if LValue.Kind = tkInteger then
+      begin
+
+      end;
+    end;
+  end;
 end;
 
 function SetCompNameValueFromJson2Form(AForm: TForm; AJson: string): string;
@@ -1664,11 +1717,18 @@ var
 begin
   LUtf8 := StringToUtf8(AJson);
   LDict := DocDict(LUtf8);
+
   with AForm do
   begin
     for i := 0 to ComponentCount - 1 do
     begin
       LComp := AForm.Components[i];
+
+      if LComp.ClassType.InheritsFrom(TFrame) then
+      begin
+        SetCompNameValueFromJson2FrameByClassType(TFrame(LComp), LDict);
+        Continue;
+      end;
 
       LFieldName := GetEditFieldNameByClassName(TControl(LComp).ClassName);
 
@@ -1688,6 +1748,50 @@ begin
           tkEnumeration: LValue := TValue.From(LDict.B[LComp.Name]);
           tkFloat: begin
             LTimeLog := LDict.I[LComp.Name]; //Json Field Type이 반드시 TTimeLog 여야 함
+            LDate := TimeLogToDateTime(LTimeLog);
+            LValue := TValue.From(LDate);
+          end;
+        end;
+
+        SetValueByPropertyName(TObject(LComp), LValue, LFieldName);
+      end;
+    end;//for
+  end;//with
+end;
+
+function SetCompNameValueFromJson2FrameByClassType(AFrame: TFrame; ADict: IDocDict): string;
+var
+  i: integer;
+  LComp: TComponent;
+  LValue: TValue;
+  LDate: TDate;
+  LTimeLog: TTimeLog;
+  LFieldName, LStr: string;
+begin
+  with AFrame do
+  begin
+    for i := 0 to ComponentCount - 1 do
+    begin
+      LComp := AFrame.Components[i];
+
+      LFieldName := GetEditFieldNameByClassName(TControl(LComp).ClassName);
+
+      if LFieldName = '' then
+        Continue;
+
+      if ADict.Exists(LComp.Name) then
+      begin
+        LValue := GetValueByPropertyName(TObject(LComp), LFieldName);
+
+        case LValue.Kind of
+          tkString, tkLString, tkWString, tkUString: begin
+            LStr := ADict[LComp.Name];//LDict.S[LComp.Name]
+            LValue := TValue.From(LStr);
+          end;
+          tkInteger, tkInt64: LValue := TValue.From(StrToIntDef(ADict.S[LComp.Name],0));
+          tkEnumeration: LValue := TValue.From(ADict.B[LComp.Name]);
+          tkFloat: begin
+            LTimeLog := ADict.I[LComp.Name]; //Json Field Type이 반드시 TTimeLog 여야 함
             LDate := TimeLogToDateTime(LTimeLog);
             LValue := TValue.From(LDate);
           end;

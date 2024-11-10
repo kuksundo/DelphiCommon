@@ -75,6 +75,8 @@ type
     FTaskJson: String;
     FModalResult: integer;
 
+    FIgnoreFileTypePrompt: Boolean;
+
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
@@ -676,18 +678,67 @@ end;
 
 procedure TJHPFileListFrame.ShowFileSelectF3(AFileName: string; AFromOutLook: Boolean);
 var
-  li,LRow : integer;
   lfilename, lfilepath : String;
   lExt : String;
-//  lSize : int64;
   LFileSelectF: TFileSelectF;
   LJHPFileRec: TJHPFileRec;
   LDoc: RawByteString;
-  i: integer;
+  i, LDocFormat: integer;
   LFileNameList: TStringList;
   LTargetStream: TStream;
+
+  procedure _DisplayFileList2Grid();
+  var
+    li: integer;
+  begin
+    with fileGrid do
+    begin
+      BeginUpdate;
+      try
+        for li := 0 to LFileNameList.Count - 1 do
+        begin
+          LFileName := LFileNameList.Strings[li];
+
+          if AFromOutLook then
+          begin
+            LTargetStream := GetStreamFromDropDataFormat2(TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat),li);
+            try
+              if not Assigned(LTargetStream) then
+                ShowMessage('Not Assigned');
+
+              LDoc := StreamToRawByteString(LTargetStream);
+            finally
+              if Assigned(LTargetStream) then
+                LTargetStream.Free;
+            end;
+          end
+          else
+            LDoc := StringFromFile(LFileName);
+
+          LFilePath := ExtractFilePath(LFileName);
+          LFileName := ExtractFileName(LFileName);
+
+          LJHPFileRec.fData := LDoc;
+          LJHPFileRec.fDocFormat := LDocFormat;
+          LJHPFileRec.fFileName := LFileName;
+          LJHPFileRec.fFilePath := LFilePath;
+          LJHPFileRec.fFileSize := Length(LDoc);//ByteLength(LDoc);//
+
+          if not Assigned(FJHPFiles_) then
+            FJHPFiles_ := TOrmJHPFile.Create;
+
+          i := FJHPFiles_.DynArray('Files').Add(LJHPFileRec);
+
+          JHPFileRec2Grid(LJHPFileRec, i, fileGrid);
+        end;
+
+      finally
+        EndUpdate;
+      end;
+    end;
+  end;
 begin
-  LFileSelectF := TFileSelectF.Create(nil);
+  LFileSelectF := nil;
   LFileNameList := TStringList.Create;
   try
     //Drag 했을 경우 AFileName <> ''이고
@@ -695,77 +746,40 @@ begin
     if AFileName <> '' then
     begin
       LFileNameList.Text := AFileName;
-      LFileSelectF.JvFilenameEdit1.FileName := AFileName;
-      LFileSelectF.JvFilenameEdit1.DialogFiles.Text := AFileName;
     end;
 
-//    g_GSDocType.SetType2Combo(LFileSelectF.DocTypeCombo);
-//    LFileSelectF.DocTypeCombo.Items := FDocTypeList;
-
-    if LFileSelectF.ShowModal = mrOK then
+    if FIgnoreFileTypePrompt then
     begin
-      if LFileSelectF.JvFilenameEdit1.FileName = '' then
-        exit
-      else
-        LFileNameList.Text := LFileSelectF.JvFilenameEdit1.DialogFiles.Text;
-
-      with fileGrid do
-      begin
-        BeginUpdate;
-        try
-          for li := 0 to LFileNameList.Count - 1 do
+      LDocFormat := 0;
+      _DisplayFileList2Grid();
+    end
+    else
+    begin
+      LFileSelectF := TFileSelectF.Create(nil);
+      try
+        if LFileSelectF.ShowModal = mrOK then
+        begin
+          if AFileName <> '' then
           begin
-            LFileName := LFileNameList.Strings[li];
-
-            if AFromOutLook then
-            begin
-              LTargetStream := GetStreamFromDropDataFormat2(TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat),li);
-              try
-                if not Assigned(LTargetStream) then
-                  ShowMessage('Not Assigned');
-
-                LDoc := StreamToRawByteString(LTargetStream);
-              finally
-                if Assigned(LTargetStream) then
-                  LTargetStream.Free;
-              end;
-            end
-            else
-              LDoc := StringFromFile(LFileName);
-
-            LFilePath := ExtractFilePath(LFileName);
-            LFileName := ExtractFileName(LFileName);
-
-            LJHPFileRec.fData := LDoc;
-            LJHPFileRec.fDocFormat := LFileSelectF.DocTypeCombo.ItemIndex;
-            LJHPFileRec.fFileName := LFileName;
-            LJHPFileRec.fFilePath := LFilePath;
-            LJHPFileRec.fFileSize := Length(LDoc);//ByteLength(LDoc);//
-
-            if not Assigned(FJHPFiles_) then
-              FJHPFiles_ := TOrmJHPFile.Create;
-
-            i := FJHPFiles_.DynArray('Files').Add(LJHPFileRec);
-
-            JHPFileRec2Grid(LJHPFileRec, i, fileGrid);
-
-//            LRow := AddRow;
-//            Row[LRow].ImageIndex := i; //DynArray의 Index를 저장함(Delete시 필요함)
-//
-//            CellByName['FileName',LRow].AsString := LFileName;
-//            CellByName['FileSize',LRow].AsString := FormatByteString(LJHPFileRec.fFileSize);
-//            CellByName['FilePath',LRow].AsString := ExtractFilePath(LFileName);
-//            CellByName['DocType',LRow].AsString := LFileSelectF.DocTypeCombo.Text;
+            LFileSelectF.JvFilenameEdit1.FileName := AFileName;
+            LFileSelectF.JvFilenameEdit1.DialogFiles.Text := AFileName;
           end;
 
-        finally
-          EndUpdate;
+          LDocFormat := LFileSelectF.DocTypeCombo.ItemIndex;
+
+          if LFileSelectF.JvFilenameEdit1.FileName = '' then
+            exit
+          else
+            LFileNameList.Text := LFileSelectF.JvFilenameEdit1.DialogFiles.Text;
+
+          _DisplayFileList2Grid();
         end;
+      finally
+        LFileSelectF.Free;
       end;
     end;
   finally
     LFileNameList.Free;
-    LFileSelectF.Free;
   end;
 end;
 

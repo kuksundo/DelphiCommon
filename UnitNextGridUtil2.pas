@@ -76,6 +76,10 @@ procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid);
 //AJson Name : Grid의 Column Name
 //AJson Value : Grid Cell Value
 procedure AddNextGridRowFromVarOnlyColumnExist(AGrid: TNextGrid; AJson: Variant);
+//AStrList : Column Name=Caption list
+//AGrid에 Column Name이 존재하면 Caption을 변경함
+//NextGrid Caption을 변경 후 SaveDFM하여 DFM 파일 내용을 수동으로 변경할 때 사용됨
+procedure SetColumnCaptionFromListOnlyColumnExist(AGrid: TNextGrid; AStrList: TStringList);
 
 implementation
 
@@ -1078,6 +1082,32 @@ begin
   else
   if ClassName = 'TIncrementCell' then
     Result := TVariantCls.GetAsVariant<Integer>(AsInteger);
+end;
+
+procedure SetColumnCaptionFromListOnlyColumnExist(AGrid: TNextGrid; AStrList: TStringList);
+var
+  Li, Lj: integer;
+  LColName, LCaption: string;
+  LColumn: TnxCustomColumn;
+begin
+  with AGrid do
+  begin
+    for Li := 0 to AStrList.Count - 1 do
+    begin
+      LColName := AStrList.Names[Li];
+      LCaption := AStrList.ValueFromIndex[Li];
+
+      for Lj := 0 to Columns.Count - 1 do
+      begin
+        //Grid에 Column Name이 존재하면
+        if POS(LColName, Columns[Lj].Name) > 0 then
+        begin
+          LColumn := ColumnByName[LColName];
+          LColumn.Header.Caption := LCaption;
+        end;
+      end;
+    end;//for
+  end;//with
 end;
 
 end.

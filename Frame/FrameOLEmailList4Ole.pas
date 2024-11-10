@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, System.Actions, Vcl.ActnList,
   Vcl.XPStyleActnCtrls, Vcl.ActnMan, Vcl.ComCtrls, Vcl.Buttons, PngBitBtn, Vcl.Menus,
-  ActiveX,
+  ActiveX, clipbrd,
   Vcl.StdCtrls, Vcl.ToolWin, Vcl.ActnCtrls, Vcl.ExtCtrls, NxColumnClasses,
   NxColumns, NxScrollControl, NxCustomGridControl, NxCustomGrid, NxGrid,
   AdvOfficeTabSet, System.Rtti, DateUtils, System.SyncObjs,
@@ -128,6 +128,7 @@ type
     Description: TNxButtonColumn;
     TaskID: TNxTextColumn;
     BitBtn2: TBitBtn;
+    CopyHullNoClaimNoSubject1: TMenuItem;
 
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
@@ -143,6 +144,7 @@ type
     procedure AeroButton1Click(Sender: TObject);
     procedure DescriptionButtonClick(Sender: TObject);
     procedure BitBtn2Click(Sender: TObject);
+    procedure CopyHullNoClaimNoSubject1Click(Sender: TObject);
   private
     FOLControlWorker: TOLControlWorker;
     FCommandQueue,
@@ -507,6 +509,13 @@ end;
 procedure TOutlookEmailListFr.BitBtn2Click(Sender: TObject);
 begin
   ReqGotoFolder2Worker();
+end;
+
+procedure TOutlookEmailListFr.CopyHullNoClaimNoSubject1Click(Sender: TObject);
+begin
+  Clipboard.AsText :=  grid_Mail.CellsByName['HullNo', grid_Mail.SelectedRow] + '-' +
+    grid_Mail.CellsByName['ClaimNo', grid_Mail.SelectedRow] + ' : ' +
+    grid_Mail.CellsByName['Subject', grid_Mail.SelectedRow]
 end;
 
 constructor TOutlookEmailListFr.Create(AOwner: TComponent);
