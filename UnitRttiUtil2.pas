@@ -649,6 +649,9 @@ begin
   if ACompName = 'TNxButtonEdit' then
     Result := 'Text'
   else
+  if ACompName = 'TRadioGroup' then
+    Result := 'ItemIndex'
+  else
     Result := '';
 end;
 

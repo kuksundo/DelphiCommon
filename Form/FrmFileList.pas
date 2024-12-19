@@ -38,9 +38,9 @@ begin
     begin
       if Assigned(AList) then
       begin
-        for LResult := Low(FileListF.FileListFrame1.FJHPFiles_.Files) to High(FileListF.FileListFrame1.FJHPFiles_.Files) do
-          AList.Add(FileListF.FileListFrame1.FJHPFiles_.Files[LResult].fFilePath +
-            FileListF.FileListFrame1.FJHPFiles_.Files[LResult].fFileName);
+//        for LResult := Low(FileListF.FileListFrame1.FJHPFiles_.Files) to High(FileListF.FileListFrame1.FJHPFiles_.Files) do
+//          AList.Add(FileListF.FileListFrame1.FJHPFiles_.Files[LResult].fFilePath +
+//            FileListF.FileListFrame1.FJHPFiles_.Files[LResult].fFileName);
 
         Result := AList.Count;
       end;

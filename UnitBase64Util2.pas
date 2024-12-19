@@ -13,6 +13,7 @@ function MakeStringToBin64(AStr: string; AIsCompress: Boolean = True): RawUTF8;
 
 function MakeBase64ToString(AStr: RawUTF8; AIsCompress: Boolean = True): string;
 function MakeBase64ToUTF8(AStr: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
+function MakeBase64ToRawByteString(AStr: RawUTF8; AIsCompress: Boolean = True): RawByteString;
 function GetBase64ByFileName(AFileName: RawUTF8; AIsCompress: Boolean = True): RawUTF8;
 function FileToBase64(const AFileName: RawUTF8): RawUTF8;
 
@@ -29,8 +30,8 @@ end;
 function MakeRawByteStringToBin64(ARaw: RawByteString; AIsCompress: Boolean): RawUTF8;
 var
   LUTF8 : RawUTF8;
-  LRaw: RawByteString;
-  LStr: string;
+//  LRaw: RawByteString;
+//  LStr: string;
 begin
   if AIsCompress then
     ARaw := SynLZCompress(ARaw);
@@ -62,15 +63,18 @@ end;
 
 function MakeBase64ToUTF8(AStr: RawUTF8; AIsCompress: Boolean): RawUTF8;
 var
-//  LUTF8 : RawUTF8;
   LRaw: RawByteString;
 begin
-  LRaw := Base64ToBin(AStr);
+  LRaw := MakeBase64ToRawByteString(AStr, AIsCompress);
+  Result := LRaw;
+end;
+
+function MakeBase64ToRawByteString(AStr: RawUTF8; AIsCompress: Boolean): RawByteString;
+begin
+  Result := Base64ToBin(AStr);
 
   if AIsCompress then
-    LRaw := SynLZDecompress(LRaw);
-
-  Result := LRaw;
+    Result := SynLZDecompress(Result);
 end;
 
 function GetBase64ByFileName(AFileName: RawUTF8; AIsCompress: Boolean): RawUTF8;

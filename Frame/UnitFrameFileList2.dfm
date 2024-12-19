@@ -75,7 +75,7 @@ object JHPFileListFrame: TJHPFileListFrame
       Width = 32
     end
     object FileName: TNxTextColumn
-      DefaultWidth = 398
+      DefaultWidth = 278
       Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
@@ -92,7 +92,7 @@ object JHPFileListFrame: TJHPFileListFrame
       ParentFont = False
       Position = 1
       SortType = stAlphabetic
-      Width = 398
+      Width = 278
     end
     object FileSize: TNxTextColumn
       Alignment = taRightJustify
@@ -132,7 +132,7 @@ object JHPFileListFrame: TJHPFileListFrame
       Visible = False
       Width = 53
     end
-    object DocType: TNxTextColumn
+    object DocFormat: TNxTextColumn
       Alignment = taCenter
       DefaultWidth = 120
       Font.Charset = ANSI_CHARSET
@@ -140,7 +140,7 @@ object JHPFileListFrame: TJHPFileListFrame
       Font.Height = -11
       Font.Name = #47569#51008' '#44256#46357
       Font.Style = []
-      Header.Caption = 'Item Type'
+      Header.Caption = 'Doc Format'
       Header.Alignment = taCenter
       Header.Font.Charset = DEFAULT_CHARSET
       Header.Font.Color = clWindowText
@@ -149,6 +149,152 @@ object JHPFileListFrame: TJHPFileListFrame
       Header.Font.Style = []
       ParentFont = False
       Position = 4
+      SortType = stAlphabetic
+      Visible = False
+      Width = 120
+    end
+    object FileID: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'FileID'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 5
+      SortType = stAlphabetic
+      Width = 120
+    end
+    object CompressAlgo: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'CompressAlgo'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 6
+      SortType = stAlphabetic
+      Visible = False
+      Width = 120
+    end
+    object FileSaveKind: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'FileSaveKind'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 7
+      SortType = stAlphabetic
+      Visible = False
+      Width = 120
+    end
+    object SavedFileName: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'SavedFileName'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 8
+      SortType = stAlphabetic
+      Visible = False
+      Width = 120
+    end
+    object FileDesc: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'FileDesc'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 9
+      SortType = stAlphabetic
+      Visible = False
+      Width = 120
+    end
+    object FileFromSource: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'FileFromSource'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 10
+      SortType = stAlphabetic
+      Visible = False
+      Width = 120
+    end
+    object BaseDir: TNxTextColumn
+      Alignment = taCenter
+      DefaultWidth = 120
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = #47569#51008' '#44256#46357
+      Font.Style = []
+      Header.Caption = 'BaseDir'
+      Header.Alignment = taCenter
+      Header.Font.Charset = DEFAULT_CHARSET
+      Header.Font.Color = clWindowText
+      Header.Font.Height = -11
+      Header.Font.Name = 'Tahoma'
+      Header.Font.Style = []
+      ParentFont = False
+      Position = 11
       SortType = stAlphabetic
       Visible = False
       Width = 120
@@ -305,7 +451,6 @@ object JHPFileListFrame: TJHPFileListFrame
       NotesFont.Style = []
       ParentFont = False
       TabOrder = 3
-      OnClick = ApplyButtonClick
       Appearance.ColorChecked = 16111818
       Appearance.ColorCheckedTo = 16367008
       Appearance.ColorDisabled = 15921906
@@ -329,7 +474,7 @@ object JHPFileListFrame: TJHPFileListFrame
     Left = 11
     Top = 8
     Bitmap = {
-      494C010130009800500410001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C0101300098007C0410001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000D0000000010020000000000000D0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -2055,7 +2200,7 @@ object JHPFileListFrame: TJHPFileListFrame
   object DropEmptyTarget1: TDropEmptyTarget
     DragTypes = [dtCopy, dtLink]
     OnEnter = DropEmptyTarget1Enter
-    OnDrop = DropEmptyTarget1Drop2
+    OnDrop = DropEmptyTarget1Drop
     Target = fileGrid
     WinTarget = 0
     Left = 12
@@ -2093,7 +2238,7 @@ object JHPFileListFrame: TJHPFileListFrame
     Left = 120
     Top = 112
     object DeleteFile1: TMenuItem
-      Caption = 'Delete Selected File'
+      Caption = 'Delete Selected File(s)'
       OnClick = DeleteFile1Click
     end
   end
