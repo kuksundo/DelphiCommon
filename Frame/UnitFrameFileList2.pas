@@ -4,19 +4,37 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
-  Vcl.Graphics, Winapi.Activex, WinApi.ShellAPI, Vcl.Menus,
+  Vcl.Graphics, Winapi.Activex, WinApi.ShellAPI, Vcl.Menus, ComObj,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, AdvGlowButton, Vcl.ExtCtrls,
   NxColumnClasses, NxColumns, NxScrollControl, NxCustomGridControl,
   NxCustomGrid, NxGrid, JvExControls, JvLabel, Vcl.ImgList,
   DragDropInternet,DropSource,DragDropFile,DragDropFormats, DragDrop, DropTarget,
+  DragDropGraphics, DragDropPIDL, DragDropText,
 
   mormot.core.base, mormot.core.os, mormot.core.text, mormot.core.collections,
-  mormot.core.datetime,
+  mormot.core.datetime, mormot.rest.sqlite3,
+
+  MapiDefs,
 
   FrmFileSelect,
   UnitJHPFileRecord, UnitJHPFileData;
 
 type
+  TOLMessage = class(TObject)
+  private
+    FMessage: IMessage;
+    FStorage: IStorage;
+    FAttachments: TInterfaceList;
+    FAttachmentsLoaded: boolean;
+    function GetAttachments: TInterfaceList;
+  public
+    constructor Create(const AMessage: IMessage; const AStorage: IStorage);
+    destructor Destroy; override;
+    procedure SaveToStream(Stream: TStream);
+    property Msg: IMessage read FMessage;
+    property Attachments: TInterfaceList read GetAttachments;
+  end;
+
   TJHPFileListFrame = class(TFrame)
     JvLabel13: TJvLabel;
     fileGrid: TNextGrid;
@@ -46,6 +64,7 @@ type
     FileDesc: TNxTextColumn;
     FileFromSource: TNxTextColumn;
     BaseDir: TNxTextColumn;
+    OutlookDataAdapter4Target: TDataFormatAdapter;
     //Single File Drop시에 사용
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
@@ -68,12 +87,19 @@ type
     FFileContent: RawByteString;
     FTempFileList,
     FDocTypeList: TStringList;
+    FHasMessageSession: boolean;
+
+    procedure InitDragDrop;
+    procedure InitDocTypeList2Combo(ADocTypeList: TStrings);
+    procedure InitMAPI;
 
     procedure OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
       Index: integer; out AStream: IStream);
     procedure OnGetStream2(Sender: TFileContentsStreamOnDemandClipboardFormat;
       Index: integer; out AStream: IStream);
-    //Drag하여 파일 추가한 경우 AFileName <> ''
+    procedure OutlookCleanUp;
+
+    //Drag하여 파일 추가한 경우 AFileName <> ''
     //Drag를 윈도우 탐색기에서 하면 AFromOutLook=Fase,
     //Outlook 첨부 파일에서 하면 AFromOutLook=True임
     procedure ShowFileSelectF(AFileName: string = ''; AFromOutLook: Boolean = False);
@@ -89,6 +115,7 @@ type
     function GetDataFromDragOrDiskJHPFilesByGridRow(const ARow: integer): RawByteString;
     function GetFileContentsFromDragOrDiskJHPFilesBySaveKind(const ARec: TJHPFileRec): RawByteString;
   public
+    FJHPFileDB4Fr: TRestClientDB;
     FDragOrDiskJHPFiles: IKeyValue<integer, TJHPFileRec>;
     FItemID, FTaskID: TID;
     FTaskJson: String;
@@ -99,8 +126,6 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    procedure InitDragDrop;
-    procedure InitDocTypeList2Combo(ADocTypeList: TStrings);
     procedure LoadFiles2GridByTaskID(const ATaskID: TID);
     procedure JHPFileRec2Grid(ARec: TJHPFileRec; ADynIndex: integer;
       AGrid: TNextGrid);
@@ -131,10 +156,30 @@ type
 
 implementation
 
-uses UnitDragUtil, UnitStringUtil, UnitNextGridUtil2, UnitBase64Util2,
+uses MapiUtil, MapiTags,
+  UnitDragUtil, UnitStringUtil, UnitNextGridUtil2, UnitBase64Util2,
   UnitFolderUtil2, UnitFileUtil;
 
 {$R *.dfm}
+
+type
+  TMAPIINIT_0 =
+    record
+      Version: ULONG;
+      Flags: ULONG;
+    end;
+
+  PMAPIINIT_0 = ^TMAPIINIT_0;
+  TMAPIINIT = TMAPIINIT_0;
+  PMAPIINIT = ^TMAPIINIT;
+
+const
+  MAPI_INIT_VERSION = 0;
+  MAPI_MULTITHREAD_NOTIFICATIONS = $00000001;
+  MAPI_NO_COINIT = $00000008;
+
+var
+  MapiInit: TMAPIINIT_0 = (Version: MAPI_INIT_VERSION; Flags: 0);
 
 { TFrame2 }
 
@@ -209,7 +254,7 @@ begin
 
         if LID <> 0 then
         begin
-          DeleteJHPFilesFromDBByFileID(LID);
+          DeleteJHPFilesFromDBByFileID(LID, FJHPFileDB4Fr);
         end;
       end;//if
     end;//for
@@ -262,10 +307,10 @@ begin
 
     if FileExists(LSavedFileName) then
       if DeleteFile(LSavedFileName) then
-        DeleteJHPFilesFromDBByFileID(LFileID);
+        DeleteJHPFilesFromDBByFileID(LFileID, FJHPFileDB4Fr);
   end
   else
-    DeleteJHPFilesFromDBByFileID(LFileID);
+    DeleteJHPFilesFromDBByFileID(LFileID, FJHPFileDB4Fr);
 end;
 
 procedure TJHPFileListFrame.AddFile2JHPFiles;
@@ -413,6 +458,9 @@ destructor TJHPFileListFrame.Destroy;
 var
   i: integer;
 begin
+//  if Assigned(FJHPFileDB4Fr) then
+//    FJHPFileDB4Fr.Free;
+
   FDocTypeList.Free;
 
   inherited;
@@ -437,44 +485,59 @@ var
   i: integer;
   LDragFileRec: TJHPDragFileRec;
   LTargetStream: TStream;
+  LOutlookDataFormat: TOutlookDataFormat;
+  LMessage: IMessage;
 begin
   LDragFileRec := Default(TJHPDragFileRec);
-  // 윈도우 탐색기에서 Drag 했을 경우
+
   if (FileDataAdapter4Target.DataFormat is TFileDataFormat) then
   begin
     LDragFileRec.fFileNameList := (FileDataAdapter4Target.DataFormat as TFileDataFormat).Files.Text;
 
-    if LDragFileRec.fFileNameList <> '' then
-    begin
-//      FFileContent := StringFromFile(LFileName);
-      LDragFileRec.fIsFromOutlook := False;
-    end;
-  end
-  else// OutLook에서 첨부파일을 Drag 했을 경우
-  if FileDataAdapter4Target.DataFormat is TVirtualFileStreamDataFormat then
+    // 윈도우 탐색기에서 Drag 했을 경우 False
+    LDragFileRec.fIsFromOutlook := LDragFileRec.fFileNameList = '';
+  end;
+
+  // OutLook에서 첨부파일을 Drag 했을 경우
+  if LDragFileRec.fIsFromOutlook then
   begin
-    if (TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat).FileNames.Count > 0) then
+    if VirtualDataAdapter4Target.DataFormat is TVirtualFileStreamDataFormat then
     begin
-      LDragFileRec.fFileNameList := TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat).FileNames.Text;
-
-      if LDragFileRec.fFileNameList <> '' then
+      if (TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat).FileNames.Count > 0) then
       begin
-        LDragFileRec.fIsFromOutlook := True;
-      end;
-//      LFileName := TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat).FileNames[0];
-
-//      LTargetStream := GetStreamFromDropDataFormat(TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat));
-//      try
-//        if not Assigned(LTargetStream) then
-//          ShowMessage('Not Assigned');
+        LDragFileRec.fFileNameList := TVirtualFileStreamDataFormat(VirtualDataAdapter4Target.DataFormat).FileNames.Text;
+    end
+//    else// OutLook에서 msg 파일을 Drag 했을 경우
+//    if (OutlookDataAdapter4Target.DataFormat <> nil) then
+//    begin
+//      // ...Extract the dropped data from it.
+//      LOutlookDataFormat := OutlookDataAdapter4Target.DataFormat as TOutlookDataFormat;
+//      OutlookCleanUp;
 //
-//        FFileContent := StreamToRawByteString(LTargetStream);
-//        LFromOutlook := True;
-//      finally
-//        if Assigned(LTargetStream) then
-//          LTargetStream.Free;
+//      LOutlookDataFormat.Messages.LockSession;
+//      FHasMessageSession := True;
+//
+//      // Get all the dropped messages
+//      for i := 0 to LOutlookDataFormat.Messages.Count-1 do
+//      begin
+//        // Get an IMessage interface
+//        if (Supports(LOutlookDataFormat.Messages[i], IMessage, LMessage)) then
+//        begin
+//          try
+////            Item := ListViewBrowser.Items.Add;
+////            Item.Caption := GetSender(AMessage);
+////            Item.SubItems.Add(GetSubject(AMessage));
+////            Item.Data := TMessage.Create(AMessage, OutlookDataFormat.Storages[i]);
+//          finally
+//            LMessage := nil;
+//          end;
+//        end;
 //      end;
     end;
+  end
+  else
+  begin
+
   end;
 
   if LDragFileRec.fFileNameList <> '' then
@@ -606,7 +669,7 @@ var
   LFileID: int64;
 begin
   LFileID := StrToInt64Def(FileGrid.CellsByName['FileID', ARow], 0);
-  Result := GetFileDataByFileID(LFileID);
+  Result := GetFileDataByFileID(LFileID, FJHPFileDB4Fr);
 end;
 
 function TJHPFileListFrame.GetDataFromDragOrDiskJHPFilesByGridRow(
@@ -774,6 +837,27 @@ begin
   (VirtualDataAdapter4Source.DataFormat as TVirtualFileStreamDataFormat).OnGetStream := OnGetStream;//OnGetStream2;
 end;
 
+procedure TJHPFileListFrame.InitMAPI;
+begin
+  LoadMAPI;
+
+  try
+    // It appears that for for Win XP and later it is OK to let MAPI call
+    // coInitialize.
+    // V5.1 = WinXP.
+//    if ((Win32MajorVersion shl 16) or Win32MinorVersion < $00050001) then
+//      MapiInit.Flags := MapiInit.Flags or MAPI_NO_COINIT;
+
+    {$IFDEF WIN64}
+    MAPIInitialize don't works under Win64???
+    {$ENDIF}
+    OleCheck(MAPIInitialize(@MapiInit));
+  except
+    on E: Exception do
+      ShowMessage(Format('Failed to initialize MAPI: %s', [E.Message]));
+  end;
+end;
+
 function TJHPFileListFrame.IsFromDBFile(const ARow: integer): Boolean;
 begin
   Result := FileGrid.CellsByName['FileID', ARow] <> '0';
@@ -789,7 +873,7 @@ var
 //  LRow: integer;
   LOrm: TOrmJHPFile;
 begin
-  LOrm := GetJHPFilesFromID(ATaskID);
+  LOrm := GetJHPFilesFromID(ATaskID, FJHPFileDB4Fr);
   try
     if LOrm.IsUpdate then
     begin
@@ -906,6 +990,30 @@ begin
   end;
 end;
 
+procedure TJHPFileListFrame.OutlookCleanUp;
+var
+  i: integer;
+  OutlookDataFormat: TOutlookDataFormat;
+begin
+//  FCurrentMessage := nil;
+//
+//  for i := 0 to FCleanUpList.Count-1 do
+//    try
+//      DeleteFile(FCleanUpList[i]);
+//    except
+//      // Ignore errors - nothing we can do about it anyway.
+//    end;
+//
+//  FCleanUpList.Clear;
+
+  if (FHasMessageSession) then
+  begin
+    OutlookDataFormat := OutlookDataAdapter4Target.DataFormat as TOutlookDataFormat;
+    OutlookDataFormat.Messages.UnlockSession;
+    FHasMessageSession := False;
+  end;
+end;
+
 function TJHPFileListFrame.SetNewFileContents2DBorDiskByJHPFileRec(var ARec: TJHPFileRec): TID;
 var
   LOriginFN: string;
@@ -956,7 +1064,7 @@ begin
     end;
   end;
 
-  Result := AddOrUpdate2DBByJHPFileRec(ARec);
+  Result := AddOrUpdate2DBByJHPFileRec(ARec, FJHPFileDB4Fr);
 end;
 
 procedure TJHPFileListFrame.ShowFileSelectF(AFileName: string; AFromOutLook: Boolean);
@@ -1308,6 +1416,186 @@ begin
 
   InitDragDrop;
 //  (VirtualDataAdapter4Source.DataFormat as TVirtualFileStreamDataFormat).OnGetStream := OnGetStream;
+end;
+
+{ TOLMessage }
+
+constructor TOLMessage.Create(const AMessage: IMessage;
+  const AStorage: IStorage);
+begin
+  FMessage := AMessage;
+  FStorage := AStorage;
+  FAttachments := TInterfaceList.Create;
+end;
+
+destructor TOLMessage.Destroy;
+begin
+  FAttachments.Free;
+  FMessage := nil;
+  inherited Destroy;
+end;
+
+function TOLMessage.GetAttachments: TInterfaceList;
+const
+  AttachmentTags: packed record
+    Values: ULONG;
+    PropTags: array[0..0] of ULONG;
+  end = (Values: 1; PropTags: (PR_ATTACH_NUM));
+
+var
+  Table: IMAPITable;
+  Rows: PSRowSet;
+  i: integer;
+  Attachment: IAttach;
+begin
+  if (not FAttachmentsLoaded) then
+  begin
+    FAttachmentsLoaded := True;
+    (*
+    ** Get list of attachment interfaces from message
+    **
+    ** Note: This will only succeed the first time it is called for an IMessage.
+    ** The reason is probably that it is illegal (according to MSDN) to call
+    ** IMessage.OpenAttach more than once for a given attachment. However, it
+    ** might also be a bug in my code, but, whatever the reason, the solution is
+    ** beyond the scope of this demo.
+    **
+    ** Let me know if you find a solution.
+    *)
+    if (Succeeded(FMessage.GetAttachmentTable(0, Table))) then
+    begin
+      if (Succeeded(HrQueryAllRows(Table, PSPropTagArray(@AttachmentTags), nil, nil, 0, Rows))) then
+        try
+          for i := 0 to integer(Rows.cRows)-1 do
+          begin
+            // Get one attachment at a time
+            if (Rows.aRow[i].lpProps[0].ulPropTag and PROP_TYPE_MASK <> PT_ERROR) and
+              (Succeeded(FMessage.OpenAttach(Rows.aRow[i].lpProps[0].Value.l, IAttach, 0, Attachment))) then
+              FAttachments.Add(Attachment);
+          end;
+
+        finally
+          FreePRows(Rows);
+        end;
+      Table := nil;
+    end;
+  end;
+  Result := FAttachments;
+end;
+
+procedure TOLMessage.SaveToStream(Stream: TStream);
+const
+  CLSID_MailMessage:TGUID='{00020D0B-0000-0000-C000-000000000046}';
+var
+  LockBytes: ILockBytes;
+  Storage: IStorage;
+(*
+  Malloc: IMalloc;
+  MsgSession: pointer;
+  NewMsg: IUnknown;
+  ExcludeTags: PSPropTagArray;
+*)
+//  ProblemArray: PSPropProblemArray;
+  Memory: HGLOBAL;
+  Buffer: pointer;
+  Size: integer;
+begin
+  (*
+  ** This implementation is based, in part, on the Microsoft knowledgebase
+  ** article:
+  ** Save Message to MSG Compound File
+  ** http://support.microsoft.com/kb/171907
+  *)
+  Memory := GlobalAlloc(GMEM_MOVEABLE, 0);
+  try
+
+    OleCheck(CreateILockBytesOnHGlobal(Memory, True, LockBytes));
+    try
+
+      // Create compound file
+      OleCheck(StgCreateDocfileOnILockBytes(LockBytes,
+        STGM_TRANSACTED or STGM_READWRITE or STGM_CREATE, 0, Storage));
+      try
+
+        Storage.Commit(STGC_DEFAULT);
+        FStorage.CopyTo(0, nil, nil, Storage);
+        Storage.Commit(STGC_DEFAULT);
+(*
+        Malloc := IMalloc(MAPIGetDefaultMalloc);
+        try
+
+          // Open an IMessage session.
+          OleCheck(OpenIMsgSession(Malloc, 0, MsgSession));
+          try
+
+            // Open an IMessage interface on an IStorage object
+            OleCheck(OpenIMsgOnIStg(MsgSession,
+              @MAPIAllocateBuffer, @MAPIAllocateMore, @MAPIFreeBuffer, Malloc,
+              nil, Storage, nil, 0, 0, NewMsg));
+            try
+
+              // write the CLSID to the IStorage instance - pStorage. This will
+              // only work with clients that support this compound document type
+              // as the storage medium. If the client does not support
+              // CLSID_MailMessage as the compound document, you will have to use
+              // the CLSID that it does support.
+              OleCheck(WriteClassStg(Storage, CLSID_MailMessage));
+
+              GetMem(ExcludeTags, SizeOf(TSPropTagArray)+SizeOf(ULONG)*6);
+              try
+
+                // Exclude a few properties - just like the MSDN sample
+                ExcludeTags.cValues := 7;
+                ExcludeTags.aulPropTag[0] := PR_ACCESS;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-6] := PR_BODY;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-5] := PR_RTF_SYNC_BODY_COUNT;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-4] := PR_RTF_SYNC_BODY_CRC;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-3] := PR_RTF_SYNC_BODY_TAG;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-2] := PR_RTF_SYNC_PREFIX_COUNT;
+                ExcludeTags.aulPropTag[ExcludeTags.cValues-1] := PR_RTF_SYNC_TRAILING_COUNT;
+
+                // Copy message properties
+//                Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, ProblemArray);
+                OleCheck(Msg.CopyTo(0, TGUID(nil^), ExcludeTags, 0, nil, IMessage, pointer(NewMsg), 0, PSPropProblemArray(nil^)));
+
+              finally
+                FreeMem(ExcludeTags);
+              end;
+
+              IMessage(NewMsg).SaveChanges(0);
+              Storage.Commit(STGC_DEFAULT);
+
+            finally
+              pointer(NewMsg) := nil;
+            end;
+
+          finally
+            CloseIMsgSession(MsgSession);
+          end;
+
+        finally
+          Malloc := nil;
+        end;
+  *)
+      finally
+        Storage := nil;
+      end;
+
+      Size := Winapi.Windows.GlobalSize(Memory);
+      Buffer := Winapi.Windows.GlobalLock(Memory);
+      try
+        Stream.Write(Buffer^, Size);
+      finally
+        Winapi.Windows.GlobalUnlock(Memory);
+      end;
+
+    finally
+      LockBytes := nil;
+    end;
+
+  finally
+    Winapi.Windows.GlobalFree(Memory);
+  end;
 end;
 
 end.

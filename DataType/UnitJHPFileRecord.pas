@@ -5,7 +5,7 @@ interface
 uses
   Classes, System.SysUtils,
   mormot.core.base, mormot.orm.core, mormot.rest.client, mormot.core.os,
-  mormot.rest.sqlite3,
+  mormot.rest.sqlite3, mormot.core.variants, mormot.orm.base,
   UnitJHPFileData;
 
 type
@@ -32,7 +32,7 @@ uses
     fSavedFullPathFN //파일이름 변경하여 Folder에 저장시 변경된 Full Path 파일 이름
     : RawUTF8;
     fFileFromSource,//1: from outlook attached
-    fFileSaveKind, //파일 저장 형태
+    fFileSaveKind, //2: Disk에 파일 저장 됨(UnitJHPFileData.TJHPFileSaveKind)
     fDocFormat,
     fCompressAlgo: integer;
     fFileSize: int64;
@@ -63,21 +63,22 @@ uses
   end;
 
 procedure InitJHPFileClient(AExeName: string; ADBFileName: string='');
-function InitJHPFileClient2(AExeName: string=''; ADBFileName: string=''): TRestClientURI;
+function InitJHPFileClient2(AExeName: string; var AModel: TOrmModel; ADBFileName: string=''): TRestClientDB;
 function CreateJHPFilesModel: TOrmModel;
 procedure DestroyJHPFile;
 
-function GetJHPFilesFromID(const AID: TID; ADB: TRestClientURI=nil): TOrmJHPFile;
-function GetJHPFilesFromFileID(const AFileID: TID; ADB: TRestClientURI=nil): TOrmJHPFile;
-function GetJHPFiles(ADB: TRestClientURI=nil): TOrmJHPFile;
-function GetFileDataByFileID(const AFileID: TTimeLog; ADB: TRestClientURI=nil): RawByteString;
+function GetJHPFilesFromID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
+function GetJHPFilesFromFileID(const AFileID: TID; ADB: TRestClientDB): TOrmJHPFile;
+function GetJHPFiles(ADB: TRestClientDB): TOrmJHPFile;
+function GetFileDataByFileID(const AFileID: TTimeLog; ADB: TRestClientDB): RawByteString;
 function GetFileContentsFromDBBySaveKind(const AOrm: TOrmJHPFile): RawByteString;
+function GetFileCountFromID(const AID: TID; ADB: TRestClientDB): integer;
 
 //procedure LoadJHPFileRecFromVariant(var ASQLJHPFileRec: TOrmJHPFileRec; ADoc: variant);
-procedure AddOrUpdateJHPFiles(AOrmJHPFile: TOrmJHPFile; ADB: TRestClientURI=nil);
-function AddOrUpdate2DBByJHPFileRec(const ARec: TJHPFileRec; ADB: TRestClientURI=nil): TID;
-function DeleteJHPFilesFromDBByTaskID(const AID: TID; ADB: TRestClientURI=nil): Boolean;
-function DeleteJHPFilesFromDBByFileID(const AFileID: TTimeLog; ADB: TRestClientURI=nil): Boolean;
+procedure AddOrUpdateJHPFiles(AOrmJHPFile: TOrmJHPFile; ADB: TRestClientDB);
+function AddOrUpdate2DBByJHPFileRec(const ARec: TJHPFileRec; ADB: TRestClientDB): TID;
+function DeleteJHPFilesFromDBByTaskID(const AID: TID; ADB: TRestClientDB): Boolean;
+function DeleteJHPFilesFromDBByFileID(const AFileID: TTimeLog; ADB: TRestClientDB): Boolean;
 function SaveJHPFile2DB(ADBName, ASaveFileName: string; AID: TID;
   ADocType: integer): Boolean;
 function GetDefaultInvoiceFileName(AFileKind: TJHPFileFormat; AInvNo: string): string;
@@ -85,10 +86,12 @@ function GetDefaultInvoiceFileName(AFileKind: TJHPFileFormat; AInvNo: string): s
 procedure AssignJHPFileRec2Orm(const ASrcRec: TJHPFileRec; out ADestOrm: TOrmJHPFile);
 
 //File Handling
-function GetFilesFromOrmByKeyID(const AKeyID: TTimeLog): TOrmJHPFile;
+function GetFilesFromOrmByKeyID(const AKeyID: TTimeLog; ADB: TRestClientDB): TOrmJHPFile;
+function GetFiles2JsonAryFromOrmByID(const AKeyID: TTimeLog; ADB: TRestClientDB;
+  AIsIncludeDiskFile: Boolean = True): RawUtf8;
 
 var
-  g_FileDB: TRestClientURI;//TRestClientURI
+  g_FileDB: TRestClientDB;//TRestClientDB
   FileModel: TOrmModel;
 
 implementation
@@ -125,18 +128,15 @@ begin
 
   FileModel:= CreateJHPFilesModel;
 
-  g_FileDB:= TSQLRestClientDB.Create(FileModel, CreateJHPFilesModel,
+  g_FileDB:= TRestClientDB.Create(FileModel, CreateJHPFilesModel,
     LStr, TSQLRestServerDB);
-  TSQLRestClientDB(g_FileDB).Server.CreateMissingTables;
+  TRestClientDB(g_FileDB).Server.CreateMissingTables;
 end;
 
-function InitJHPFileClient2(AExeName: string; ADBFileName: string): TRestClientURI;
+function InitJHPFileClient2(AExeName: string; var AModel: TOrmModel; ADBFileName: string): TRestClientDB;
 var
   LStr, LFileName, LFilePath: string;
 begin
-  if Assigned(g_FileDB) then
-    exit;
-
   if AExeName = '' then
     AExeName := Application.ExeName;
 
@@ -158,13 +158,11 @@ begin
   else
     LStr := ADBFileName;
 
-  FileModel:= CreateJHPFilesModel;
+  AModel:= CreateJHPFilesModel;
 
-  g_FileDB := TSQLRestClientDB.Create(FileModel, CreateJHPFilesModel,
+  Result := TRestClientDB.Create(AModel, CreateJHPFilesModel,
     LStr, TSQLRestServerDB);
-  TSQLRestClientDB(g_FileDB).Server.CreateMissingTables;
-
-  Result := g_FileDB;
+  TRestClientDB(Result).Server.CreateMissingTables;
 end;
 
 function CreateJHPFilesModel: TOrmModel;
@@ -180,7 +178,7 @@ begin
     FreeAndNil(FileModel);
 end;
 
-function GetJHPFilesFromID(const AID: TID; ADB: TRestClientURI): TOrmJHPFile;
+function GetJHPFilesFromID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
@@ -192,7 +190,7 @@ begin
     Result.fTaskID := AID;
 end;
 
-function GetJHPFilesFromFileID(const AFileID: TID; ADB: TRestClientURI=nil): TOrmJHPFile;
+function GetJHPFilesFromFileID(const AFileID: TID; ADB: TRestClientDB): TOrmJHPFile;
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
@@ -201,7 +199,7 @@ begin
   Result.IsUpdate := Result.FillOne;
 end;
 
-function GetJHPFiles(ADB: TRestClientURI): TOrmJHPFile;
+function GetJHPFiles(ADB: TRestClientDB): TOrmJHPFile;
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
@@ -210,7 +208,7 @@ begin
   Result.IsUpdate := Result.FillOne;
 end;
 
-function GetFileDataByFileID(const AFileID: TTimeLog; ADB: TRestClientURI): RawByteString;
+function GetFileDataByFileID(const AFileID: TTimeLog; ADB: TRestClientDB): RawByteString;
 var
   LOrm: TOrmJHPFile;
 begin
@@ -241,6 +239,27 @@ begin
   end;
 end;
 
+function GetFileCountFromID(const AID: TID; ADB: TRestClientDB): integer;
+var
+  LOrm: TOrmTable;
+  LResult: RawUtf8;
+begin
+  Result := 0;
+
+  if not Assigned(ADB) then
+    ADB := g_FileDB;
+
+  //'{"fieldCount":1,"values":["count(*)",3],"rowCount":1}
+//  LResult := ADB.ExecuteJson([],'select count(*) from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(AID));
+
+  LOrm := ADB.ExecuteList([],'select TaskID from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(AID));
+  try
+    Result := LOrm.RowCount;
+  finally
+    LOrm.Free;
+  end;
+end;
+
 //procedure LoadJHPFileRecFromVariant(var AOrmJHPFileRec: TOrmJHPFileRec; ADoc: variant);
 //begin
 //  if ADoc <> '[]' then
@@ -252,7 +271,7 @@ end;
 //  end;
 //end;
 
-procedure AddOrUpdateJHPFiles(AOrmJHPFile: TOrmJHPFile; ADB: TRestClientURI);
+procedure AddOrUpdateJHPFiles(AOrmJHPFile: TOrmJHPFile; ADB: TRestClientDB);
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
@@ -267,7 +286,7 @@ begin
   end;
 end;
 
-function AddOrUpdate2DBByJHPFileRec(const ARec: TJHPFileRec; ADB: TRestClientURI=nil): TID;
+function AddOrUpdate2DBByJHPFileRec(const ARec: TJHPFileRec; ADB: TRestClientDB): TID;
 var
   LOrm: TOrmJHPFile;
 begin
@@ -276,7 +295,7 @@ begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
 
-  LOrm := GetJHPFilesFromFileID(ARec.fFileID);
+  LOrm := GetJHPFilesFromFileID(ARec.fFileID, ADB);
   try
     AssignJHPFileRec2Orm(ARec, LOrm);
 
@@ -293,14 +312,14 @@ begin
   end;
 end;
 
-function DeleteJHPFilesFromDBByTaskID(const AID: TID; ADB: TRestClientURI): Boolean;
+function DeleteJHPFilesFromDBByTaskID(const AID: TID; ADB: TRestClientDB): Boolean;
 var
   LOrm: TOrmJHPFile;
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
 
-  LOrm := GetJHPFilesFromID(AID);
+  LOrm := GetJHPFilesFromID(AID, ADB);
   try
     if LOrm.FillRewind then
     begin
@@ -317,7 +336,7 @@ begin
   ADB.ExecuteFmt('Delete from % where TaskID = ?',[TOrmJHPFile.SQLTableName],[AID]);
 end;
 
-function DeleteJHPFilesFromDBByFileID(const AFileID: TTimeLog; ADB: TRestClientURI=nil): Boolean;
+function DeleteJHPFilesFromDBByFileID(const AFileID: TTimeLog; ADB: TRestClientDB): Boolean;
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
@@ -382,9 +401,45 @@ begin
   end;
 end;
 
-function GetFilesFromOrmByKeyID(const AKeyID: TTimeLog): TOrmJHPFile;
+function GetFilesFromOrmByKeyID(const AKeyID: TTimeLog; ADB: TRestClientDB): TOrmJHPFile;
 begin
-  Result := GetJHPFilesFromID(AKeyID);
+  Result := GetJHPFilesFromID(AKeyID, ADB);
+end;
+
+function GetFiles2JsonAryFromOrmByID(const AKeyID: TTimeLog; ADB: TRestClientDB; AIsIncludeDiskFile: Boolean): RawUtf8;
+var
+  LOrm: TOrmJHPFile;
+  LList: IDocList;
+//  LDict: IDocDict;
+  LJson: RawUtf8;
+begin
+  Result := '';
+  LList := DocList('[]');
+
+  LOrm := GetJHPFilesFromID(AKeyID, ADB);
+
+  if LOrm.FillRewind then
+  begin
+    while LOrm.FillOne do
+    begin
+      case TJHPFileSaveKind(LOrm.fFileSaveKind) of
+        fskBase64:;
+        fskBlob:;
+        fskDisk: begin
+          if FileExists(LOrm.SavedFileName) then
+          begin
+            LOrm.Data := MakeRawUTF8ToBin64(StringFromFile(LOrm.SavedFileName));
+          end;
+        end;
+      end;//case
+
+      LJson := LOrm.GetJsonValues(true, false, soSelect);
+//      LDict := DocDict(LJson);
+      LList.Append(LJson)
+    end;//while
+
+    Result := LList.Json;
+  end;
 end;
 
 procedure AssignJHPFileRec2Orm(const ASrcRec: TJHPFileRec; out ADestOrm: TOrmJHPFile);

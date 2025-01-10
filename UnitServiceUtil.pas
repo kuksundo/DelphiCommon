@@ -31,6 +31,7 @@ function GetServiceStateByName(const ASvcName: string): TServiceState;
 function GetServiceInfo2JsonByName(const ASvcName: string): string;
 function SetServiceInfoFromJson(const AJson: string): boolean;
 function GetServiceDescription(const ServiceName: string): string;
+function IsServiceInstalledByName(const ASvcName: string): Boolean;
 
 var
   g_ServiceState: TLabelledEnum<TServiceState>;
@@ -153,6 +154,11 @@ begin
     g_ISvcUtils := TSvcUtils.New;
 
   Result := g_ISvcUtils;
+end;
+
+function IsServiceInstalledByName(const ASvcName: string): Boolean;
+begin
+  Result:= TSvcUtils.GetGlobalSvcUtil.ServiceExists(ASvcName);
 end;
 
 initialization

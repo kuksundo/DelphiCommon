@@ -302,7 +302,7 @@ begin
 
         if FileExists(LExtractFileName) then
         begin
-          Result := StringFromFile(LExtractFileName);
+          Result := JHPStringFromFile(LExtractFileName);
         end;
       end;
     end;

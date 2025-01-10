@@ -330,6 +330,7 @@ object JHPFileListFrame: TJHPFileListFrame
       NotesFont.Style = []
       ParentFont = False
       TabOrder = 0
+      Visible = False
       OnClick = CloseButtonClick
       Appearance.ColorChecked = 16111818
       Appearance.ColorCheckedTo = 16367008
@@ -451,6 +452,7 @@ object JHPFileListFrame: TJHPFileListFrame
       NotesFont.Style = []
       ParentFont = False
       TabOrder = 3
+      Visible = False
       Appearance.ColorChecked = 16111818
       Appearance.ColorCheckedTo = 16367008
       Appearance.ColorDisabled = 15921906
@@ -474,7 +476,7 @@ object JHPFileListFrame: TJHPFileListFrame
     Left = 11
     Top = 8
     Bitmap = {
-      494C0101300098007C0410001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C0101300098008C0410001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000D0000000010020000000000000D0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -2232,7 +2234,7 @@ object JHPFileListFrame: TJHPFileListFrame
   object Timer1: TTimer
     OnTimer = Timer1Timer
     Left = 120
-    Top = 56
+    Top = 144
   end
   object PopupMenu1: TPopupMenu
     Left = 120
@@ -2241,5 +2243,11 @@ object JHPFileListFrame: TJHPFileListFrame
       Caption = 'Delete Selected File(s)'
       OnClick = DeleteFile1Click
     end
+  end
+  object OutlookDataAdapter4Target: TDataFormatAdapter
+    DragDropComponent = DropEmptyTarget1
+    DataFormatName = 'TOutlookDataFormat'
+    Left = 114
+    Top = 60
   end
 end

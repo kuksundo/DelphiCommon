@@ -8,6 +8,9 @@ uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode,
     mormot.core.text, mormot.core.datetime;
 
+const
+  C_NXGrid_Header_Color = clYellow;
+
 type
   TCellHelper = class helper for TCell
     function AsVariant: variant;
@@ -50,6 +53,7 @@ function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsClearRow: Boolean=False): integer;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): variant;
 function NextGrid2DocList(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): IDocList;
+function GetJsonAryFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True): RawUtf8;
 //ARow 행의 데이터만 Variant로 반환함 : '{ColumnName=Value}'
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
 //ARow에 Variant를 Cell에 표시함
@@ -87,6 +91,11 @@ procedure AddNextGridRowFromVarOnlyColumnExist(AGrid: TNextGrid; AJson: Variant)
 //AGrid에 Column Name이 존재하면 Caption을 변경함
 //NextGrid Caption을 변경 후 SaveDFM하여 DFM 파일 내용을 수동으로 변경할 때 사용됨
 procedure SetColumnCaptionFromListOnlyColumnExist(AGrid: TNextGrid; AStrList: TStringList);
+
+function GetNxCellAtPoint(AGrid: TNextGrid; const APoint: TPoint): TCell;
+
+var
+  FNXGrid_Header_Color : TColor;
 
 implementation
 
@@ -169,6 +178,7 @@ begin
   LnxTextColumn.Header.Alignment := taCenter;
   LnxTextColumn.Alignment := taCenter;
   LnxTextColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+  LnxTextColumn.Header.Color := FNXGrid_Header_Color;
 
   Result := AName + ':TnxTextColumn;';
 end;
@@ -183,6 +193,7 @@ begin
   LnxDateColumn.Header.Alignment := taCenter;
   LnxDateColumn.Alignment := taCenter;
   LnxDateColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+  LnxDateColumn.Header.Color := FNXGrid_Header_Color;
 
   Result := AName + ':TnxDateColumn;';
 end;
@@ -197,6 +208,7 @@ begin
   LnxNumColumn.Header.Alignment := taCenter;
   LnxNumColumn.Alignment := taCenter;
   LnxNumColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+  LnxNumColumn.Header.Color := FNXGrid_Header_Color;
 
   Result := AName + ':TnxNumberColumn;';
 end;
@@ -211,6 +223,7 @@ begin
   LnxCheckBoxColumn.Header.Alignment := taCenter;
   LnxCheckBoxColumn.Alignment := taCenter;
   LnxCheckBoxColumn.Options := [coCanClick,coCanInput,coDisableMoving,coEditorAutoSelect,coPublicUsing,coShowTextFitHint];//,coEditing
+  LnxCheckBoxColumn.Header.Color := FNXGrid_Header_Color;
 
   Result := AName + ':TnxCheckBoxColumn;';
 end;
@@ -449,17 +462,23 @@ function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddC
 var
   LDocList: IDocList;
   LVar: variant;
+  LIsAddColumnFinished: Boolean;
 //  LUtf8: RawUtf8;
 //  LRow: integer;
 begin
+  LIsAddColumnFinished := False;
+
   AGrid.ClearRows();
 
   LDocList := DocList(AJsonAry);
 
   for LVar in LDocList do
   begin
-    if AIsAddColumn then
-      AddNextGridColumnFromVariant(AGrid, LVar, False, False, True);
+    if AIsAddColumn and not LIsAddColumnFinished then
+    begin
+      AddNextGridColumnFromVariant(AGrid, LVar, False, True, True);
+      LIsAddColumnFinished := True;
+    end;
     //LVar Name : Grid의 Column Name
     //LVar Value : Grid Cell Value
     AddNextGridRowFromVarOnlyColumnExist(AGrid, LVar);
@@ -645,6 +664,15 @@ begin
       Result.Append(LCellValue);
     end;//for
   end;//with
+end;
+
+function GetJsonAryFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar, ASkipInVisible: Boolean): RawUtf8;
+var
+  LDocList: IDocList;
+begin
+  LDocList := NextGrid2DocList(AGrid, ARemoveUnderBar, ASkipInVisible, True);
+
+  Result := LDocList.Json;
 end;
 
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
@@ -1101,16 +1129,18 @@ var
   LColName: string;
   LColumn: TnxCustomColumn;
   LCell: TCell;
-  LCellValue: Variant;
+  LCellValue, LVar: Variant;
 begin
   with AGrid do
   begin
+    LVar := _JSON(AJson);
+
     LRow := AddRow();
 
     //한글 깨지면 Count = 0
-    for Li := 0 to TDocVariantData(AJson).Count - 1 do
+    for Li := 0 to TDocVariantData(LVar).Count - 1 do
     begin
-      LColName := TDocVariantData(AJson).Names[Li];
+      LColName := TDocVariantData(LVar).Names[Li];
 
       for Lj := 0 to Columns.Count - 1 do
       begin
@@ -1119,7 +1149,7 @@ begin
         begin
           LColumn := ColumnByName[LColName];
           LCell := CellByName[LColName, LRow];
-          LCellValue := TDocVariantData(AJson).Values[Li];
+          LCellValue := TDocVariantData(LVar).Values[Li];
 
           SetNxGridCellValueFromVar(LColumn, LCell, LCellValue);
         end;
@@ -1176,6 +1206,23 @@ begin
     end;//for
   end;//with
 end;
+
+function GetNxCellAtPoint(AGrid: TNextGrid; const APoint: TPoint): TCell;
+var
+  LPoint: TPoint;
+  LColumn: TNxCustomColumn;
+  LRow: integer;
+begin
+//  LPoint := AGrid.GetCellAtPos(APoint);
+//
+//  LColumn := AGrid.GetColumnAtPos(LPoint);
+//  LRow := AGrid.GetRowAtPos(LPoint.X, LPoint.Y);
+//
+//  Result := AGrid.Cell[LColumn.Index, LRow];
+end;
+
+initialization
+  FNXGrid_Header_Color := C_NXGrid_Header_Color;
 
 end.
 

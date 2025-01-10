@@ -30,7 +30,7 @@ type
     fFilename,
     fSavedFileName: RawUTF8;
     fFileFromSource, //1: from outlook attached
-    fFileSaveKind,
+    fFileSaveKind,   //TJHPFileSaveKind
     fDocFormat: integer;
     fFileSize: int64;
     fCompressAlgo: integer;

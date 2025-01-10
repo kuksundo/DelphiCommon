@@ -24,6 +24,7 @@ function CheckCompIfValueExistHangul(AControl: TWinControl): Boolean;
 function CheckInputLengthByTagOnForm(AForm: TForm; AMaxLength: integer): TWinControl;
 function CheckCompIfInputLengthOver(AControl: TWinControl; AMaxLength: integer): Boolean;
 
+//Result.Hint를 표시함
 function CheckRequiredInput(AForm: TForm): TWinControl;
 function CheckExistHangulInput(AForm: TForm): TWinControl;
 function CheckInputLengthOver(AForm: TForm; const ALength: integer): TWinControl;
