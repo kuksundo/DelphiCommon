@@ -261,7 +261,7 @@ end;
 
 function CheckRequiredInput(AForm: TForm): TWinControl;
 begin
-  //입력 안된 Component Value가 있으면 해당 Component 반환함
+  //입력 안된 Component Value가 있으면 해당 Component 반환함(Tag <> 0)
   Result := CheckRequiredInputByTagOnForm(AForm);
 
   //True = 입력 안된 Component 존재

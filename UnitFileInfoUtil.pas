@@ -10,7 +10,8 @@ uses  Winapi.Windows, System.Classes, System.SysUtils, System.DateUtils,
 
 function GetBuildDateByPEImage: TDateTime;
 function GetBuildDateByPJVerInfo(const AFileName: string=''): TDateTime;
-function GetCommentByPJVerInfo(const AFileName: string=''): string;
+function GetCommentByPJVerInfo(): string;
+function GetInternalNameByPJVerInfo(): string;
 
 implementation
 
@@ -45,13 +46,25 @@ begin
   end;
 end;
 
-function GetCommentByPJVerInfo(const AFileName: string=''): string;
+function GetCommentByPJVerInfo(): string;
 var
   LPJVerInfo: TPJVersionInfo;
 begin
   LPJVerInfo := TPJVersionInfo.Create(nil);
   try
     Result := LPJVerInfo.Comments;
+  finally
+    LPJVerInfo.Free;
+  end;
+end;
+
+function GetInternalNameByPJVerInfo(): string;
+var
+  LPJVerInfo: TPJVersionInfo;
+begin
+  LPJVerInfo := TPJVersionInfo.Create(nil);
+  try
+    Result := LPJVerInfo.InternalName;
   finally
     LPJVerInfo.Free;
   end;
