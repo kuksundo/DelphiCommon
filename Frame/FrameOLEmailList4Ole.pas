@@ -720,6 +720,7 @@ var
 begin
   LStrList := TStringList.Create;
   try
+    //"\\jhpark@hd.com(2024)\HiCONIS(2024)=EntryId;StoreId;"
     LStrList.Text := ARec.FMsg;
     FFolderListFromOL.Assign(LStrList);
     FillInMoveFolderCB();
@@ -1068,7 +1069,7 @@ begin
     olrkMAPIFolderList: begin
       FillFolderListFromRespRec(ARec);
       //FolderList가 ComboBox에 채워지면 Grid의 FolderPath를 참조하여 ComboBox ItmeIndex 조정함
-      SetMoveFolderCBByFolderPath();
+//      SetMoveFolderCBByFolderPath();
       FLogProc(ARec.FMsg);
     end;
     olrkLog: begin
@@ -1131,7 +1132,7 @@ begin
     //Move Folder를 위한 정보 가져옴(Mail.EntryID, Mail.StoreID, FFolderPath)
     FEntryIdRecord := GetEntryIdFromGridJson(LDoc);
 
-    //이동할 Root Folder EntryId + ';' + Folder StoreId로 저장됨
+    //이동할 Root Folder = EntryId + ';' + Folder StoreId로 저장됨
     LDestFolder := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
 
     FEntryIdRecord.FEntryId4MoveRoot := StrToken(LDestFolder, ';');
@@ -1145,6 +1146,8 @@ begin
     LOmniValue := TOmniValue.FromRecord(FEntryIdRecord);
     //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
     SendCmd2WorkerThrd(olckMoveMail2Folder, LOmniValue);
+
+//    FLogProc(FEntryIdRecord.FFolderPath4Move);
   end;//for
 
   Result := 1;

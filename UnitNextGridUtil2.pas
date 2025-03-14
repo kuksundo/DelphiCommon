@@ -23,7 +23,8 @@ procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
   ACaptionIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
 //TextColumn을 추가함
 //AJsonAry: ["col1","col2"]
-procedure AddNextGridTextColumnFromJasonAry(AGrid: TNextGrid; AJsonAry: string);
+procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string);
+procedure AddNextGridTextColumnFromStrAry(AGrid: TNextGrid; AStrAry: array of string);
 
 //AVarType: Variant Type from VarType()-varInteter/varString...
 function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption, AName: string): string;
@@ -45,14 +46,20 @@ procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean=false);
 //AJsonAry은 복수개의 레코드에 대한 Json Array 임(Orm.FillTable.ToIList<TOrmType>로 만듬-Orm.GetJsonValues는 한개의 레코드에 대한 Json을 반환함)
 //AJsonAry : [{"colname":value},...]
-function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false): integer;
+function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false; AIsClearRow: Boolean=false): integer;
 //AJsonAry: ["value1","value2",...] - 1 Row에 대한 값 Array임
 function AddNextGridRowFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8): integer;
+function AddNextGridRowFromStrAry(AGrid: TNextGrid; AStrAry: array of string): integer;
+function AddNextGridRowsFromStrAry2D(AGrid: TNextGrid; A2DStrAry: TStrArray2D): integer;
+
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
   AIsClearRow: Boolean=False): integer;
 function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): variant;
 function NextGrid2DocList(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): IDocList;
+//ADocList : [["col1","col2",...],["value1","value2",...],...]
+//AIsIncludeColCaption = True : ADocList 첫번쨰 행에 Column Caption 포함된 경우
+procedure NextGridFromDocList(AGrid: TNextGrid; ADocList: IDocList; AIsIncludeColCaption: Boolean=True; AIsClearRow: Boolean=True);
 function GetJsonAryFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True): RawUtf8;
 //ARow 행의 데이터만 Variant로 반환함 : '{ColumnName=Value}'
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
@@ -81,7 +88,7 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
 function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor; AIsBold: Boolean=True): TColor;
-procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid);
+procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean=True);
 
 //AJson은 한개의 레코드에 대한 Json임
 //AJson Name : Grid의 Column Name
@@ -99,7 +106,7 @@ var
 
 implementation
 
-uses UnitStringUtil, UnitVariantUtil;
+uses UnitStringUtil, UnitVariantUtil, UnitJsonUtil, UnitComponentUtil;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean);
 var
@@ -287,7 +294,7 @@ begin
   end;
 end;
 
-procedure AddNextGridTextColumnFromJasonAry(AGrid: TNextGrid; AJsonAry: string);
+procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string);
 var
   LList: IDocList;
   Lvar: variant;
@@ -311,13 +318,26 @@ begin
       if LColCaption = 'type' then
         LColName := 'ftype'
       else
-        LColName := LColCaption;
+      begin
+        if CheckValidCompName(LColCaption) then
+          LColName := LColCaption
+        else
+          LColName := MakeValidCompName(LColCaption);
+      end;
 
       AddNextGridColumnByVarType(AGrid, varString, LColCaption, LColName);
     end;
   finally
     AGrid.EndUpdate();
   end;
+end;
+
+procedure AddNextGridTextColumnFromStrAry(AGrid: TNextGrid; AStrAry: array of string);
+var
+  LJson: string;
+begin
+  LJson := GetJsonAryFromStrAry(AStrAry);
+  AddNextGridTextColumnFromJsonAry(AGrid, LJson);
 end;
 
 function AddNextGridRowFromVariant(AGrid: TNextGrid; ADoc: Variant;
@@ -458,7 +478,7 @@ begin
 //  end;
 end;
 
-function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false): integer;
+function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn, AIsClearRow: Boolean): integer;
 var
   LDocList: IDocList;
   LVar: variant;
@@ -468,7 +488,9 @@ var
 begin
   LIsAddColumnFinished := False;
 
-  AGrid.ClearRows();
+  //Column을 동적으로 생성했을 경우 ClearRow를 먼저 실행한 후 Columns.Clear를 실행해야 Memory Leak 방지함
+  if AIsClearRow then
+    AGrid.ClearRows();
 
   LDocList := DocList(AJsonAry);
 
@@ -503,6 +525,9 @@ begin
 
     for LVar in LDocList do
     begin
+      if VarIsNull(LVar) then
+        Continue;
+
       if LCol < AGrid.Columns.Count then
       begin
         AGrid.Cells[LCol, LRow] := LVar;
@@ -512,6 +537,35 @@ begin
   finally
     AGrid.EndUpdate();
   end;
+end;
+
+function AddNextGridRowFromStrAry(AGrid: TNextGrid; AStrAry: array of string): integer;
+var
+  LJson: string;
+begin
+  LJson := GetJsonAryFromStrAry(AStrAry);
+  AddNextGridRowFromJsonAry(AGrid, LJson);
+end;
+
+function AddNextGridRowsFromStrAry2D(AGrid: TNextGrid; A2DStrAry: TStrArray2D): integer;
+var
+  LRowCount, LColCount, i: integer;
+begin
+  Result := 0;
+
+  LRowCount := Length(A2DStrAry);
+
+  if LRowCount < 1 then
+    exit;
+
+  LColCount := Length(A2DStrAry[0]);
+
+  AddNextGridTextColumnFromStrAry(AGrid, A2DStrAry[0]);
+
+  for i := 1 to High(A2DStrAry) do
+    AddNextGridRowFromStrAry(AGrid, A2DStrAry[i]);
+
+  Result := LRowCount - 1;
 end;
 
 //ADoc는 복수개의 레코드에 대한 Json 임
@@ -664,6 +718,33 @@ begin
       Result.Append(LCellValue);
     end;//for
   end;//with
+end;
+
+procedure NextGridFromDocList(AGrid: TNextGrid; ADocList: IDocList; AIsIncludeColCaption, AIsClearRow: Boolean);
+var
+  LVar: variant;
+  LIsAddColumnFinished: Boolean;
+  LJsonAry: string;
+begin
+  LIsAddColumnFinished := False;
+
+  if AIsClearRow then
+    AGrid.ClearRows;
+
+  for LVar in ADocList do
+  begin
+    LJsonAry := VariantToString(LVar);
+
+    if AIsIncludeColCaption and not LIsAddColumnFinished then
+    begin
+      AddNextGridTextColumnFromJsonAry(AGrid, LJsonAry);
+      LIsAddColumnFinished := True;
+    end
+    else
+    begin
+      AddNextGridRowFromJsonAry(AGrid, LJsonAry);
+    end;
+  end;//for
 end;
 
 function GetJsonAryFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar, ASkipInVisible: Boolean): RawUtf8;
@@ -1076,12 +1157,13 @@ begin
   end;
 end;
 
-procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid);
+procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean);
 var
   csv : TextFile;
-  csvLine: String;
+  csvLine, LColName, LColCaption: String;
   vList: TStringList;
   iy, icnt, ix: Integer;
+  LnxIncrementColumn: TnxCustomColumn;
 begin
   if not FileExists(ACsvFileName) then
     exit;
@@ -1096,6 +1178,27 @@ begin
   begin
     BeginUpdate;
     ClearRows;
+
+    if AIsCreateCol then
+    begin
+      Columns.Clear;
+
+      LnxIncrementColumn := Columns.Add(TnxIncrementColumn,'No');
+      LnxIncrementColumn.Alignment := taCenter;
+      LnxIncrementColumn.Header.Alignment := taCenter;
+      LnxIncrementColumn.Width := 30;
+
+      Readln(csv, csvLine);
+      icnt := 1;
+
+      while csvLine <> '' do
+      begin
+        LColName := 'Col' + IntToStr(icnt);
+        LColCaption := StrToken(csvLine,',');
+        AddNextGridColumnByVarType(ANextGrid, varString, LColCaption, LColName);
+        Inc(icnt);
+      end;//while
+    end;
 
     while not eof(csv) do
     Begin

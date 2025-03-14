@@ -106,15 +106,18 @@ end;
 
 procedure EventWaitShow(const amessage: string; Log: boolean);
 begin
-  if WaitForm = nil then WaitForm:= TWaitForm.Create(nil); // else WaitForm.Hide;
-  with WaitForm do begin
+  WaitForm:= TWaitForm.Create(nil); // else WaitForm.Hide;
+
+  with WaitForm do
+  begin
     StartAnimate();
     MsgList.Add(aMessage);
-    WaitPanel.Caption:= aMessage + ', please wait...';
+    WaitPanel.Caption:= aMessage + 'please wait...';
     WaitPanel.Refresh;
     Show;
     Update;
   end;
+
   if Log then
     EventLogger(amessage)
 end; //EventWaitShow
@@ -144,11 +147,6 @@ begin
   Hide;
   Sleep(1000);
   Show
-end;
-
-initialization
-begin
-  WaitForm:= nil;
 end;
 
 end.

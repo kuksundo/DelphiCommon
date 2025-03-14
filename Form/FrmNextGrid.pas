@@ -114,7 +114,7 @@ end;
 
 procedure TNextGridF.SetNextGridColumnByJsonList(const AColList: string);
 begin
-  AddNextGridTextColumnFromJasonAry(NextGrid1, AColList);
+  AddNextGridTextColumnFromJsonAry(NextGrid1, AColList);
 end;
 
 end.

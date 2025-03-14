@@ -2,7 +2,7 @@ unit UnitComponentUtil;
 
 interface
 
-uses Forms, SysUtils, Windows, Classes, Controls, TypInfo, Vcl.Graphics,
+uses Forms, SysUtils, Windows, Classes, Controls, TypInfo, Vcl.Graphics, system.Character,
   Vcl.StdCtrls, Dialogs,
   Rtti;
 
@@ -34,10 +34,13 @@ procedure InputHint2Component(AForm: TForm);
 //Compnoent Name = Hint 리스트 반환
 //Next Grid Column Caption을 쉽게 설정하는데 사용함
 function GetNameNHint2Strlist(AForm: TForm): TStringList;
+//Component Name 규칙에 맞는 지 검사 후 변환함
+function MakeValidCompName(const AName: string): string;
+function CheckValidCompName(const AName: string): Boolean;
 
 implementation
 
-uses UnitRttiUtil2, UnitTRegExUtil;
+uses UnitRttiUtil2, UnitTRegExUtil, UnitStringUtil;
 
 procedure ChangeCompColorByTagOnForm(AForm: TForm; ATag: integer; ANewColor: integer);
 var
@@ -363,6 +366,39 @@ begin
       end;
     end; //for
   end;//with
+end;
+
+function MakeValidCompName(const AName: string): string;
+const
+  ReservedWords: array[0..5] of string = ('begin', 'end', 'class', 'unit', 'procedure', 'function');
+var
+  i: integer;
+begin
+  if AName = '' then
+    exit;
+
+  Result := '';
+
+  if StrIsNumeric(AName[1]) then
+    Result := '_';
+
+  for i := 1 to Length(AName) do
+    if IsLetterOrDigit(AName[i]) or (AName[i] = '_') then
+      Result := Result + AName[i];
+
+  for i := Low(ReservedWords) to High(ReservedWords) do
+  begin
+    if SameText(LowerCase(Result), ReservedWords[i]) then
+    begin
+      Result := '_' + Result;
+      Break;
+    end;
+  end;
+end;
+
+function CheckValidCompName(const AName: string): Boolean;
+begin
+  Result := IsValidIdent(AName);
 end;
 
 end.

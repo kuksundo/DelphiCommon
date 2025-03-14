@@ -14,9 +14,9 @@ uses UnitKeyBdUtil;
 procedure ClipboardCopyOrPaste2AdvEditBtn(AEdit: TCustomEdit; AIsPaste: Boolean);
 begin
   if AEdit.Text = '' then
-    AEdit.Text := Clipboard.AsText
+    AEdit.Text := System.SysUtils.Trim(Clipboard.AsText)
   else
-    Clipboard.AsText := AEdit.Text;
+    Clipboard.AsText := System.SysUtils.Trim(AEdit.Text);
 
   if AIsPaste then
     SendCtlNChar('V');

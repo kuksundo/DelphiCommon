@@ -7,6 +7,7 @@ uses System.SysUtils,
   mormot.net.server;
 
 function GetTimeLogFromStr(AStr: string): TTimeLog;
+function GetDateStrFromTimeLog(ATimeLog: TTimeLog): string;
 procedure SendPostUsingSynCrt(AUrl: string; AJson: variant);
 
 implementation
@@ -29,6 +30,14 @@ begin
       Result := TimeLogFromDateTime(EncodeDate(Ly, Lm, Ld));
     end;
   end;
+end;
+
+function GetDateStrFromTimeLog(ATimeLog: TTimeLog): string;
+var
+  LDate: TDate;
+begin
+  LDate := TimeLogToDateTime(ATimeLog);
+  Result := DateToStr(LDate);
 end;
 
 {Usage:

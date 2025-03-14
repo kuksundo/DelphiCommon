@@ -3345,7 +3345,6 @@ object WaitForm: TWaitForm
         CE3A78020106753994D6F203792982F65A1017805231D8104E9097E369AF7B10
         AF0AB107A559410101003B}
       Align = alClient
-      ExplicitLeft = 191
       ExplicitWidth = 184
       ExplicitHeight = 184
     end
