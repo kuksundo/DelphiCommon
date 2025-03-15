@@ -67,12 +67,14 @@ function InitJHPFileClient2(AExeName: string; var AModel: TOrmModel; ADBFileName
 function CreateJHPFilesModel: TOrmModel;
 procedure DestroyJHPFile;
 
-function GetJHPFilesFromID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
+function GetJHPFilesFromTaskID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
 function GetJHPFilesFromFileID(const AFileID: TID; ADB: TRestClientDB): TOrmJHPFile;
 function GetJHPFiles(ADB: TRestClientDB): TOrmJHPFile;
 function GetFileDataByFileID(const AFileID: TTimeLog; ADB: TRestClientDB): RawByteString;
 function GetFileContentsFromDBBySaveKind(const AOrm: TOrmJHPFile): RawByteString;
-function GetFileCountFromID(const AID: TID; ADB: TRestClientDB): integer;
+function GetFileCountFromTaskID(const AID: TID; ADB: TRestClientDB): integer;
+function GetFileCountFromFileID(const AID: TID; ADB: TRestClientDB): integer;
+function GetFileCountFromTaskNFileID(const ATaskID, AFileID: TID; ADB: TRestClientDB): integer;
 
 //procedure LoadJHPFileRecFromVariant(var ASQLJHPFileRec: TOrmJHPFileRec; ADoc: variant);
 procedure AddOrUpdateJHPFiles(AOrmJHPFile: TOrmJHPFile; ADB: TRestClientDB);
@@ -178,7 +180,7 @@ begin
     FreeAndNil(FileModel);
 end;
 
-function GetJHPFilesFromID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
+function GetJHPFilesFromTaskID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
 begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
@@ -239,7 +241,7 @@ begin
   end;
 end;
 
-function GetFileCountFromID(const AID: TID; ADB: TRestClientDB): integer;
+function GetFileCountFromTaskID(const AID: TID; ADB: TRestClientDB): integer;
 var
   LOrm: TOrmTable;
   LResult: RawUtf8;
@@ -253,6 +255,47 @@ begin
 //  LResult := ADB.ExecuteJson([],'select count(*) from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(AID));
 
   LOrm := ADB.ExecuteList([],'select TaskID from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(AID));
+  try
+    Result := LOrm.RowCount;
+  finally
+    LOrm.Free;
+  end;
+end;
+
+function GetFileCountFromFileID(const AID: TID; ADB: TRestClientDB): integer;
+var
+  LOrm: TOrmTable;
+  LResult: RawUtf8;
+begin
+  Result := 0;
+
+  if not Assigned(ADB) then
+    ADB := g_FileDB;
+
+  //'{"fieldCount":1,"values":["count(*)",3],"rowCount":1}
+//  LResult := ADB.ExecuteJson([],'select count(*) from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(AID));
+
+  LOrm := ADB.ExecuteList([],'select FileID from ' + TOrmJHPFile.SQLTableName + ' where FileID = ' + IntToStr(AID));
+  try
+    Result := LOrm.RowCount;
+  finally
+    LOrm.Free;
+  end;
+end;
+
+function GetFileCountFromTaskNFileID(const ATaskID, AFileID: TID; ADB: TRestClientDB): integer;
+var
+  LOrm: TOrmTable;
+  LResult: RawUtf8;
+begin
+  Result := 0;
+
+  if not Assigned(ADB) then
+    ADB := g_FileDB;
+
+  //'{"fieldCount":1,"values":["count(*)",3],"rowCount":1}
+//  LResult := ADB.ExecuteJson([],'select count(*) from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(AID));
+  LOrm := ADB.ExecuteList([],'select FileID from ' + TOrmJHPFile.SQLTableName + ' where TaskID = ' + IntToStr(ATaskID) + ' and FileID = ' + IntToStr(AFileID));
   try
     Result := LOrm.RowCount;
   finally
@@ -319,7 +362,7 @@ begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
 
-  LOrm := GetJHPFilesFromID(AID, ADB);
+  LOrm := GetJHPFilesFromTaskID(AID, ADB);
   try
     if LOrm.FillRewind then
     begin
@@ -362,7 +405,7 @@ begin
 //  LFileDBClient := TFileDBClient.Create;
 //  LFileDBClient.InitDB(ADBName);
 //  try
-//    LJHPFiles := GetJHPFilesFromID(AID, LFileDBClient.Client);
+//    LJHPFiles := GetJHPFilesFromTaskID(AID, LFileDBClient.Client);
 //    LDoc := StringFromFile(ASaveFileName);
 //    ASaveFileName := ExtractFileName(ASaveFileName);
 //
@@ -403,7 +446,7 @@ end;
 
 function GetFilesFromOrmByKeyID(const AKeyID: TTimeLog; ADB: TRestClientDB): TOrmJHPFile;
 begin
-  Result := GetJHPFilesFromID(AKeyID, ADB);
+  Result := GetJHPFilesFromTaskID(AKeyID, ADB);
 end;
 
 function GetFiles2JsonAryFromOrmByID(const AKeyID: TTimeLog; ADB: TRestClientDB; AIsIncludeDiskFile: Boolean): RawUtf8;
@@ -416,7 +459,7 @@ begin
   Result := '';
   LList := DocList('[]');
 
-  LOrm := GetJHPFilesFromID(AKeyID, ADB);
+  LOrm := GetJHPFilesFromTaskID(AKeyID, ADB);
 
   if LOrm.FillRewind then
   begin

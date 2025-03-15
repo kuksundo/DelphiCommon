@@ -873,7 +873,7 @@ var
 //  LRow: integer;
   LOrm: TOrmJHPFile;
 begin
-  LOrm := GetJHPFilesFromID(ATaskID, FJHPFileDB4Fr);
+  LOrm := GetJHPFilesFromTaskID(ATaskID, FJHPFileDB4Fr);
   try
     if LOrm.IsUpdate then
     begin
@@ -1373,37 +1373,36 @@ begin
     if ARec.fFileNameList <> '' then
     begin
       LFileNameList.Text := ARec.fFileNameList;
+
+      if FIgnoreFileTypePrompt then
+      begin
+        LDocFormat := 0;
+        _DisplayFileList2Grid();
+        exit;
+      end
     end;
 
-    if FIgnoreFileTypePrompt then
-    begin
-      LDocFormat := 0;
-      _DisplayFileList2Grid();
-    end
-    else
-    begin
-      LFileSelectF := TFileSelectF.Create(nil);
-      try
-        if LFileSelectF.ShowModal = mrOK then
+    LFileSelectF := TFileSelectF.Create(nil);
+    try
+      if LFileSelectF.ShowModal = mrOK then
+      begin
+        if ARec.fFileNameList <> '' then
         begin
-          if ARec.fFileNameList <> '' then
-          begin
-            LFileSelectF.JvFilenameEdit1.FileName := ARec.fFileNameList;
-            LFileSelectF.JvFilenameEdit1.DialogFiles.Text := ARec.fFileNameList;
-          end;
-
-          LDocFormat := LFileSelectF.DocTypeCombo.ItemIndex;
-
-          if LFileSelectF.JvFilenameEdit1.FileName = '' then
-            exit
-          else
-            LFileNameList.Text := LFileSelectF.JvFilenameEdit1.DialogFiles.Text;
-
-          _DisplayFileList2Grid();
+          LFileSelectF.JvFilenameEdit1.FileName := ARec.fFileNameList;
+          LFileSelectF.JvFilenameEdit1.DialogFiles.Text := ARec.fFileNameList;
         end;
-      finally
-        LFileSelectF.Free;
+
+        LDocFormat := LFileSelectF.DocTypeCombo.ItemIndex;
+
+        if LFileSelectF.JvFilenameEdit1.FileName = '' then
+          exit
+        else
+          LFileNameList.Text := LFileSelectF.JvFilenameEdit1.DialogFiles.Text;
+
+        _DisplayFileList2Grid();
       end;
+    finally
+      LFileSelectF.Free;
     end;
   finally
     LFileNameList.Free;
