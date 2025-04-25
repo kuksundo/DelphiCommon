@@ -3,7 +3,7 @@ unit UnitNextGridUtil2;
 interface
 
 uses SysUtils, StdCtrls,Classes, Graphics, Grids, ComObj, StrUtils, System.Types,
-    Variants, Dialogs, Forms, Excel2010,
+    Variants, Dialogs, Forms, Excel2010, Vcl.Controls,
     NxColumnClasses, NxColumns, NxGrid, NxCells, ArrayHelper,
     mormot.core.base, mormot.core.data, mormot.core.variants, mormot.core.unicode,
     mormot.core.text, mormot.core.datetime;
@@ -25,6 +25,7 @@ procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
 //AJsonAry: ["col1","col2"]
 procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string);
 procedure AddNextGridTextColumnFromStrAry(AGrid: TNextGrid; AStrAry: array of string);
+function GetNextGridUinqueCompName(AGrid: TNextGrid; var AColName: string): Boolean;
 
 //AVarType: Variant Type from VarType()-varInteter/varString...
 function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption, AName: string): string;
@@ -32,6 +33,8 @@ function AddNextGridTextColumn(AGrid: TNextGrid; const ACaption, AName: string):
 function AddNextGridDateColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
 function AddNextGridNumColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
 function AddNextGridCheckBoxColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
+function IsExistNextGridColumnName(AGrid: TNextGrid; const AColName: string): Boolean;
+function GetColumnWidthByTextLength(AGrid: TNextGrid; AColumn: TnxCustomColumn; AText: string): integer;
 
 //ADoc Name이 Grid의 Column Name임
 //AIsFromValue : False = Json의 Key 값을 Value로 저장함
@@ -46,11 +49,12 @@ procedure AddNextGridRowsFromVariant(AGrid: TNextGrid; ADynAry: TRawUTF8DynArray
 procedure AddNextGridRowsFromVariant2(AGrid: TNextGrid; ADoc: Variant; AIsAddColumn: Boolean=false);
 //AJsonAry은 복수개의 레코드에 대한 Json Array 임(Orm.FillTable.ToIList<TOrmType>로 만듬-Orm.GetJsonValues는 한개의 레코드에 대한 Json을 반환함)
 //AJsonAry : [{"colname":value},...]
-function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false; AIsClearRow: Boolean=false): integer;
+function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn: Boolean=false; AIsClearRow: Boolean=false; ACaptionIsFromValue: Boolean=false): integer;
 //AJsonAry: ["value1","value2",...] - 1 Row에 대한 값 Array임
 function AddNextGridRowFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8): integer;
 function AddNextGridRowFromStrAry(AGrid: TNextGrid; AStrAry: array of string): integer;
 function AddNextGridRowsFromStrAry2D(AGrid: TNextGrid; A2DStrAry: TStrArray2D): integer;
+function AddNextGridRowFromCsv(AGrid: TNextGrid; ARow: integer; ACsv: string): integer;
 
 function GetListFromVariant2NextGrid(AGrid: TNextGrid; ADoc: Variant;
   AIsAdd: Boolean; AIsArray: Boolean = False; AIsUsePosFunc: Boolean = False;
@@ -100,6 +104,7 @@ procedure AddNextGridRowFromVarOnlyColumnExist(AGrid: TNextGrid; AJson: Variant)
 procedure SetColumnCaptionFromListOnlyColumnExist(AGrid: TNextGrid; AStrList: TStringList);
 
 function GetNxCellAtPoint(AGrid: TNextGrid; const APoint: TPoint): TCell;
+function GetNxCellPointAtPoint(AGrid: TNextGrid; const APoint: TPoint): TPoint;
 
 var
   FNXGrid_Header_Color : TColor;
@@ -235,14 +240,49 @@ begin
   Result := AName + ':TnxCheckBoxColumn;';
 end;
 
+function IsExistNextGridColumnName(AGrid: TNextGrid; const AColName: string): Boolean;
+var
+  LColumn: TnxCustomColumn;
+  Lj: integer;
+begin
+  Result := False;
+
+  with AGrid do
+  begin
+    for Lj := 0 to Columns.Count - 1 do
+    begin
+      //Grid에 Column Name이 존재하면
+      if POS(AColName, Columns[Lj].Name) > 0 then
+      begin
+        Result := True;
+        Break;
+      end;
+    end;
+  end;
+end;
+
+function GetColumnWidthByTextLength(AGrid: TNextGrid; AColumn: TnxCustomColumn; AText: string): integer;
+var
+  LCanvas: TControlCanvas;
+begin
+  LCanvas := TControlCanvas.Create;
+  try
+    LCanvas.Control := AGrid;
+    LCanvas.Font := AColumn.Font;
+    Result := LCanvas.TextWidth(AText)+10;
+  finally
+    LCanvas.Free;
+  end;
+end;
+
 procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
   ACaptionIsFromValue: Boolean; AIsIgnoreSaveFile: Boolean; AAddIncCol: Boolean);
 var
-  LNxComboBoxColumn: TNxComboBoxColumn;
+//  LNxComboBoxColumn: TNxComboBoxColumn;
   LnxIncrementColumn: TnxCustomColumn;
-  i, LVarType: integer;
+  i, LVarType, LCount: integer;
   LTitle, LCompName: string;
-  LVarValue: variant;
+  LVarValue, LDoc: variant;
   LStrList: TStringList;
 begin
 //
@@ -263,10 +303,13 @@ begin
 
   //    with TDocVariantData(ADoc) do
   //    begin
-        for i := 0 to TDocVariantData(ADoc).Count - 1 do
+        LDoc := _JSON(ADoc);
+        LCount := TDocVariantData(LDoc).Count;
+
+        for i := 0 to LCount - 1 do
         begin
-          LCompName := TDocVariantData(ADoc).Names[i];
-          LVarValue := TDocVariantData(ADoc).Values[i];
+          LCompName := TDocVariantData(LDoc).Names[i];
+          LVarValue := TDocVariantData(LDoc).Values[i];
 
           if ACaptionIsFromValue then
             LTitle := LVarValue
@@ -325,10 +368,29 @@ begin
           LColName := MakeValidCompName(LColCaption);
       end;
 
+      GetNextGridUinqueCompName(AGrid, LColName);
+
       AddNextGridColumnByVarType(AGrid, varString, LColCaption, LColName);
     end;
   finally
     AGrid.EndUpdate();
+  end;
+end;
+
+function GetNextGridUinqueCompName(AGrid: TNextGrid; var AColName: string): Boolean;
+var
+  i: integer;
+begin
+  Result := False;
+
+  for i := 0 to AGrid.Columns.Count - 1 do
+  begin
+    if AGrid.Columns.Item[i].Name = AColName then
+    begin
+      AColName := AGrid.Columns.UniqueName(AColName);
+      Result := True;
+      Break;
+    end;
   end;
 end;
 
@@ -478,7 +540,7 @@ begin
 //  end;
 end;
 
-function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn, AIsClearRow: Boolean): integer;
+function AddNextGridRowsFromJsonAry(AGrid: TNextGrid; AJsonAry: RawUtf8; AIsAddColumn, AIsClearRow, ACaptionIsFromValue: Boolean): integer;
 var
   LDocList: IDocList;
   LVar: variant;
@@ -498,7 +560,7 @@ begin
   begin
     if AIsAddColumn and not LIsAddColumnFinished then
     begin
-      AddNextGridColumnFromVariant(AGrid, LVar, False, True, True);
+      AddNextGridColumnFromVariant(AGrid, LVar, ACaptionIsFromValue, True, True);
       LIsAddColumnFinished := True;
     end;
     //LVar Name : Grid의 Column Name
@@ -516,6 +578,9 @@ var
   LRow, LCol: integer;
 begin
   LDocList := DocList(AJsonAry);
+
+  if LDocList.Len = 0 then
+    exit;
 
   AGrid.BeginUpdate;
   try
@@ -566,6 +631,25 @@ begin
     AddNextGridRowFromStrAry(AGrid, A2DStrAry[i]);
 
   Result := LRowCount - 1;
+end;
+
+function AddNextGridRowFromCsv(AGrid: TNextGrid; ARow: integer; ACsv: string): integer;
+var
+  LStrList: TStringList;
+  icnt, ix: Integer;
+begin
+  with AGrid do
+  begin
+    LStrList := TStringList.Create;
+    try
+      LStrList.CommaText := ACsv;
+
+      for icnt := 0 to LStrList.Count - 1 do
+        Cells[icnt+1, ARow] := LStrList.Strings[icnt];
+    finally
+      LStrList.Free;
+    end;
+  end;//with
 end;
 
 //ADoc는 복수개의 레코드에 대한 Json 임
@@ -669,7 +753,7 @@ var
   LDocList: IDocList;
 begin
   TDocVariant.New(Result);
-  LDocList := NextGrid2DocList(AGrid, ARemoveUnderBar, ASkipInVisible);
+  LDocList := NextGrid2DocList(AGrid, ARemoveUnderBar, ASkipInVisible, ASelectedOnly);
   Result := LDocList.Json;
 end;
 
@@ -733,10 +817,16 @@ begin
 
   for LVar in ADocList do
   begin
+    if VarIsNull(LVar) then
+      Continue;
+
     LJsonAry := VariantToString(LVar);
 
     if AIsIncludeColCaption and not LIsAddColumnFinished then
     begin
+      AGrid.ClearRows;
+      AGrid.Columns.Clear;
+
       AddNextGridTextColumnFromJsonAry(AGrid, LJsonAry);
       LIsAddColumnFinished := True;
     end
@@ -1313,15 +1403,28 @@ end;
 function GetNxCellAtPoint(AGrid: TNextGrid; const APoint: TPoint): TCell;
 var
   LPoint: TPoint;
-  LColumn: TNxCustomColumn;
-  LRow: integer;
+//  LColumn: TNxCustomColumn;
+//  LRow: integer;
 begin
-//  LPoint := AGrid.GetCellAtPos(APoint);
-//
+  LPoint := AGrid.GetCellAtPos(APoint);
+
 //  LColumn := AGrid.GetColumnAtPos(LPoint);
 //  LRow := AGrid.GetRowAtPos(LPoint.X, LPoint.Y);
-//
-//  Result := AGrid.Cell[LColumn.Index, LRow];
+
+  Result := AGrid.Cell[LPoint.X, LPoint.Y];
+end;
+
+function GetNxCellPointAtPoint(AGrid: TNextGrid; const APoint: TPoint): TPoint;
+var
+  LCell: TCell;
+  LRect: TRect;
+  LPoint: TPoint;
+begin
+  LCell := GetNxCellAtPoint(AGrid, APoint);
+  LRect := AGrid.GetCellRect(LCell.ColumnIndex, LCell.RowIndex);
+
+  Result.X := APoint.X - (LRect.Right - LRect.Left);
+  Result.Y := APoint.Y - (LRect.Bottom - LRect.Top);
 end;
 
 initialization

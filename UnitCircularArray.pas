@@ -3,14 +3,16 @@ unit UnitCircularArray;
 interface
 
 uses
-  SysUtils;
+  SysUtils, System.Generics.Collections;
 
 type
-  TCircularArray = class
+  //Integer Or Double = T
+  TCircularArray<T> = class
   private
     FSize  : integer;
     FFirst : integer;
     FLast  : integer;
+    FCount : integer;
     FSum   : double;
     FAverage: double;
     FMin   : double;
@@ -19,17 +21,18 @@ type
   protected
     procedure   SetBufSize(newSize : Integer);
   public
-    FData  : array of double;
+    FData  : array of T;
 
     constructor Create( qsize: integer );
     destructor Destroy; override;
     function IsFull: boolean;
     function IsEmpty: boolean;
-    function Put( data: double ): boolean;
-    function Get: double;
-    function Peek: double;
+    function Put( data: T ): boolean;
+    function Get: T;
+    function Peek: T;
     procedure ClearBuffer;
 
+    property Count: integer read FCount write FCount;
     property Size: integer read FSize write SetBufSize;
     property Sum: double read FSum write FSum;
     property Average: double read FAverage write FAverage;
@@ -42,7 +45,7 @@ implementation
 {* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *}
 { TCircularArray }
 
-procedure TCircularArray.ClearBuffer;
+procedure TCircularArray<T>.ClearBuffer;
 begin
   FLast := -1;
   FFirst := -1;
@@ -51,7 +54,7 @@ begin
   FFirstCircular := False;
 end;
 
-constructor TCircularArray.Create( qsize: integer );
+constructor TCircularArray<T>.Create( qsize: integer );
 begin
   inherited Create;
 
@@ -59,6 +62,7 @@ begin
     qsize := 1;
 
   FSize := qsize;
+  FCount := 0;
   FLast := -1;
   FFirst := -1;
   FSum := 0.0;
@@ -68,25 +72,25 @@ begin
   SetLength(FData,FSize);
 end;
 
-destructor TCircularArray.Destroy;
+destructor TCircularArray<T>.Destroy;
 begin
   SetLength(FData,0);
   inherited Destroy;
 end;
 
-function TCircularArray.IsFull: boolean;
+function TCircularArray<T>.IsFull: boolean;
 begin
-  //result := FCount=FSize;
-  result := False;
+  result := FCount=FSize;
+//  result := False;
 end;
 
-function TCircularArray.IsEmpty: boolean;
+function TCircularArray<T>.IsEmpty: boolean;
 begin
   //result := FCount=0;
   result := False;
 end;
 
-function TCircularArray.Put( data: double ): boolean;
+function TCircularArray<T>.Put( data: T ): boolean;
 begin
   if IsFull then
     result := false
@@ -118,12 +122,12 @@ begin
       FMax := data;
     
     FData[FLast] := data;
-
+    inc(FCount);
     result := true;
   end;
 end;
 
-procedure TCircularArray.SetBufSize(newSize: Integer);
+procedure TCircularArray<T>.SetBufSize(newSize: Integer);
 var
   Li: integer;
 begin
@@ -166,7 +170,7 @@ begin
   end;
 end;
 
-function TCircularArray.Get: double;
+function TCircularArray<T>.Get: T;
 begin
   if IsEmpty then result := 0.0
   else
@@ -177,7 +181,7 @@ begin
   end;
 end;
 
-function TCircularArray.Peek: double;
+function TCircularArray<T>.Peek: T;
 begin
   if IsEmpty then result := 0.0
              else result := FData[FFirst];

@@ -8,8 +8,8 @@ uses Windows, sysutils, Classes, Forms,
 function GetSubFolderPath(ARootFolder, ASubFolder: string): string;
 function GetDefaultDBPath: string;
 function GetFolderPathFromEmailPath(AEmailPath: RawUTF8): RawUTF8;
-function GetFileListFromFolder(Path, Mask: string; IncludeSubDir: boolean; Attr: integer = faAnyFile - faDirectory): TStringList;
 function GetParentFolder(AChildFolder: string): string;
+function IsRootFolder(const AFolder: string): Boolean;
 
 implementation
 
@@ -35,49 +35,20 @@ begin
   Result := StringToUTF8(LStr);
 end;
 
-function GetFileListFromFolder(Path, Mask: string; IncludeSubDir: boolean; Attr: integer = faAnyFile - faDirectory): TStringList;
-var
-  FindResult: integer;
-  SearchRec : TSearchRec;
-begin
-  result := TStringList.Create;
-  result.Sorted := True;
-  try
-    Path := IncludeTrailingPathDelimiter(Path);
-    FindResult := FindFirst(Path + Mask, Attr, SearchRec);
-    while FindResult = 0 do
-    begin
-      { do whatever you'd like to do with the files found }
-      result.Add(Path + SearchRec.Name);
-      FindResult := FindNext(SearchRec);
-    end;
-    { free memory }
-    FindClose(SearchRec);
-
-    if not IncludeSubDir then
-      Exit;
-
-    FindResult := FindFirst(Path + '*.*', faDirectory, SearchRec);
-    while FindResult = 0 do
-    begin
-      if (SearchRec.Name <> '.') and (SearchRec.Name <> '..') then
-        GetFileListFromFolder (Path + SearchRec.Name + '\', Mask, TRUE);
-
-      FindResult := FindNext(SearchRec);
-    end;
-    { free memory }
-    FindClose(SearchRec);
-  finally
-//    result.CustomSort(StringListAnsiCompareDesc);
-//    result.Sorted := True;
-  end;
-end;
-
 //AChildFolder = 반드시 '\'가 포함된 Path임
 function GetParentFolder(AChildFolder: string): string;
 begin
   if AChildFolder <> '' then
     Result := ExtractFilePath(ExcludeTrailingPathDelimiter(AChildFolder));
+end;
+
+function IsRootFolder(const AFolder: string): Boolean;
+var
+  NormalizePath: string;
+begin
+  NormalizePath := IncludeTrailingPathDelimiter(ExpandFileName(AFolder));
+
+  Result := ExtractFilePath(NormalizePath) = NormalizePath;
 end;
 
 end.
