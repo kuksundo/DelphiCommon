@@ -10,7 +10,12 @@ uses SysUtils, Classes,
 //function GetDiffBetweenXlsNDB(AXlsJson, ADBJson: RawUtf8): RawUtf8;
 function GetValueFromJsonDictByKeyName(AJson, AKeyName: string): string;
 function GetJsonAryFromStrAry(const AAry: array of string): string;
+function GetJsonAryFromTArray(const AAry: TArray<string>): string;
 function GetJsonAryFromStrAry2D(const AAry: TStrArray2D): string;
+function GetJsonAryFromStringList(const StrList: TStringList): string;
+function StringListToArray(const StrList: TStringList): TArray<string>;
+
+function GetFieldValueFromJsonAry(AJsonAry, AKeyName: RawUtf8; ARowIndex: integer=0): RawUtf8;
 
 implementation
 
@@ -45,6 +50,11 @@ begin
   Result := LDoc.ToJson;
 end;
 
+function GetJsonAryFromTArray(const AAry: TArray<string>): string;
+begin
+  Result := GetJsonAryFromStrAry(AAry);
+end;
+
 function GetJsonAryFromStrAry2D(const AAry: TStrArray2D): string;
 var
   LList: IDocList;
@@ -61,6 +71,39 @@ begin
   end;
 
   Result := LList.Json;
+end;
+
+function GetJsonAryFromStringList(const StrList: TStringList): string;
+var
+  LAry: TArray<string>;
+begin
+  LAry := StringListToArray(StrList);
+  Result := GetJsonAryFromTArray(LAry);
+end;
+
+function StringListToArray(const StrList: TStringList): TArray<string>;
+var
+  I: Integer;
+begin
+  SetLength(Result, StrList.Count);
+  for I := 0 to StrList.Count - 1 do
+    Result[I] := StrList[I];
+end;
+
+function GetFieldValueFromJsonAry(AJsonAry, AKeyName: RawUtf8; ARowIndex: integer): RawUtf8;
+var
+  LDocDict: IDocDict;
+  LDocList: IDocList;
+begin
+  Result := '';
+
+  LDocList := DocList(AJsonAry);
+
+  if LDocList.Len > 0 then
+  begin
+    LDocDict := DocDict(LDocList.S[ARowIndex]);
+    Result := LDocDict.S[AKeyName];
+  end;
 end;
 
 end.

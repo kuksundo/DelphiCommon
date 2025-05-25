@@ -23,12 +23,12 @@ procedure AddNextGridColumnFromVariant(AGrid: TNextGrid; ADoc: Variant;
   ACaptionIsFromValue: Boolean=false; AIsIgnoreSaveFile: Boolean=false; AAddIncCol: Boolean=False);
 //TextColumn을 추가함
 //AJsonAry: ["col1","col2"]
-procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string);
+procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string; AIsAddIncCol: Boolean=True);
 procedure AddNextGridTextColumnFromStrAry(AGrid: TNextGrid; AStrAry: array of string);
 function GetNextGridUinqueCompName(AGrid: TNextGrid; var AColName: string): Boolean;
 
 //AVarType: Variant Type from VarType()-varInteter/varString...
-function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption, AName: string): string;
+function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption: string; AName: string=''): string;
 function AddNextGridTextColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
 function AddNextGridDateColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
 function AddNextGridNumColumn(AGrid: TNextGrid; const ACaption, AName: string): string;
@@ -63,7 +63,7 @@ function NextGrid2Variant(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASki
 function NextGrid2DocList(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True; ASelectedOnly: Boolean=False): IDocList;
 //ADocList : [["col1","col2",...],["value1","value2",...],...]
 //AIsIncludeColCaption = True : ADocList 첫번쨰 행에 Column Caption 포함된 경우
-procedure NextGridFromDocList(AGrid: TNextGrid; ADocList: IDocList; AIsIncludeColCaption: Boolean=True; AIsClearRow: Boolean=True);
+procedure NextGridFromDocList(AGrid: TNextGrid; ADocList: IDocList; AIsIncludeColCaption: Boolean=True; AIsClearRow: Boolean=True; AIsAddIncremental: Boolean=True);
 function GetJsonAryFromSelectedRow(AGrid: TNextGrid; ARemoveUnderBar: Boolean=False; ASkipInVisible: Boolean=True): RawUtf8;
 //ARow 행의 데이터만 Variant로 반환함 : '{ColumnName=Value}'
 function GetNxGridRow2Variant(AGrid: TNextGrid; ARow: integer): variant;
@@ -73,6 +73,10 @@ procedure SetNxGridRowFromVar(AGrid: TNextGrid; var ARow: integer; AVar: variant
 procedure SetNxGridCellValueFromVar(AColumn: TnxCustomColumn; ACell: TCell; AVar: variant);
 //Grid -> Variant :
 procedure SetNxGridCellValue2Var(AColumn: TnxCustomColumn; ACell: TCell; var AVar: variant);
+//AVar : CellValue
+//ARowAry : 값을 채워 넣을 Grid Row Array
+procedure SetNxGridCellValueByRowAryFromVar(AGrid: TNextGrid; AColName: string;
+  ARowAry: TArray<integer>; AVar: variant);
 
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
 procedure NextGridFromJsonFile(AGrid: TNextGrid; AFileName: string; AIsClearRow: Boolean=False);
@@ -89,8 +93,13 @@ procedure MoveRowUp(ANextGrid: TNextGrid);
 //AColIdx: -1 이면 AColName을 사용하여 Column 검색함
 function GetRowIndexFromFindNext(const ANextGrid: TNextGrid; AFindText: string;
   AColIdx: integer; var AFindFromRow: integer; AIgnoreCase: Boolean=false; AColName: string=''): integer;
+//Column[AColIdx[i]]의 내용 중에 AFindText[i]가 있으면 RowNo 반환(모든 Ary내용을 만족 해야 함)
+//Result : 동일한 내용이 있는 Row List를 TArray로 반환함
+function GetRowIndexByColIndexAryFromFindStrAry(const ANextGrid: TNextGrid; AFindTextAry: TArray<string>;
+  AColIdxAry: TArray<integer>; AIgnoreCase: Boolean=false): TArray<integer>;
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
+function ChangeRowColorByRowAry(AGrid: TNextGrid; ARowAry: TArray<integer>; AColor: TColor): TColor;
 function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor; AIsBold: Boolean=True): TColor;
 procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean=True);
 
@@ -106,12 +115,15 @@ procedure SetColumnCaptionFromListOnlyColumnExist(AGrid: TNextGrid; AStrList: TS
 function GetNxCellAtPoint(AGrid: TNextGrid; const APoint: TPoint): TCell;
 function GetNxCellPointAtPoint(AGrid: TNextGrid; const APoint: TPoint): TPoint;
 
+function GetCellDataByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string; ARow: integer): string;
+function GetColIdxByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string): integer;
+
 var
   FNXGrid_Header_Color : TColor;
 
 implementation
 
-uses UnitStringUtil, UnitVariantUtil, UnitJsonUtil, UnitComponentUtil;
+uses UnitStringUtil, UnitVariantUtil, UnitJsonUtil, UnitComponentUtil, UnitIMEUtil;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean);
 var
@@ -153,7 +165,8 @@ begin
   end;
 end;
 
-function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer; const ACaption, AName: string): string;
+function AddNextGridColumnByVarType(AGrid: TNextGrid; const AVarType: integer;
+  const ACaption: string; AName: string): string;
 begin
   Result := '';
 
@@ -185,7 +198,10 @@ var
   LnxTextColumn: TnxTextColumn;
 begin
   LnxTextColumn := TnxTextColumn(AGrid.Columns.Add(TnxTextColumn, ACaption));
-  LnxTextColumn.Name := RemoveSpaceBetweenStrings(AName);
+
+  if AName <> '' then
+    LnxTextColumn.Name := RemoveSpaceBetweenStrings(AName);
+
   LnxTextColumn.Editing := True;
   LnxTextColumn.Header.Alignment := taCenter;
   LnxTextColumn.Alignment := taCenter;
@@ -200,7 +216,10 @@ var
   LnxDateColumn: TnxDateColumn;
 begin
   LnxDateColumn := TnxDateColumn(AGrid.Columns.Add(TnxDateColumn, ACaption));
-  LnxDateColumn.Name := RemoveSpaceBetweenStrings(AName);
+
+  if AName <> '' then
+    LnxDateColumn.Name := RemoveSpaceBetweenStrings(AName);
+
   LnxDateColumn.Editing := True;
   LnxDateColumn.Header.Alignment := taCenter;
   LnxDateColumn.Alignment := taCenter;
@@ -215,7 +234,10 @@ var
   LnxNumColumn: TnxNumberColumn;
 begin
   LnxNumColumn := TnxNumberColumn(AGrid.Columns.Add(TnxNumberColumn, ACaption));
-  LnxNumColumn.Name := RemoveSpaceBetweenStrings(AName);
+
+  if AName <> '' then
+    LnxNumColumn.Name := RemoveSpaceBetweenStrings(AName);
+
   LnxNumColumn.Editing := True;
   LnxNumColumn.Header.Alignment := taCenter;
   LnxNumColumn.Alignment := taCenter;
@@ -230,7 +252,10 @@ var
   LnxCheckBoxColumn: TnxCheckBoxColumn;
 begin
   LnxCheckBoxColumn := TnxCheckBoxColumn(AGrid.Columns.Add(TnxCheckBoxColumn, ACaption));
-  LnxCheckBoxColumn.Name := RemoveSpaceBetweenStrings(AName);
+
+  if AName <> '' then
+    LnxCheckBoxColumn.Name := RemoveSpaceBetweenStrings(AName);
+
   LnxCheckBoxColumn.Editing := True;
   LnxCheckBoxColumn.Header.Alignment := taCenter;
   LnxCheckBoxColumn.Alignment := taCenter;
@@ -337,18 +362,27 @@ begin
   end;
 end;
 
-procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string);
+procedure AddNextGridTextColumnFromJsonAry(AGrid: TNextGrid; AJsonAry: string; AIsAddIncCol: Boolean);
 var
   LList: IDocList;
   Lvar: variant;
   LUtf8: RawUtf8;
   LRow: integer;
   LColName, LColCaption: string;
+  LnxIncrementColumn: TnxCustomColumn;
 begin
   AGrid.BeginUpdate;
   try
     LUtf8 := StringToUtf8(AJsonAry);
     LList := DocList(LUtf8);
+
+    if AIsAddIncCol then
+    begin
+      LnxIncrementColumn := AGrid.Columns.Add(TnxIncrementColumn,'No');
+      LnxIncrementColumn.Alignment := taCenter;
+      LnxIncrementColumn.Header.Alignment := taCenter;
+      LnxIncrementColumn.Width := 30;
+    end;
 
     for Lvar in LList do
     begin
@@ -358,17 +392,22 @@ begin
 
       LColCaption := LVar;
 
-      if LColCaption = 'type' then
-        LColName := 'ftype'
+      if IsHanGeul(LColCaption) then
+        LColName := ''
       else
       begin
-        if CheckValidCompName(LColCaption) then
-          LColName := LColCaption
+        if LColCaption = 'type' then
+          LColName := 'ftype'
         else
-          LColName := MakeValidCompName(LColCaption);
-      end;
+        begin
+          if CheckValidCompName(LColCaption) then
+            LColName := LColCaption
+          else
+            LColName := MakeValidCompName(LColCaption);
+        end;
 
-      GetNextGridUinqueCompName(AGrid, LColName);
+        GetNextGridUinqueCompName(AGrid, LColName);
+      end;
 
       AddNextGridColumnByVarType(AGrid, varString, LColCaption, LColName);
     end;
@@ -586,7 +625,10 @@ begin
   try
     LRow := AGrid.AddRow();
 
-    LCol := 0;
+    if AGrid.Columns.Item[0].ClassType = TnxIncrementColumn then
+      LCol := 1
+    else
+      LCol := 0;
 
     for LVar in LDocList do
     begin
@@ -804,7 +846,8 @@ begin
   end;//with
 end;
 
-procedure NextGridFromDocList(AGrid: TNextGrid; ADocList: IDocList; AIsIncludeColCaption, AIsClearRow: Boolean);
+procedure NextGridFromDocList(AGrid: TNextGrid; ADocList: IDocList;
+  AIsIncludeColCaption, AIsClearRow, AIsAddIncremental: Boolean);
 var
   LVar: variant;
   LIsAddColumnFinished: Boolean;
@@ -827,7 +870,7 @@ begin
       AGrid.ClearRows;
       AGrid.Columns.Clear;
 
-      AddNextGridTextColumnFromJsonAry(AGrid, LJsonAry);
+      AddNextGridTextColumnFromJsonAry(AGrid, LJsonAry, AIsAddIncremental);
       LIsAddColumnFinished := True;
     end
     else
@@ -938,6 +981,23 @@ begin
     TDocVariantData(AVar).Value[LColName] := ACell.AsBoolean
   else
     TDocVariantData(AVar).Value[LColName] := ACell.AsString;
+end;
+
+procedure SetNxGridCellValueByRowAryFromVar(AGrid: TNextGrid; AColName: string;
+  ARowAry: TArray<integer>; AVar: variant);
+var
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
+  i, LCol: integer;
+begin
+  LColumn := AGrid.ColumnByName[AColName];
+  LCol := LColumn.Index;
+
+  for i := 0 to High(ARowAry) do
+  begin
+    LCell := AGrid.Cell[LCol, ARowAry[i]];
+    SetNxGridCellValueFromVar(LColumn, LCell, AVar);
+  end;
 end;
 
 procedure NextGrid2JsonFile(AGrid: TNextGrid; ASaveFileName: string);
@@ -1210,6 +1270,46 @@ begin
   end;//for
 end;
 
+function GetRowIndexByColIndexAryFromFindStrAry(const ANextGrid: TNextGrid; AFindTextAry: TArray<string>;
+  AColIdxAry: TArray<integer>; AIgnoreCase: Boolean=false): TArray<integer>;
+var
+  LColIdx, LRowIdx, LResult: integer;
+  LStr: string;
+  LResultAry: TArrayRecord<integer>;
+begin
+  Result := nil;
+
+  if High(AFindTextAry) <> High(AColIdxAry) then
+    exit;
+
+  for LRowIdx := 0 to ANextGrid.RowCount - 1 do
+  begin
+    for LColIdx := 0 to High(AColIdxAry) do
+    begin
+      LStr := ANextGrid.Cells[AColIdxAry[LColIdx], LRowIdx];
+
+      if AIgnoreCase then
+      begin
+        LStr := UpperCase(LStr);
+        AFindTextAry[LColIdx] := UpperCase(AFindTextAry[LColIdx]);
+      end;
+
+      if SameText(AFindTextAry[LColIdx], LStr) then
+        LResult := LRowIdx
+      else
+      begin
+        LResult := -1;
+        Break;
+      end
+    end;//for
+
+    if LResult <> -1 then
+      LResultAry.Add(LResult);
+  end;//for
+
+  Result := LResultAry.Items;
+end;
+
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 begin
   for Result := 0 to ANextGrid.RowCount - 1 do
@@ -1228,6 +1328,16 @@ begin
   for i := 0 to AGrid.Columns.Count - 1 do
   begin
     AGrid.Cell[i, ARowIndex].Color := AColor;
+  end;
+end;
+
+function ChangeRowColorByRowAry(AGrid: TNextGrid; ARowAry: TArray<integer>; AColor: TColor): TColor;
+var
+  i: integer;
+begin
+  for i := 0 to High(ARowAry) do
+  begin
+    ChangeRowColorByIndex(AGrid, ARowAry[i], AColor);
   end;
 end;
 
@@ -1425,6 +1535,38 @@ begin
 
   Result.X := APoint.X - (LRect.Right - LRect.Left);
   Result.Y := APoint.Y - (LRect.Bottom - LRect.Top);
+end;
+
+function GetCellDataByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string; ARow: integer): string;
+var
+  i: integer;
+begin
+  Result := '';
+
+  for i := 0 to AGrid.Columns.Count - 1 do
+  begin
+    if AGrid.Columns.Item[i].Header.Caption = ACaption then
+    begin
+      Result := AGrid.Cells[i, ARow];
+      Break;
+    end;
+  end; //for
+end;
+
+function GetColIdxByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string): integer;
+var
+  i: integer;
+begin
+  Result := -1;
+
+  for i := 0 to AGrid.Columns.Count - 1 do
+  begin
+    if AGrid.Columns.Item[i].Header.Caption = ACaption then
+    begin
+      Result := i;
+      Break;
+    end;
+  end; //for
 end;
 
 initialization

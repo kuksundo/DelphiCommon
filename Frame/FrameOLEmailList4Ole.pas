@@ -23,8 +23,8 @@ uses
 //  UnitStrategy4OLEmailInterface2, UnitMQData,
   UnitWorker4OmniMsgQ,
   UnitOLControlWorker,
-  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2,
-  UnitHiconisASData
+  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2
+//  UnitHiconisASData
   ;
 
 type
@@ -51,7 +51,7 @@ type
     StatusBar: TStatusBar;
     EmailTab: TAdvOfficeTabSet;
     grid_Mail: TNextGrid;
-    NxIncrementColumn1: TNxIncrementColumn;
+    Incremental: TNxIncrementColumn;
     HullNo: TNxTextColumn;
     Subject: TNxTextColumn;
     RecvDate: TNxDateColumn;
@@ -119,7 +119,6 @@ type
     DBKey: TNxTextColumn;
     SavedMsgFilePath: TNxTextColumn;
     SavedMsgFileName: TNxTextColumn;
-    ImageList16x16: TImageList;
     AeroButton1: TAeroButton;
     SenderEmail: TNxTextColumn;
     FolderEntryId: TNxTextColumn;
@@ -129,6 +128,15 @@ type
     TaskID: TNxTextColumn;
     BitBtn2: TBitBtn;
     CopyHullNoClaimNoSubject1: TMenuItem;
+    Save2JsonAryFromSelected1: TMenuItem;
+    Button1: TButton;
+    Button2: TButton;
+    MoveSelectedEmail2MoveFolder1: TMenuItem;
+    GetUnReadMailList1: TMenuItem;
+    UpdateClaimExist1: TMenuItem;
+    ExistInDB: TNxCheckBoxColumn;
+    FlagRequest: TNxTextColumn;
+    ImageList16x16: TImageList;
 
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
@@ -145,6 +153,12 @@ type
     procedure DescriptionButtonClick(Sender: TObject);
     procedure BitBtn2Click(Sender: TObject);
     procedure CopyHullNoClaimNoSubject1Click(Sender: TObject);
+    procedure Save2JsonAryFromSelected1Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure MoveSelectedEmail2MoveFolder1Click(Sender: TObject);
+    procedure GetUnReadMailList1Click(Sender: TObject);
+    procedure UpdateClaimExist1Click(Sender: TObject);
   private
     FOLControlWorker: TOLControlWorker;
     FCommandQueue,
@@ -196,9 +210,11 @@ type
 
     procedure MoveEmailToFolderClick(Sender: TObject);
     procedure MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID, ANewStoreId,
-      ANewStorePath: string; AIsShowResult: Boolean = True);
-      //ADynArry: Move할 Email List임
-    function ReqMoveEmailFolder2Worker(ADynAry: TRawUTF8DynArray): integer;
+      ANewStorePath: string; AIsShowResult: Boolean = True; ASubFolder: string='');
+    //ADynArry: Move할 Email List임
+    function ReqMoveEmailFolder2WorkerFromDynAry(ADynAry: TRawUTF8DynArray): integer;
+    function ReqMoveEmailFolder2WorkerFromJsonAry(AJsonAry: RawUTF8; ACheckHullNoIsNull: Boolean=True): integer;
+    function ReqMoveEmailFolder2WorkerFromJson(AJson: RawUTF8; ACheckHullNoIsNull: Boolean=True): integer;
     function GetEntryIdFromGridJson(ADoc: variant): TEntryIdRecord;
     function ReqGotoFolder2Worker(): integer;
 
@@ -251,7 +267,8 @@ type
     //Result: Drag로 수신한 메일 수 반환
     //AJson: json array 형식임 = [{},{}]
     function ShowNMoveEmailListFromJsonAry(AJson: RawUTF8): integer;
-    procedure AddDroppedEmail2GridFromVariant(ADynAry: TRawUTF8DynArray);
+    procedure AddDroppedEmail2GridFromDynAry(ADynAry: TRawUTF8DynArray);
+    procedure AddEmail2GridFromJsonAry(AJsonAry: RawUTF8);
     //Mail Grid의 HullNo, ClaimNo, ProjectNo 가 공란이면 FOLEmailSrchRec 값으로 채움
     //DB에 저장하기 전에 꼭 필요함 - Email을 DB에서  Load할때 FOLEmailSrchRec 값으로 Select 하기 때문임
     procedure UpdateHullNo2GridIfCellEmpty();
@@ -272,9 +289,9 @@ type
     function SetDBName4Email(ADBName: string): Boolean;
 //    function SetDBKey4Email(ADBKey: string): Boolean;
 
-    procedure SaveEmailFromGrid2DB;
-    //RowID를 기준으로 삭제함
-    procedure DeleteEmialFromGrid2DB;
+    procedure SaveEmailFromGrid2DB(const AOnlySelected: Boolean=False);
+    //Grid의 EntryID를 기준으로 DB를 삭제함
+    procedure DeleteEmialFromGrid2DB(const AOnlySelected: Boolean=False);
     procedure InitEmailClient(AEmailDBName: string='');
     function GetSenderEmailListFromGrid(AContainData4Mails: TContainData4Mails): string;
     procedure AdjustEnumData2Grid(AGrid: TNextGrid);
@@ -287,6 +304,13 @@ type
 
     //Frame이 생성되고 바로 외부에서 호출함
     procedure SetOLEmailSrchRec(ARec: TOLEmailSrchRec);
+
+    function GetJsonAryFromSelectedEmail(): RawUtf8;
+    //AJsonAry를 grid_Mail에 적용함(Idx = No 조건 활용)
+    procedure UpdateHullNoNClaimNo2GridByJsonAry(AJsonAry: string);
+    procedure UpdateExistDB2GridByJsonAry(AJsonAry: string);
+    procedure AddHullNoNClaimNo2GridByJsonAry(AJsonAry: string);
+    function MoveEmailList2MoveFolderByClaimNoFromSelected(): integer;
 
     property MailCount: integer read FCurrentMailCount write SetMailCount;
   end;
@@ -303,7 +327,7 @@ uses
   //UnitGAMakeReport,
   UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
   UnitNextGridUtil2, UnitOutlookUtil2, FrmStringsEdit, FrmEditEmailInfo2,
-  UnitComboBoxUtil;
+  UnitComboBoxUtil, ArrayHelper;
 
 {$R *.dfm}
 
@@ -384,7 +408,55 @@ begin
   end;
 end;
 
-procedure TOutlookEmailListFr.AddDroppedEmail2GridFromVariant(
+procedure TOutlookEmailListFr.AddEmail2GridFromJsonAry(
+  AJsonAry: RawUTF8);
+var
+  LRow, LRow2: integer;
+  LColName, LFolderPath, LEntryId: string;
+  LDoc: variant;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+  LDocField: TDocDictFields;
+begin
+  LDocList := DocList(AJsonAry);
+
+  for LDocDict in LDocList.Objects do
+  begin
+//    for LDocField in LDocDict do
+//    begin
+//      LColName := LDocField.Key;
+//
+//      if LColName = 'SavedOLFolderPath' then
+//      begin
+//        LFolderPath := LDocField.Value;
+//      end
+//      else if LColName = 'LocalEntryId' then
+//      begin
+//        LEntryId := LDocField.Value;
+//      end;
+//    end;//for
+
+    LEntryId := LDocDict.S['LocalEntryId'];
+    LFolderPath := LDocDict.S['SavedOLFolderPath'];
+
+    LRow := GetRowIndexFromFindNext(grid_Mail, LEntryId, -1, LRow2, false, 'LocalEntryId');
+    LDoc := LDocDict.AsVariant;
+
+    //동일한 EntryId가 Grid에 존재하면
+    if LRow <> -1 then
+    begin
+      if MessageDlg('EntryId가 같은 Mail이 존재합니다. RowNo = [' + IntToStr(LRow) + ']' +
+        #13#10 + 'Overwrite 를 원하면 Yes를 눌러 주세요.' , mtConfirmation, [mbYes, mbNo],0) = mrYes then
+      begin
+        AddNextGridRowFromVariant(grid_Mail, LDoc, True, LRow);
+      end;
+    end
+    else
+      AddNextGridRowFromVariant(grid_Mail, LDoc, True);
+  end;//for
+end;
+
+procedure TOutlookEmailListFr.AddDroppedEmail2GridFromDynAry(
   ADynAry: TRawUTF8DynArray);
 var
   i,j, LRow, LRow2: integer;
@@ -467,6 +539,30 @@ begin
   end;//for
 end;
 
+procedure TOutlookEmailListFr.AddHullNoNClaimNo2GridByJsonAry(AJsonAry: string);
+var
+  LIdx, LRow: integer;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+begin
+  LDocList := DocList(StringToUtf8(AJsonAry));
+
+  for LDocDict in LDocList do
+  begin
+    LIdx := LDocDict.I['Idx'];
+
+    if (LIdx <= 0) then
+    begin
+      LRow := grid_Mail.AddRow();
+
+      grid_Mail.CellsByName['HullNo', LRow] := LDocDict.S['HullNo'];
+      grid_Mail.CellsByName['ClaimNo', LRow] := LDocDict.S['ClaimNo'];
+      grid_Mail.CellsByName['Subject', LRow] := LDocDict.S['Subject'];
+//      grid_Mail.CellsByName['Description', LIdx] := LDocDict.S['Description'];
+    end;
+  end;//for
+end;
+
 procedure TOutlookEmailListFr.AddFolderListFromOL(AFolder: string);
 begin
   if FFolderListFromOL.IndexOf(AFolder) = -1  then
@@ -511,9 +607,29 @@ begin
   ReqGotoFolder2Worker();
 end;
 
+procedure TOutlookEmailListFr.Button1Click(Sender: TObject);
+var
+  LStr: string;
+begin
+  if TpjhStringsEditorDlg.Execute(LStr) then
+  begin
+    UpdateHullNoNClaimNo2GridByJsonAry(LStr);
+  end;
+end;
+
+procedure TOutlookEmailListFr.Button2Click(Sender: TObject);
+var
+  LStr: string;
+begin
+  if TpjhStringsEditorDlg.Execute(LStr) then
+  begin
+    AddHullNoNClaimNo2GridByJsonAry(LStr);
+  end;
+end;
+
 procedure TOutlookEmailListFr.CopyHullNoClaimNoSubject1Click(Sender: TObject);
 begin
-  Clipboard.AsText :=  grid_Mail.CellsByName['HullNo', grid_Mail.SelectedRow] + '-' +
+  Clipboard.AsText := grid_Mail.CellsByName['HullNo', grid_Mail.SelectedRow] + '-' +
     grid_Mail.CellsByName['ClaimNo', grid_Mail.SelectedRow] + ' : ' +
     grid_Mail.CellsByName['Subject', grid_Mail.SelectedRow]
 end;
@@ -537,7 +653,7 @@ begin
   inherited;
 end;
 
-procedure TOutlookEmailListFr.DeleteEmialFromGrid2DB;
+procedure TOutlookEmailListFr.DeleteEmialFromGrid2DB(const AOnlySelected: Boolean);
 var
   i: integer;
   LEntryID: string;
@@ -639,7 +755,7 @@ procedure TOutlookEmailListFr.DropEmptyTarget1Drop(Sender: TObject; ShiftState: 
   APoint: TPoint; var Effect: Integer);
 var
   OutlookDataFormat: TOutlookDataFormat;
-  LIsMultiDrop: boolean;
+//  LIsMultiDrop: boolean;
   i, LDroppedCount: integer;
   LOLRespondRec: TOLRespondRec;
   LOmniValue: TOmniValue;
@@ -658,7 +774,7 @@ begin
   begin
     OutlookDataFormat := DataFormatAdapterOutlook.DataFormat as TOutlookDataFormat;
     LDroppedCount := OutlookDataFormat.Messages.Count; //Drop한 파일 갯수
-    LIsMultiDrop := LDroppedCount > 1;
+//    LIsMultiDrop := LDroppedCount > 1;
 
     LOLRespondRec.FID := LDroppedCount;
     LOLRespondRec.FSenderHandle := FFrameOLEmailListWnd;
@@ -817,6 +933,24 @@ begin
   end;
 end;
 
+procedure TOutlookEmailListFr.GetUnReadMailList1Click(Sender: TObject);
+var
+  LOLRespondRec: TOLRespondRec;
+  LOmniValue: TOmniValue;
+begin
+  if MoveFolderCB.ItemIndex <> -1 then
+  begin
+    LOLRespondRec.FID := Ord(olcGetUnReadMailListFromFolder);
+    LOLRespondRec.FSenderHandle := FFrameOLEmailListWnd;
+    LOLRespondRec.FMsg := MoveFolderCB.Text;
+    LOmniValue := TOmniValue.FromRecord(LOLRespondRec);
+
+    //Outlook 에서 읽지 않은 메일 들을 OLControlWorker 에 요청함
+    //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkUnReadMailList4Folder) Grid에 표시
+    SendCmd2WorkerThrd(olcGetUnReadMailListFromFolder, LOmniValue);
+  end;
+end;
+
 procedure TOutlookEmailListFr.grid_MailCellDblClick(Sender: TObject; ACol, ARow: Integer);
 //var
 //  LEntryID, LStoreID: string;
@@ -948,28 +1082,39 @@ begin
 end;
 
 procedure TOutlookEmailListFr.MoveEmail2Folder(AOriginalEntryID, AOriginalStoreID,
-  ANewStoreId, ANewStorePath: string; AIsShowResult: Boolean);
+  ANewStoreId, ANewStorePath: string; AIsShowResult: Boolean; ASubFolder: string);
 var
+  LOmniValue: TOmniValue;
   LOriginalEntryId, LOriginalStoreId,
-  LSubFolder, LHullNo: string;
+  LSubFolder: string;
   LMovedMailList: TStringList;
 begin
   LSubFolder := '';
-  LHullNo := '';
 
-  if AutoMove2HullNoCB.Checked then
-    LHullNo := FHullNo;
+//  if AutoMove2HullNoCB.Checked then
+//    LHullNo := FHullNo
+//  else
+//    LHullNo := AHullNo;
 
   if SubFolderCB.Checked then
-    LSubFolder := SubFolderNameEdit.Text;
+    LSubFolder := SubFolderNameEdit.Text
+  else
+    LSubFolder := ASubFolder;
 
   LMovedMailList := TStringList.Create;
   try
     if (ANewStoreId <> '') and (ANewStorePath <> '') then
     begin
-//      FEntryIdRecord := Default(TEntryIdRecord);
+      FEntryIdRecord.FEntryId := AOriginalEntryID;
+      FEntryIdRecord.FStoreId := ANewStoreId;
+      FEntryIdRecord.FFolderPath4Move := LSubFolder;
+      FEntryIdRecord.FSenderHandle := FFrameOLEmailListWnd;
 
-      SendCmd2WorkerThrd(olckMoveMail2Folder, TOmniValue.CastFrom(FFrameOLEmailListWnd));
+      LOmniValue := TOmniValue.FromRecord(FEntryIdRecord);
+      //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
+      SendCmd2WorkerThrd(olckMoveMail2Folder, LOmniValue);
+
+//      SendCmd2WorkerThrd(olckMoveMail2Folder, TOmniValue.CastFrom(FFrameOLEmailListWnd));
 
 //      if (AOriginalEntryID, AOriginalStoreID, ANewStoreId, ANewStorePath, LSubFolder, LHullNo, LMovedMailList) then
       begin
@@ -981,6 +1126,66 @@ begin
     end;
   finally
     LMovedMailList.Free;
+  end;
+end;
+
+function TOutlookEmailListFr.MoveEmailList2MoveFolderByClaimNoFromSelected: integer;
+var
+  i: integer;
+  LOriginalEntryId, LOriginalStoreId, LHullNo, LClaimNo: string;
+//  LDocList: IDocList;
+  LDocDict: IDocDict;
+  LUtf8: RawUtf8;
+begin
+  if MoveFolderCB.Text = '' then
+  begin
+    ShowMessage('Please select move folder!');
+    exit;
+  end;
+
+//  LDocList := DocList('[]');
+  LDocDict := DocDict('{}');
+
+  for i := 0 to grid_Mail.RowCount - 1 do
+  begin
+    LDocDict.Clear;
+
+    if grid_Mail.Row[i].Selected then
+    begin
+      if not grid_Mail.CellByName['ExistInDB', i].AsBoolean then
+        Continue;
+
+      LHullNo := grid_Mail.CellsByName['HullNo', i];
+
+      if LHullNo = '' then
+        Continue;
+
+      LDocDict.S['HullNo'] := LHullNo;
+
+      LClaimNo := grid_Mail.CellsByName['ClaimNo', i];
+
+      if LClaimNo = '' then
+        Continue;
+
+      LDocDict.S['ClaimNo'] := LClaimNo;
+
+      LClaimNo := MoveFolderCB.Text + ';' + LHullNo + '\' + LClaimNo;
+
+      LDocDict.S['SubFolderPath'] := LClaimNo;
+      LDocDict.S['LocalEntryId'] := grid_Mail.CellsByName['LocalEntryId', i];
+      LDocDict.S['LocalStoreId'] := grid_Mail.CellsByName['LocalStoreId', i];
+      LDocDict.S['SavedOLFolderPath'] := grid_Mail.CellsByName['SavedOLFolderPath', i];
+
+      LOriginalEntryId := grid_Mail.CellByName['LocalEntryId', i].AsString;
+      LOriginalStoreId := grid_Mail.CellByName['LocalStoreId', i].AsString;
+
+      LUtf8 := LDocDict.Json;
+
+      ReqMoveEmailFolder2WorkerFromJson(LUtf8);
+//      MoveEmail2Folder(LOriginalEntryId, LOriginalStoreId,
+//        FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex],
+//        FFolderListFromOL.Names[MoveFolderCB.ItemIndex], True, LClaimNo);
+    end;
   end;
 end;
 
@@ -1019,6 +1224,12 @@ begin
   ShowEmailListFromDBKey(grid_Mail, FDBKey);
 end;
 
+procedure TOutlookEmailListFr.MoveSelectedEmail2MoveFolder1Click(
+  Sender: TObject);
+begin
+  MoveEmailList2MoveFolderByClaimNoFromSelected();
+end;
+
 procedure TOutlookEmailListFr.OnGetOLFolderListTimer(Sender: TObject;
   Handle: Integer; Interval: Cardinal; ElapsedTime: Integer);
 begin
@@ -1052,9 +1263,9 @@ begin
     //HiconisASManage에서 전달 받음
     while FOLEmailSrchRec.FTaskEditConfig.IPCMQ2RespondOLEmail.TryDequeue(LMsg) do
     begin
-        LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
+      LOLRespondRec := LMsg.MsgData.ToRecord<TOLRespondRec>;
 
-        ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
+      ProcessRespondFromWorker(LMsg.MsgID, LOLRespondRec);
     end;//while
   end;
 end;
@@ -1090,6 +1301,16 @@ begin
       //HullNo Update
       UpdateHullNo2GridIfCellEmpty();
     end;
+    olrkUnReadMailList4Folder: begin
+      if ARec.FMsg <> '' then
+      begin
+        LUtf8 := StringToUtf8(ARec.FMsg);
+        AddEmail2GridFromJsonAry(LUtf8);
+      end;
+    end;
+    olrkUpdateExistClaimNo2Grid: begin
+      UpdateExistDB2GridByJsonAry(ARec.FMsg);
+    end;
   end;
 end;
 
@@ -1109,7 +1330,7 @@ begin
   end;
 end;
 
-function TOutlookEmailListFr.ReqMoveEmailFolder2Worker(
+function TOutlookEmailListFr.ReqMoveEmailFolder2WorkerFromDynAry(
   ADynAry: TRawUTF8DynArray): integer;
 var
   i, LFolderIdx: integer;
@@ -1148,6 +1369,75 @@ begin
     SendCmd2WorkerThrd(olckMoveMail2Folder, LOmniValue);
 
 //    FLogProc(FEntryIdRecord.FFolderPath4Move);
+  end;//for
+
+  Result := 1;
+end;
+
+function TOutlookEmailListFr.ReqMoveEmailFolder2WorkerFromJson(AJson: RawUTF8;
+  ACheckHullNoIsNull: Boolean): integer;
+var
+  LDoc: variant;
+  LOmniValue: TOmniValue;
+  LDestFolder, LSubFolder, LHullNo, LClaimNo: string;
+
+  LDocDict: IDocDict;
+//  LDocField: TDocDictFields;
+begin
+  LDocDict := DocDict(AJson);
+
+  LHullNo := LDocDict.S['HullNo'];
+  LClaimNo := LDocDict.S['ClaimNo'];
+  LSubFolder := LDocDict.S['SubFolderPath'];
+
+  if ACheckHullNoIsNull then
+  begin
+    if (LHullNo = '') or (LClaimNo = '') then
+      exit;
+
+    LSubFolder := LHullNo + '\' + LClaimNo;
+  end
+  else
+    LSubFolder := SubFolderNameEdit.Text;
+
+  LDoc := LDocDict.AsVariant;
+
+  FEntryIdRecord := GetEntryIdFromGridJson(LDoc);
+
+  //이동할 Root Folder = EntryId + ';' + Folder StoreId로 저장됨
+  LDestFolder := FFolderListFromOL.ValueFromIndex[MoveFolderCB.ItemIndex];
+
+  FEntryIdRecord.FEntryId4MoveRoot := StrToken(LDestFolder, ';');
+  FEntryIdRecord.FStoreId4MoveRoot := StrToken(LDestFolder, ';');
+
+  //이동할 Folder Path를 저장: RootFolder + ';' + SubFolder
+  LDestFolder := FFolderListFromOL.Names[MoveFolderCB.ItemIndex] + ';' + LSubFolder;
+  FEntryIdRecord.FFolderPath4Move := LDestFolder;
+  FEntryIdRecord.FSenderHandle := FFrameOLEmailListWnd;
+
+  LOmniValue := TOmniValue.FromRecord(FEntryIdRecord);
+  //LDoc : {grid_Mail Column Name, vaule} 의 Json 형식임
+  SendCmd2WorkerThrd(olckMoveMail2Folder, LOmniValue);
+end;
+
+function TOutlookEmailListFr.ReqMoveEmailFolder2WorkerFromJsonAry(
+  AJsonAry: RawUTF8; ACheckHullNoIsNull: Boolean): integer;
+var
+  LUtf8: RawUtf8;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+begin
+  Result := -1;
+
+  if MoveFolderCB.ItemIndex < 0 then
+    exit;
+
+  LDocList := DocList(AJsonAry);
+
+  for LDocDict in LDocList do
+  begin
+    LUtf8 := LDocDict.Json;
+    ReqMoveEmailFolder2WorkerFromJson(LUtf8);
   end;//for
 
   Result := 1;
@@ -1206,7 +1496,52 @@ begin
 //  end;
 end;
 
-procedure TOutlookEmailListFr.SaveEmailFromGrid2DB;
+function TOutlookEmailListFr.GetJsonAryFromSelectedEmail: RawUtf8;
+var
+  i: integer;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+  LVar: Variant;
+  LDocVar: Variant;
+  LJson: RawUtf8;
+begin
+  Result := '';
+  LDocList := DocList('[]');
+  LDocDict := DocDict('{}');
+  TDocVariant.New(LDocVar);
+
+  for i := 0 to grid_Mail.RowCount - 1 do
+  begin
+    if grid_Mail.Row[i].Selected then
+    begin
+      LDocDict.Clear;
+      TDocVariantData(LDocVar).Clear;
+      LVar := GetNxGridRow2Variant(grid_Mail, i);
+      LDocVar := TDocVariant.NewJson(LVar);
+//      LDocDict := DocDictFrom(LVar);
+      LDocDict.I['Idx'] := LDocVar.Incremental;
+      LDocDict.S['HullNo'] := LDocVar.HullNo;
+      LDocDict.S['ClaimNo'] := LDocVar.ClaimNo;
+      LDocDict.S['Subject'] := LDocVar.Subject;
+      LDocDict.S['Description'] := LDocVar.Description;
+      LDocDict.B['ExistInDB'] := False;
+
+      LDocList.AppendDoc(LDocDict);
+    end;
+  end;
+
+  Result := LDocList.Json;
+end;
+
+procedure TOutlookEmailListFr.Save2JsonAryFromSelected1Click(Sender: TObject);
+var
+  LStr: string;
+begin
+  LStr := Utf8ToString(GetJsonAryFromSelectedEmail());
+  Clipboard.AsText := LStr;
+end;
+
+procedure TOutlookEmailListFr.SaveEmailFromGrid2DB(const AOnlySelected: Boolean);
 var
   LDoc: variant;
   LJsonArray: string;
@@ -1218,8 +1553,8 @@ begin
   LStrList := TStringList.Create;
   try
     //Grid의 EntryID를 기준으로 DB를 삭제함
-    DeleteEmialFromGrid2DB;
-    LDoc := NextGrid2Variant(grid_Mail);
+    DeleteEmialFromGrid2DB(AOnlySelected);
+    LDoc := NextGrid2Variant(grid_Mail, False, True, AOnlySelected);
     LJsonArray := LDoc;
 
     if AddOLMail2DBFromDroppedMail(LJsonArray, LStrList) then
@@ -1423,26 +1758,23 @@ end;
 function TOutlookEmailListFr.ShowNMoveEmailListFromJsonAry(
   AJson: RawUTF8): integer;
 var
-  LVar: variant;
   LUtf8: RawUTF8;
   LDynUtf8: TRawUTF8DynArray;
   LDynArr: TDynArray;
+  LVar: variant;
   LDestFolder: string;
   LReqResult: integer;
 begin
   //AJson = [] 형식의 Email List임
-//  LVar := _JSON(AJson);
-
   LDynArr.Init(TypeInfo(TRawUTF8DynArray), LDynUtf8);
   LDynArr.LoadFromJSON(PUTF8Char(AJson));
 
   //OL으로부터 전달 받은 Selected Email List를 Grid에 표시: Move 전 EnttryID 표시됨
-  AddDroppedEmail2GridFromVariant(LDynUtf8);
-//  AddNextGridRowsFromVariant(grid_Mail, LDynUtf8, False);
+  AddDroppedEmail2GridFromDynAry(LDynUtf8);
 
   if AutoMoveCB.Checked then
   begin
-    LReqResult := ReqMoveEmailFolder2Worker(LDynUtf8);//Move 완료 후 수정된 EntryId를 Grid에 갱신해야 함
+    LReqResult := ReqMoveEmailFolder2WorkerFromDynAry(LDynUtf8);//Move 완료 후 수정된 EntryId를 Grid에 갱신해야 함
 
     if LReqResult = -1 then
     begin
@@ -1532,6 +1864,21 @@ begin
   Timer1.Enabled := False;
 end;
 
+procedure TOutlookEmailListFr.UpdateClaimExist1Click(Sender: TObject);
+var
+  LOLRespondRec: TOLRespondRec;
+  LOmniValue: TOmniValue;
+begin
+  LOLRespondRec.FID := Ord(olcCheckExistClaimNoInDB);
+  LOLRespondRec.FSenderHandle := FFrameOLEmailListWnd;
+  LOLRespondRec.FMsg := Utf8ToString(GetJsonAryFromSelectedEmail());
+  LOmniValue := TOmniValue.FromRecord(LOLRespondRec);
+
+  //Outlook 에서 읽지 않은 메일 들을 OLControlWorker 에 요청함
+  //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkUnReadMailList4Folder) Grid에 표시
+  SendCmd2WorkerThrd(olcCheckExistClaimNoInDB, LOmniValue);
+end;
+
 procedure TOutlookEmailListFr.UpdateEmailId2GridFromJson(AJson: string);
 var
   LDoc: IDocDict;
@@ -1556,26 +1903,106 @@ begin
   end;
 end;
 
+procedure TOutlookEmailListFr.UpdateExistDB2GridByJsonAry(AJsonAry: string);
+var
+  LUtf8: RawUtf8;
+  LDocList, LResultList: IDocList;
+  LDocDict: IDocDict;
+  LHullNo, LClaimNo, LTaskID: string;
+  LIntAry, LRowAry: TArrayRecord<integer>;
+  LStrAry: TArrayRecord<string>;
+  LRow: integer;
+  LVar: variant;
+begin
+  LResultList := DocList('[]');
+  LDocList := DocList('[]');
+  LDocDict := DocDict('{}');
+
+  LDocList := DocList(StringToUtf8(AJsonAry));
+
+//  LIntAry := TArrayRecord<integer>.Create(2);
+//  LStrAry := TArrayRecord<string>.Create(2);
+
+  LIntAry.Add(1);
+  LIntAry.Add(2);
+  LIntAry.Add(4);
+
+  for LDocDict in LDocList.Objects do
+  begin
+    LStrAry.Clear;
+
+    LHullNo := LDocDict.S['HullNo'];
+    LClaimNo := LDocDict.S['ClaimNo'];
+    LTaskID := LDocDict.S['LTaskID'];
+    LVar := LDocDict.B['ExistInDB'];
+
+    LStrAry.Add(LTaskID);
+    LStrAry.Add(LHullNo);
+    LStrAry.Add(LClaimNo);
+
+    LRowAry.Items := GetRowIndexByColIndexAryFromFindStrAry(grid_Mail, LStrAry.Items, LIntAry.Items);
+
+    SetNxGridCellValueByRowAryFromVar(grid_Mail, 'ExistInDB', LRowAry.Items, LVar);
+    ChangeRowColorByRowAry(grid_Mail, LRowAry.Items, clInfoBk);
+  end;
+end;
+
+procedure TOutlookEmailListFr.UpdateHullNoNClaimNo2GridByJsonAry(AJsonAry: string);
+var
+  LIdx: integer;
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+  LStr: string;
+  LBool: Boolean;
+begin
+  LDocList := DocList(StringToUtf8(AJsonAry));
+
+  for LDocDict in LDocList.ObjectsDicts do
+  begin
+    LIdx := LDocDict.I['Idx'] - 1;
+
+    if (LIdx >= 0) and (LIdx < grid_Mail.RowCount) then
+    begin
+      LStr := LDocDict.S['HullNo'];
+      grid_Mail.CellsByName['HullNo', LIdx] := AdjustHullNo(LStr);
+      LStr := LDocDict.S['ClaimNo'];
+      grid_Mail.CellsByName['ClaimNo', LIdx] := RemoveSpace2String(LStr);
+      LStr := LDocDict.S['TaskID'];
+      grid_Mail.CellsByName['TaskID', LIdx] := RemoveSpace2String(LStr);
+      LBool := LDocDict.B['ExistInDB'];
+      grid_Mail.CellByName['ExistInDB', LIdx].AsBoolean := LBool;
+//      grid_Mail.CellsByName['Subject', LIdx] := LDocDict.S['Subject'];
+//      grid_Mail.CellsByName['Description', LIdx] := LDocDict.S['Description'];
+    end;
+  end;
+end;
+
 procedure TOutlookEmailListFr.UpdateHullNo2GridIfCellEmpty;
 var
   i: integer;
 begin
-  grid_Mail.BeginUpdate;
-  try
-    for i := 0 to grid_Mail.RowCount - 1 do
-    begin
-      if grid_Mail.CellsByName['HullNo', i] = '' then
+  if FOLEmailSrchRec.FTaskEditConfig.IsAllowUpdateHullNo2Grid then
+  begin
+    grid_Mail.BeginUpdate;
+    try
+      for i := 0 to grid_Mail.RowCount - 1 do
       begin
-        grid_Mail.CellsByName['HullNo', i] := FOLEmailSrchRec.FHullNo;
-        grid_Mail.CellsByName['ProjectNo', i] := FOLEmailSrchRec.FProjectNo;
-        grid_Mail.CellsByName['ClaimNo', i] := FOLEmailSrchRec.FClaimNo;
-      end;
+        if grid_Mail.CellsByName['HullNo', i] = '' then
+        begin
+          grid_Mail.CellsByName['HullNo', i] := FOLEmailSrchRec.FHullNo;
+          grid_Mail.CellsByName['ProjectNo', i] := FOLEmailSrchRec.FProjectNo;
+          grid_Mail.CellsByName['ClaimNo', i] := FOLEmailSrchRec.FClaimNo;
+        end;
 
-      if grid_Mail.CellsByName['TaskID', i] = '' then
-        grid_Mail.CellsByName['TaskID', i] := IntToStr(FOLEmailSrchRec.FTaskID);
+        if grid_Mail.CellsByName['Description', i] = '' then
+          grid_Mail.CellsByName['Description', i] := grid_Mail.CellsByName['FlagRequest', i];
+
+        if grid_Mail.CellsByName['TaskID', i] = '' then
+          grid_Mail.CellsByName['TaskID', i] := IntToStr(FOLEmailSrchRec.FTaskID);
+      end;
+    finally
+      grid_Mail.EndUpdate();
     end;
-  finally
-    grid_Mail.EndUpdate();
   end;
 end;
 

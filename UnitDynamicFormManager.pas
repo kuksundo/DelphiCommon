@@ -26,6 +26,8 @@ type
 
     function DestroyForm(const AHandle: THandle): integer;
     function DestroyFormFromHandleQ(): integer;
+
+    function HandleIsExistInList(const AHandle: THandle): Boolean;
   end;
 
 var
@@ -87,6 +89,9 @@ end;
 
 function TGPFormManager.DestroyForm(const AHandle: THandle): integer;
 begin
+  if not HandleIsExistInList(AHandle) then
+    exit;
+
   Safe.Lock();
   try
     FHandleQ4DestroyForm.Enqueue(AHandle);
@@ -118,6 +123,11 @@ begin
   finally
     Safe.UnLock;
   end;
+end;
+
+function TGPFormManager.HandleIsExistInList(const AHandle: THandle): Boolean;
+begin
+  Result := FFormList.ContainsKey(AHandle);
 end;
 
 procedure TGPFormManager.OnDestroyForm(Sender: TObject; Handle: Integer;
