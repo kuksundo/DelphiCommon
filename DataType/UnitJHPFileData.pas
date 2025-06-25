@@ -40,6 +40,10 @@ type
     fFilePath,
     fFileDesc //파일 설명
     : RawUTF8;
+    fIsNew,
+    fIsDelete,
+    fIsUpdate
+    : Boolean;
   end;
 
   TJHPFileRecs = array of TJHPFileRec;

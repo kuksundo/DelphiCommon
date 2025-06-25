@@ -89,8 +89,6 @@ type
     FDocTypeList: TStringList;
     FHasMessageSession: boolean;
 
-    procedure InitDragDrop;
-    procedure InitDocTypeList2Combo(ADocTypeList: TStrings);
     procedure InitMAPI;
 
     procedure OnGetStream(Sender: TFileContentsStreamOnDemandClipboardFormat;
@@ -116,6 +114,7 @@ type
     function GetFileContentsFromDragOrDiskJHPFilesBySaveKind(const ARec: TJHPFileRec): RawByteString;
   public
     FJHPFileDB4Fr: TRestClientDB;
+    FOrmJHPFile: TOrmJHPFile;
     FDragOrDiskJHPFiles: IKeyValue<integer, TJHPFileRec>;
     FItemID, FTaskID: TID;
     FTaskJson: String;
@@ -125,6 +124,8 @@ type
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure InitDragDrop;
+    procedure InitDocTypeList2Combo(ADocTypeList: TStrings);
 
     procedure LoadFiles2GridByTaskID(const ATaskID: TID);
     procedure JHPFileRec2Grid(ARec: TJHPFileRec; ADynIndex: integer;

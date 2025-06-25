@@ -12,8 +12,9 @@ function GetValueFromJsonDictByKeyName(AJson, AKeyName: string): string;
 function GetJsonAryFromStrAry(const AAry: array of string): string;
 function GetJsonAryFromTArray(const AAry: TArray<string>): string;
 function GetJsonAryFromStrAry2D(const AAry: TStrArray2D): string;
-function GetJsonAryFromStringList(const StrList: TStringList): string;
-function StringListToArray(const StrList: TStringList): TArray<string>;
+function GetJsonAryFromStringList(const StrList: TStringList; const AUseName: Boolean=False): string;
+//AUseName : True => Name=Value 형식으로 저장 되므로 Name만 TArray에 저장함
+function StringListToArray(const StrList: TStringList; const AUseName: Boolean=False): TArray<string>;
 
 function GetFieldValueFromJsonAry(AJsonAry, AKeyName: RawUtf8; ARowIndex: integer=0): RawUtf8;
 
@@ -73,21 +74,26 @@ begin
   Result := LList.Json;
 end;
 
-function GetJsonAryFromStringList(const StrList: TStringList): string;
+function GetJsonAryFromStringList(const StrList: TStringList; const AUseName: Boolean): string;
 var
   LAry: TArray<string>;
 begin
-  LAry := StringListToArray(StrList);
+  LAry := StringListToArray(StrList, AUseName);
   Result := GetJsonAryFromTArray(LAry);
 end;
 
-function StringListToArray(const StrList: TStringList): TArray<string>;
+function StringListToArray(const StrList: TStringList; const AUseName: Boolean): TArray<string>;
 var
   I: Integer;
 begin
   SetLength(Result, StrList.Count);
   for I := 0 to StrList.Count - 1 do
-    Result[I] := StrList[I];
+  begin
+    if AUseName then
+      Result[I] := StrList.Names[I]
+    else
+      Result[I] := StrList[I];
+  end;
 end;
 
 function GetFieldValueFromJsonAry(AJsonAry, AKeyName: RawUtf8; ARowIndex: integer): RawUtf8;

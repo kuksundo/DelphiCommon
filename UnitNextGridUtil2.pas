@@ -100,7 +100,7 @@ function GetRowIndexByColIndexAryFromFindStrAry(const ANextGrid: TNextGrid; AFin
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
 function ChangeRowColorByRowAry(AGrid: TNextGrid; ARowAry: TArray<integer>; AColor: TColor): TColor;
-function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor; AIsBold: Boolean=True): TColor;
+function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor; AIsBold: Boolean=True; AIsStrikeThrough : Boolean=False): TColor;
 procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean=True);
 
 //AJson은 한개의 레코드에 대한 Json임
@@ -117,6 +117,9 @@ function GetNxCellPointAtPoint(AGrid: TNextGrid; const APoint: TPoint): TPoint;
 
 function GetCellDataByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string; ARow: integer): string;
 function GetColIdxByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string): integer;
+
+procedure SetColVisibleByColNameFromGrid(AGrid: TNextGrid; const AColName: string; AIsVisible: Boolean);
+procedure SetColWidthByColNameFromGrid(AGrid: TNextGrid; const AColName: string; AWidth: integer);
 
 var
   FNXGrid_Header_Color : TColor;
@@ -1342,7 +1345,7 @@ begin
 end;
 
 function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer;
-  AColor: TColor; AIsBold: Boolean): TColor;
+  AColor: TColor; AIsBold, AIsStrikeThrough: Boolean): TColor;
 var
   i: integer;
 begin
@@ -1353,7 +1356,14 @@ begin
     AGrid.Cell[i, ARowIndex].TextColor := AColor;
 
     if AIsBold then
-      AGrid.Cell[i, ARowIndex].FontStyle := [fsBold];
+      AGrid.Cell[i, ARowIndex].FontStyle := [fsBold]
+    else
+      AGrid.Cell[i, ARowIndex].FontStyle := AGrid.Cell[i, ARowIndex].FontStyle - [fsBold];
+
+    if AIsStrikeThrough then
+      AGrid.Cell[i, ARowIndex].FontStyle := AGrid.Cell[i, ARowIndex].FontStyle + [fsStrikeOut]
+    else
+      AGrid.Cell[i, ARowIndex].FontStyle := AGrid.Cell[i, ARowIndex].FontStyle - [fsStrikeOut]
   end;
 end;
 
@@ -1567,6 +1577,22 @@ begin
       Break;
     end;
   end; //for
+end;
+
+procedure SetColVisibleByColNameFromGrid(AGrid: TNextGrid; const AColName: string; AIsVisible: Boolean);
+begin
+  if IsExistNextGridColumnName(AGrid, AColName) then
+  begin
+    AGrid.ColumnByName[AColName].Visible := AIsVisible;
+  end;
+end;
+
+procedure SetColWidthByColNameFromGrid(AGrid: TNextGrid; const AColName: string; AWidth: integer);
+begin
+  if IsExistNextGridColumnName(AGrid, AColName) then
+  begin
+    AGrid.ColumnByName[AColName].Width := AWidth;
+  end;
 end;
 
 initialization

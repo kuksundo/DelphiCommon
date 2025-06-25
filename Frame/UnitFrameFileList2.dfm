@@ -428,7 +428,6 @@ object JHPFileListFrame: TJHPFileListFrame
       Appearance.ColorMirrorCheckedTo = 16768988
       Appearance.ColorMirrorDisabled = 11974326
       Appearance.ColorMirrorDisabledTo = 15921906
-      ExplicitTop = 6
     end
     object ApplyButton: TAdvGlowButton
       AlignWithMargins = True
@@ -477,7 +476,7 @@ object JHPFileListFrame: TJHPFileListFrame
     Left = 11
     Top = 8
     Bitmap = {
-      494C010130009800900410001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010130009800A40410001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       000000000000360000002800000040000000D0000000010020000000000000D0
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -2205,7 +2204,6 @@ object JHPFileListFrame: TJHPFileListFrame
     OnEnter = DropEmptyTarget1Enter
     OnDrop = DropEmptyTarget1Drop
     Target = fileGrid
-    WinTarget = 0
     Left = 12
     Top = 60
   end

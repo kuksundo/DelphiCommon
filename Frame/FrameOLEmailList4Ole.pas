@@ -23,7 +23,8 @@ uses
 //  UnitStrategy4OLEmailInterface2, UnitMQData,
   UnitWorker4OmniMsgQ,
   UnitOLControlWorker,
-  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2
+  UnitOutLookDataType, Outlook_TLB, UnitElecServiceData2, UnitOLEmailRecord2,
+  DropSource, DragDropText, UnitOLDragDropRecord
 //  UnitHiconisASData
   ;
 
@@ -137,6 +138,7 @@ type
     ExistInDB: TNxCheckBoxColumn;
     FlagRequest: TNxTextColumn;
     ImageList16x16: TImageList;
+    DropTextSource1: TDropTextSource;
 
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
@@ -159,6 +161,8 @@ type
     procedure MoveSelectedEmail2MoveFolder1Click(Sender: TObject);
     procedure GetUnReadMailList1Click(Sender: TObject);
     procedure UpdateClaimExist1Click(Sender: TObject);
+    procedure grid_MailMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
     FOLControlWorker: TOLControlWorker;
     FCommandQueue,
@@ -180,6 +184,7 @@ type
 
     FCurrentMailCount: integer;
     FEmailDBName: string;
+    FEmailDragSource: TOLEmail_DragSourceDataFormat;
 //{$IFDEF USE_OMNITHREAD}
 //    FOLMsg2MQ: TOmniMessageQueue;
 //{$ENDIF}
@@ -228,6 +233,8 @@ type
     procedure AddFolderListFromOL(AFolder: string);
     procedure SetMoveFolderIndex;
     function AddEmail2GridNList(ADBKey, AJson: string; AList: TStringList; AFromRemote: Boolean=False): Boolean;
+
+    procedure MoveOLEmailData2DragSrcRecFromGrid(const ARow: integer; var ARec: TOLEmail_DragSourceRec);
 
     class function MakeEMailHTMLBody<T>(AMailType: integer): string;
 
@@ -739,6 +746,7 @@ end;
 
 procedure TOutlookEmailListFr.DestroyVar;
 begin
+  FEmailDragSource.Free;
 //  MAPIUninitialize;
   DeallocateHWnd(FFrameOLEmailListWnd);
 
@@ -966,6 +974,42 @@ begin
 //  NextGridScrollToRow(grid_Mail);
 end;
 
+procedure TOutlookEmailListFr.grid_MailMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  i: integer;
+  LRect: TRect;
+  LPoint: TPoint;
+  LOLED: TOLEmail_DragSourceRec;
+begin
+  LRect := grid_Mail.GetHeaderRect;
+  LPoint.X := X;
+  LPoint.Y := Y;
+
+  if PtInRect(LRect, LPoint) then
+    exit;
+
+  if grid_Mail.SelectedCount > 0 then
+  begin
+    if (DragDetectPlus(TWinControl(Sender).Handle, Point(X,Y))) then
+    begin
+      if grid_Mail.SelectedCount = 1 then
+      begin
+        i := grid_Mail.SelectedRow;
+        MoveOLEmailData2DragSrcRecFromGrid(i, LOLED);
+        FEmailDragSource.OLED := LOLED;
+
+        //Matrix Data Move가 누락됨. 나중에 추가할 것.
+      end
+      else
+      begin
+      end;
+
+      DropTextSource1.Execute;
+    end;
+  end;
+end;
+
 procedure TOutlookEmailListFr.InitEmailClient(AEmailDBName: string);
 begin
   if AEmailDBName = '' then
@@ -1034,6 +1078,7 @@ begin
   FPJHTimerPool := TPJHTimerPool.Create(Self);
 
   InitEmailClient();
+  FEmailDragSource := TOLEmail_DragSourceDataFormat.Create(DropTextSource1);
 //  InitMAPI();
 end;
 
@@ -1222,6 +1267,19 @@ begin
 
   MoveEmail2Folder(LOriginalEntryId, LOriginalStoreId, LNewStoreId, LNewStorePath);
   ShowEmailListFromDBKey(grid_Mail, FDBKey);
+end;
+
+procedure TOutlookEmailListFr.MoveOLEmailData2DragSrcRecFromGrid(
+  const ARow: integer; var ARec: TOLEmail_DragSourceRec);
+begin
+  with grid_Mail, ARec do
+  begin
+    FTaskID := CellsByName['TaskID', ARow];
+    FHullNo := CellsByName['HullNo', ARow];
+    FClaimNo := CellsByName['ClaimNo', ARow];
+    FOrderNo := CellsByName['ProjectNo', ARow];
+    FSubject := CellsByName['Subject', ARow];
+  end;
 end;
 
 procedure TOutlookEmailListFr.MoveSelectedEmail2MoveFolder1Click(

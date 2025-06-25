@@ -18,6 +18,7 @@ function GetFileVersionListByPJVerInfoFromFolder(const AFolder: string; const AI
 //AList : Full Path FileName List
 //결과값은 FilaName = version 포맷으로 반환 함
 function GetFileVersionListByPJVerInfoFromList(AList: TStringList): integer;
+
 function IsValidFileName(const AFileName: string): Boolean;
 function GetValidFileName(const AFileName: string): string;
 
@@ -141,6 +142,8 @@ var
   i: integer;
   LFileName: string;
 begin
+  Result := -1;
+
   LPJVerInfo := TPJVersionInfo.Create(nil);
   try
     for i := 0 to AList.Count - 1 do
@@ -153,6 +156,8 @@ begin
       else
         AList.Strings[i] := LFileName + '=';
     end;
+
+    Result := AList.Count;
   finally
     LPJVerInfo.Free;
   end;

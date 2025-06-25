@@ -69,7 +69,7 @@ procedure DestroyJHPFile;
 
 function GetJHPFilesFromTaskID(const AID: TID; ADB: TRestClientDB): TOrmJHPFile;
 function GetJHPFilesFromFileID(const AFileID: TID; ADB: TRestClientDB): TOrmJHPFile;
-function GetJHPFiles(ADB: TRestClientDB): TOrmJHPFile;
+function GetJHPFiles(ADB: TRestClientDB=nil): TOrmJHPFile;
 function GetFileDataByFileID(const AFileID: TTimeLog; ADB: TRestClientDB): RawByteString;
 function GetFileContentsFromDBBySaveKind(const AOrm: TOrmJHPFile): RawByteString;
 function GetFileCountFromTaskID(const AID: TID; ADB: TRestClientDB): integer;
@@ -185,7 +185,11 @@ begin
   if not Assigned(ADB) then
     ADB := g_FileDB;
 
-  Result := TOrmJHPFile.CreateAndFillPrepare(ADB.Orm, 'TaskID = ?', [AID]);
+  if AID = -1 then
+    Result := TOrmJHPFile.CreateAndFillPrepare(ADB.Orm, 'TaskID <> ?', [-1])
+  else
+    Result := TOrmJHPFile.CreateAndFillPrepare(ADB.Orm, 'TaskID = ?', [AID]);
+
   Result.IsUpdate := Result.FillOne;
 
   if not Result.IsUpdate then
