@@ -103,6 +103,8 @@ type
     procedure InitDragDrop;
 
     procedure SetVisibleAttachmentLabel(const AIsVisible: Boolean);
+    procedure SetVisibleDeleteButton(const AIsVisible: Boolean);
+    procedure SetVisibleAddButton(const AIsVisible: Boolean);
     procedure SetVisibleFileSizeColInGrid(const AIsVisible: Boolean);
     procedure SetVisibleFileIDColInGrid(const AIsVisible: Boolean);
     procedure SetVisibleIncColInGrid(const AIsVisible: Boolean);
@@ -459,9 +461,19 @@ begin
   FOnBeforeTargetDrop := AOnTargetDrop;
 end;
 
+procedure TFileListGridFr.SetVisibleAddButton(const AIsVisible: Boolean);
+begin
+  DeleteButton.Visible := AIsVisible;
+end;
+
 procedure TFileListGridFr.SetVisibleAttachmentLabel(const AIsVisible: Boolean);
 begin
   AttachmentLabel.Visible := AIsVisible;
+end;
+
+procedure TFileListGridFr.SetVisibleDeleteButton(const AIsVisible: Boolean);
+begin
+  AddButton.Visible := AIsVisible;
 end;
 
 procedure TFileListGridFr.SetVisibleFileIDColInGrid(const AIsVisible: Boolean);
