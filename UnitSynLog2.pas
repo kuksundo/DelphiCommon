@@ -23,7 +23,7 @@ begin
   with TSynLog.Family do begin
 //    Level := LOG_VERBOSE;
 //    Level := [sllException,sllExceptionOS];
-    Level := [sllInfo,sllError,sllException,sllExceptionOS];//sllEnter
+    Level := [sllInfo,sllError,sllException,sllExceptionOS, sllEnter];
 //    EchoToConsole := LOG_VERBOSE; // log all events to the console
 //    PerThreadLog := true;
 //    PerThreadLog := ptOneFilePerThread; //ptIdentifiedInOnFile
@@ -64,10 +64,14 @@ begin
   if ALogDate then
     AMsg := DateTimeToStr(now) + ':: ' + AMsg;
 
+  //Level에 sllEnter를 포함 시키지 않으면 nil이 반환 됨
   ILog := TSynLog.Enter;
 
-  if AMsgLevel in TSynLog.Family.Level then
-    ILog.Log(AMsgLevel, Amsg);
+  if Assigned(ILog) then
+  begin
+    if AMsgLevel in TSynLog.Family.Level then
+      ILog.Log(AMsgLevel, Amsg);
+  end;
 end;
 
 end.

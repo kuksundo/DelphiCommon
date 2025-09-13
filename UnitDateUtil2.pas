@@ -11,6 +11,8 @@ procedure PopupDateTimePicker(ADateTimePicker: TDateTimePicker; AX, AY: integer)
 function GetDateFromFormatStr(AFormat: string; ADateSep: Char; ADateStr: string): TDate;
 function GetTimeFromFormatStr(AFormat: string; ATimeSep: Char; ATimeStr: string): TTime;
 function AddTimeStrings(const Time1, Time2: string): string;
+//두 날짜를 비교하여 더 큰 날짜를 반환
+function GetMaxDate(const Date1, Date2: TDateTime): TDateTime;
 
 implementation
 
@@ -33,7 +35,7 @@ begin
   LFormat := TFormatSettings.Create;
   LFormat.DateSeparator := ADateSep;//'-';
   LFormat.ShortDateFormat := AFormat;
-  Result := StrToDateTime(ADateStr, LFormat);
+  Result := StrToDateTimeDef(ADateStr, IncYear(now, -2000), LFormat);
 end;
 
 function GetTimeFromFormatStr(AFormat: string; ATimeSep: Char; ATimeStr: string): TTime;
@@ -68,6 +70,14 @@ begin
 
   // 'hh:mm' 형식으로 반환
   Result := Format('%.2d:%.2d', [TotalHour, TotalMin]);
+end;
+
+function GetMaxDate(const Date1, Date2: TDateTime): TDateTime;
+begin
+  if CompareDate(Date1, Date2) >= 0 then
+    Result := Date1
+  else
+    Result := Date2;
 end;
 
 end.

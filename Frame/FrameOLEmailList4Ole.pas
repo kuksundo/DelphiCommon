@@ -17,7 +17,7 @@ uses
   Cromis.Comm.Custom, Cromis.Comm.IPC, Cromis.Threading,
 {$ENDIF}
   mormot.core.base, mormot.core.variants, mormot.core.os, mormot.core.buffers,
-  mormot.core.log, mormot.core.unicode, mormot.core.data,
+  mormot.core.log, mormot.core.unicode, mormot.core.data, mormot.core.json,
 
 //  FrmEditEmailInfo2,
 //  UnitStrategy4OLEmailInterface2, UnitMQData,
@@ -139,6 +139,12 @@ type
     FlagRequest: TNxTextColumn;
     ImageList16x16: TImageList;
     DropTextSource1: TDropTextSource;
+    ChangeClaimNo2EmailDB1: TMenuItem;
+    N17: TMenuItem;
+    N18: TMenuItem;
+    DHL1: TMenuItem;
+    DHL2: TMenuItem;
+    N19: TMenuItem;
 
     procedure DropEmptyTarget1Drop(Sender: TObject; ShiftState: TShiftState;
       APoint: TPoint; var Effect: Integer);
@@ -163,6 +169,8 @@ type
     procedure UpdateClaimExist1Click(Sender: TObject);
     procedure grid_MailMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure ChangeClaimNo2EmailDB1Click(Sender: TObject);
+    procedure N17Click(Sender: TObject);
   private
     FOLControlWorker: TOLControlWorker;
     FCommandQueue,
@@ -311,13 +319,15 @@ type
 
     //Frame이 생성되고 바로 외부에서 호출함
     procedure SetOLEmailSrchRec(ARec: TOLEmailSrchRec);
-
+    //Grid에서 HullNo,ClaimNo등을 JsonArt로 가져옴(ExistInDB=False)
     function GetJsonAryFromSelectedEmail(): RawUtf8;
     //AJsonAry를 grid_Mail에 적용함(Idx = No 조건 활용)
     procedure UpdateHullNoNClaimNo2GridByJsonAry(AJsonAry: string);
+    //AJsonAry의 ClaimNo가 HiconisASManageR.db3에 존재하면(ExistInDB=True) Grid 색 변경함-신규 Claim인지 확인하기 위함
     procedure UpdateExistDB2GridByJsonAry(AJsonAry: string);
     procedure AddHullNoNClaimNo2GridByJsonAry(AJsonAry: string);
     function MoveEmailList2MoveFolderByClaimNoFromSelected(): integer;
+    procedure ChangeClaimNo2EmailDB(AOLFolderRecJson: string);
 
     property MailCount: integer read FCurrentMailCount write SetMailCount;
   end;
@@ -333,7 +343,8 @@ uses
   ComObj,
   //UnitGAMakeReport,
   UnitBase64Util2, UnitMustacheUtil2, StrUtils, UnitJHPFileData, //UnitMakeReport2,
-  UnitNextGridUtil2, UnitOutlookUtil2, FrmStringsEdit, FrmEditEmailInfo2,
+  UnitNextGridUtil2, UnitOutlookUtil2,
+  FrmStringsEdit, FrmEditEmailInfo2, FrmInputEdit,
   UnitComboBoxUtil, ArrayHelper;
 
 {$R *.dfm}
@@ -631,6 +642,71 @@ begin
   if TpjhStringsEditorDlg.Execute(LStr) then
   begin
     AddHullNoNClaimNo2GridByJsonAry(LStr);
+  end;
+end;
+
+procedure TOutlookEmailListFr.ChangeClaimNo2EmailDB(AOLFolderRecJson: string);
+var
+  LHullNo, LOriginalClaimNo: string;
+  LUpdateCount: integer;
+  LOLFolderRec: TOLFolderRec;
+begin
+  if RecordLoadJson(LOLFolderRec, AOLFolderRecJson, TypeInfo(TOLFolderRec)) then
+  begin
+    if LOLFolderRec.FResultCode < 0 then
+    begin
+      ShowMessage(LOLFolderRec.FResultMsg);
+      exit;
+    end;
+
+    LHullNo := grid_Mail.CellsByName['HullNo', 0];
+    LOriginalClaimNo := grid_Mail.CellsByName['ClaimNo', 0];
+    LUpdateCount := UpdateClaimNoByVesselInfoFromDB(LHullNo, LOriginalClaimNo, LOLFolderRec.FFolderName);
+
+    FOLEmailSrchRec.FClaimNo := LOLFolderRec.FFolderName;
+    ShowEmailListFromSrchRec();//Grid 내용 갱신
+
+    SubFolderNameEdit.Text := LHullNo + '\' + LOLFolderRec.FFolderName;
+
+    ShowMessage(IntToStr(LUpdateCount) + ' Record(s) are updated to EmailDB');
+  end;
+end;
+
+procedure TOutlookEmailListFr.ChangeClaimNo2EmailDB1Click(Sender: TObject);
+var
+  LOriginalClaimNo, LChangedClaimNo: string;
+  LOLFolderRec: TOLFolderRec;
+  LOmniValue: TOmniValue;
+begin
+  if grid_Mail.RowCount = 0 then
+  begin
+    ShowMessage('There is no email in the grid!');
+    exit;
+  end;
+
+  if (MoveFolderCB.Text = '') or (SubFolderNameEdit.Text = '') then
+  begin
+    ShowMessage('There is no Folder Name in the Edit!');
+    exit;
+  end;
+
+  LChangedClaimNo := CreateInputEdit('Change Claim No', 'Claim No', '');
+
+  if LChangedClaimNo <> '' then
+  begin
+    LOLFolderRec.FID := Ord(olcChangeFolderName);
+    LOLFolderRec.FSenderHandle := FFrameOLEmailListWnd;
+    LOLFolderRec.FRootPath := MoveFolderCB.Text;
+    LOLFolderRec.FSubFolderPath := SubFolderNameEdit.Text;
+    LOLFolderRec.FRootPath2 := MoveFolderCB.Text;
+    //뒤에서 '\' 이후 문자를 가져옴(Claim No)
+    LOriginalClaimNo := GetSubStringAfterFromRevPos('\', SubFolderNameEdit.Text);
+    LOLFolderRec.FSubFolderPath2 := StringReplace(SubFolderNameEdit.Text, '\'+LOriginalClaimNo, '\'+LChangedClaimNo, [rfReplaceAll]);
+    LOmniValue := TOmniValue.FromRecord(LOLFolderRec);
+
+    //Grid에서 선택한 메일 들을 OLControlWorker 에 요청함
+    //위 요청에 대한 응답으로 this Frame의 ChangeClaimNo2EmailDB 함수에서 결과를 Grid에 표시
+    SendCmd2WorkerThrd(olcChangeFolderName, LOmniValue);
   end;
 end;
 
@@ -1288,6 +1364,25 @@ begin
   MoveEmailList2MoveFolderByClaimNoFromSelected();
 end;
 
+procedure TOutlookEmailListFr.N17Click(Sender: TObject);
+var
+  LReplyForwardRec: TReplyForwardRecord;
+  LOmniValue: TOmniValue;
+begin
+  if grid_Mail.SelectedRow = -1 then
+    exit;
+
+  LReplyForwardRec.FEntryId := grid_Mail.CellByName['LocalEntryId', grid_Mail.SelectedRow].AsString;
+  LReplyForwardRec.FStoreId := grid_Mail.CellByName['LocalStoreId', grid_Mail.SelectedRow].AsString;
+  LReplyForwardRec.FHTMLBody := '';
+  LReplyForwardRec.FMailAction := olReplyAll;//1
+  LReplyForwardRec.FMagType := 6;//세금계산서 요청 메일
+  LReplyForwardRec.FSenderHandle := Handle;//Frame Handle
+
+  LOmniValue := TOmniValue.FromRecord(LReplyForwardRec);
+  SendCmd2WorkerThrd(olcReplyMail, LOmniValue);
+end;
+
 procedure TOutlookEmailListFr.OnGetOLFolderListTimer(Sender: TObject;
   Handle: Integer; Interval: Cardinal; ElapsedTime: Integer);
 begin
@@ -1368,6 +1463,9 @@ begin
     end;
     olrkUpdateExistClaimNo2Grid: begin
       UpdateExistDB2GridByJsonAry(ARec.FMsg);
+    end;
+    olrkChangeFolderName: begin
+      ChangeClaimNo2EmailDB(ARec.FMsg);
     end;
   end;
 end;
@@ -1932,8 +2030,8 @@ begin
   LOLRespondRec.FMsg := Utf8ToString(GetJsonAryFromSelectedEmail());
   LOmniValue := TOmniValue.FromRecord(LOLRespondRec);
 
-  //Outlook 에서 읽지 않은 메일 들을 OLControlWorker 에 요청함
-  //위 요청에 대한 응답 함수에서(ProcessRespondFromWorker.olrkUnReadMailList4Folder) Grid에 표시
+  //Grid에서 선택한 메일 들을 OLControlWorker 에 요청함
+  //위 요청에 대한 응답으로 this Frame의 UpdateExistDB2GridByJsonAry 함수에서 Grid에 표시
   SendCmd2WorkerThrd(olcCheckExistClaimNoInDB, LOmniValue);
 end;
 
@@ -1992,15 +2090,19 @@ begin
     LHullNo := LDocDict.S['HullNo'];
     LClaimNo := LDocDict.S['ClaimNo'];
     LTaskID := LDocDict.S['LTaskID'];
+    //ClaimNo가 HiconisASManageR.db3에 있으면 True 반환함
+//    LVar := CheckIfExistInDBByClaimNoFromDB(LHullNo, LClaimNo);
     LVar := LDocDict.B['ExistInDB'];
 
     LStrAry.Add(LTaskID);
     LStrAry.Add(LHullNo);
     LStrAry.Add(LClaimNo);
 
+    //Grid의 1,2,4 Column에 TaskID, HullNo, ClaimNo와 동일한 내용이 있는 Row List를 가져옴
     LRowAry.Items := GetRowIndexByColIndexAryFromFindStrAry(grid_Mail, LStrAry.Items, LIntAry.Items);
-
+    //Row List의 ExistInDB Column의 Cell 값을 LVar로 저장함
     SetNxGridCellValueByRowAryFromVar(grid_Mail, 'ExistInDB', LRowAry.Items, LVar);
+    //Grid의 Row List 색상을 변경함
     ChangeRowColorByRowAry(grid_Mail, LRowAry.Items, clInfoBk);
   end;
 end;

@@ -17,6 +17,7 @@ function GetJsonAryFromStringList(const StrList: TStringList; const AUseName: Bo
 function StringListToArray(const StrList: TStringList; const AUseName: Boolean=False): TArray<string>;
 
 function GetFieldValueFromJsonAry(AJsonAry, AKeyName: RawUtf8; ARowIndex: integer=0): RawUtf8;
+function UnescapeJsonString(const AJsonEscapedString: String): String;
 
 implementation
 
@@ -109,6 +110,56 @@ begin
   begin
     LDocDict := DocDict(LDocList.S[ARowIndex]);
     Result := LDocDict.S[AKeyName];
+  end;
+end;
+
+function UnescapeJsonString(const AJsonEscapedString: String): String;
+var
+  I: Integer;
+  ResultString: TStringBuilder;
+begin
+  ResultString := TStringBuilder.Create;
+  try
+    I := 1;
+    while I <= Length(AJsonEscapedString) do
+    begin
+      if AJsonEscapedString[I] = '\' then
+      begin
+        Inc(I);
+        if I <= Length(AJsonEscapedString) then
+        begin
+          case AJsonEscapedString[I] of
+            '"': ResultString.Append('"');
+            '\': ResultString.Append('\');
+            '/': ResultString.Append('/'); // JSON에서는 '/'도 이스케이프될 수 있음
+            'b': ResultString.Append(Chr(8));  // Backspace
+            'f': ResultString.Append(Chr(12)); // Form Feed
+            'n': ResultString.Append(Chr(10)); // Newline
+            'r': ResultString.Append(Chr(13)); // Carriage Return
+            't': ResultString.Append(Chr(9));  // Tab
+            // \uXXXX (유니코드 이스케이프) 처리는 더 복잡하며, 이 간단한 함수에서는 생략합니다.
+            // 필요하다면 추가적인 로직 구현 필요
+            else
+              // 알 수 없는 이스케이프 시퀀스는 그대로 둠 또는 오류 처리
+              ResultString.Append('\');
+              ResultString.Append(AJsonEscapedString[I]);
+          end;
+        end
+        else
+        begin
+          // 문자열 끝에 역슬래시만 있는 경우 (잘못된 JSON)
+          ResultString.Append('\');
+        end;
+      end
+      else
+      begin
+        ResultString.Append(AJsonEscapedString[I]);
+      end;
+      Inc(I);
+    end;
+    Result := ResultString.ToString;
+  finally
+    ResultString.Free;
   end;
 end;
 

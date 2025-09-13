@@ -1559,7 +1559,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
       end
       object MoveFolderCB: TComboBox
         Left = 100
-        Top = 30
+        Top = 31
         Width = 320
         Height = 21
         Style = csDropDownList
@@ -1661,7 +1661,6 @@ object OutlookEmailListFr: TOutlookEmailListFr
     DragTypes = [dtCopy, dtLink]
     OnDrop = DropEmptyTarget1Drop
     Target = grid_Mail
-    WinTarget = 0
     Left = 28
     Top = 140
   end
@@ -1702,6 +1701,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
       Caption = 'Reply EMail'
       object APTCoC1: TMenuItem
         Caption = 'APT CoC '#49569#48512
+        Visible = False
         object Englisth1: TMenuItem
           Caption = 'English'
           OnClick = Englisth1Click
@@ -1712,14 +1712,21 @@ object OutlookEmailListFr: TOutlookEmailListFr
       end
       object N15: TMenuItem
         Caption = '-'
+        Visible = False
       end
       object N2: TMenuItem
         Tag = 6
         Caption = 'PO '#50836#52397
+        Visible = False
+      end
+      object N17: TMenuItem
+        Caption = #49464#44552#44228#49328#49436' '#50836#52397
+        OnClick = N17Click
       end
       object SendInvoice1: TMenuItem
         Tag = 1
         Caption = 'Invoice '#49569#48512
+        Visible = False
       end
       object N4: TMenuItem
         Caption = '-'
@@ -1727,13 +1734,28 @@ object OutlookEmailListFr: TOutlookEmailListFr
       object N10: TMenuItem
         Tag = 8
         Caption = #54596#46300#49436#48708#49828#54016' '#51204#45804
+        Visible = False
       end
       object N14: TMenuItem
         Caption = '-'
+        Visible = False
       end
       object N12: TMenuItem
         Tag = 10
         Caption = #49436#48708#49828#50724#45908' '#45216#51064' '#50836#52397
+        Visible = False
+      end
+      object N18: TMenuItem
+        Caption = #51088#51116' '#54924#49688' '#50836#52397
+        object DHL1: TMenuItem
+          Caption = #45817#49324' DHL '#44228#51221' '#51060#50857
+        end
+        object DHL2: TMenuItem
+          Caption = #50724#47532#50728' DHL '#44228#51221' '#51060#50857
+        end
+        object N19: TMenuItem
+          Caption = #45800#49692' '#49569#54408' '#50836#52397
+        end
       end
     end
     object ForwardEMail1: TMenuItem
@@ -1811,7 +1833,12 @@ object OutlookEmailListFr: TOutlookEmailListFr
     end
     object UpdateClaimExist1: TMenuItem
       Caption = 'Check If ClaimNo Exist in DB'
+      Hint = #49440#53469#54620' Grid'#51032' Claim No'#44032' HiconisASManageR.db3 '#50640' '#51316#51116#54616#47732' ExistInDB = True'
       OnClick = UpdateClaimExist1Click
+    end
+    object ChangeClaimNo2EmailDB1: TMenuItem
+      Caption = 'Change ClaimNo 2 EmailDB'
+      OnClick = ChangeClaimNo2EmailDB1Click
     end
   end
   object Timer1: TTimer
@@ -1824,7 +1851,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C010103009800680710001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C0101030098007C0710001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000001010101010101070303
       03190B0B0B331717174C2020205B2121215C1919194F0D0D0D38734319BD7B58

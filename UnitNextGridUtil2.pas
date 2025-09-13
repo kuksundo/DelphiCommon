@@ -465,7 +465,12 @@ begin
         LColName := TDocVariantData(ADoc).Names[i];
 
         if AIsFromValue then
-          LCellValue := TDocVariantData(ADoc).Values[i]
+        begin
+          if VarIsNull(TDocVariantData(ADoc).Values[i]) then
+            LCellValue := null
+          else
+            LCellValue := TDocVariantData(ADoc).Values[i];
+        end
         else
           LCellValue := StringToVariant(LColName);
 
