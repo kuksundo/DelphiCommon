@@ -2,7 +2,7 @@ unit UnitKeyBdUtil;
 //KeyBoard 관련 함수는 DelphiDabbleer/Sendkey32.pas를 참조 할 것.
 interface
 
-Uses System.SysUtils, Windows, Messages;
+Uses System.Classes, System.SysUtils, Windows, Messages;
 
 function GetCharFromVKey(vkey: Word): string;
 function GetVKeyFromChar(AChar: string): Cardinal;
@@ -12,6 +12,8 @@ function StringToKey(S: string): Cardinal;
 
 procedure SendAltNChar(AChar: Char);
 procedure SendCtlNChar(AChar: Char);
+
+function GetCurrentShiftState: TShiftState;
 
 implementation
 
@@ -203,6 +205,23 @@ begin
   KeyBd_Event(Byte(AChar), 0, 0, 0);
   KeyBd_Event(Byte(AChar), 0, KEYEVENTF_KEYUP, 0);
   KeyBd_Event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+end;
+
+function GetCurrentShiftState: TShiftState;
+begin
+  Result := [];
+
+  // Ctrl 키 상태 확인
+  if (GetKeyState(VK_CONTROL) and $8000) <> 0 then
+    Include(Result, ssCtrl);
+
+  // Shift 키 상태 확인
+  if (GetKeyState(VK_SHIFT) and $8000) <> 0 then
+    Include(Result, ssShift);
+
+  // Alt 키 상태 확인
+  if (GetKeyState(VK_MENU) and $8000) <> 0 then
+    Include(Result, ssAlt);
 end;
 
 end.
