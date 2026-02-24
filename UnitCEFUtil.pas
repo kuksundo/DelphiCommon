@@ -2,7 +2,7 @@ unit UnitCEFUtil;
 
 interface
 
-uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, Forms,
+uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, Forms, classes,
   uCEFChromium, uCEFInterfaces, uCEFConstants, uCefProcessMessage, uCefTypes;
 
 const
@@ -35,13 +35,21 @@ const
 
   NODE_ID = 'keywords';
   GET_VALUE_PREAMBLE = 'GETVALUE:';
+  GET_INNERTEXT_PREAMBLE = 'GETINNERTEXT:';
   GET_MULTIPLE_VALUES_PREAMBLE = 'GETMULTIPLEVALUES:';
   GET_MULTIPLE_INNERTEXT_PREAMBLE = 'GETMULTIPLEINNERTEXT:';
   BUTTON_CLICK_EVENT_PREAMBLE = 'CLICK_EVENT:';
 
   GET_ELEMENT_VALUE_MSG = 'getelementvalue';
   GOT_ELEMENT_VALUE_MSG = 'gotelementvalue';
+
+  //++ Added for "GetFrameByElementID" function
+  CHECK_ELEMENT_EXISTS_MSG = 'checkelementexists';
+  ELEMENT_EXISTS_MSG = 'elementexists';
+  //++
 type
+  TFindFrameCallback = reference to procedure(const AFrame: ICefFrame);
+
   TCefUtil = class
     class var FSyncResult   : string;
     class var FSyncReceived : boolean;
@@ -58,6 +66,12 @@ type
     //CEF의 비동기 특성상 console.log를 이용해 값을 요청하고, Chromium1ConsoleMessage 이벤트에서 결과를 받아 클립보드에 복사하고 상태 표시줄에 표시하도록 구현했습니다.
     //GETVALUE: 프리앰블을 사용하여 메시지를 식별합니다.
     class procedure GetElementValueByID(const aFrame: ICefFrame; const aElementID: string); static;
+    class procedure GetElementInnerTextByID(const aFrame: ICefFrame; const aElementID: string); static;
+    //이 함수는 브라우저의 모든 프레임을 조회(GetFrameIdentifiers)하여 해당 ID의 요소를 찾고,
+    //발견되면 innerText를 가져옵니다. 이 방식을 사용하면 요소가 어떤 iframe에 있는지 미리
+    //알 필요 없이 안전하게 값을 가져올 수 있습니다.
+    class procedure GetElementInnerTextByIDFromBrowser(const AChromium: TChromium; const AElementID: string); static;
+    class procedure GetElementValueByIDFromBrowser(const AChromium: TChromium; const AElementID: string); static;
     //ConsoleMessage를 사용하지 않고, 프로세스 간 메시지(IPC)와 V8 Context를 사용하여 값을 가져오도록 처리
     //브라우저 프로세스에서 렌더 프로세스로 값 요청 메시지를 보내고, 응답이 올 때까지 메시지 루프를 돌며 대기함 (타임아웃 2초)
     //렌더 프로세스 핸들러: GlobalCEFApp_OnProcessMessageReceived에서 요청을 받아 V8Context를 통해 document.getElementById(id).value를 실행하고 결과를 반환합니다.
@@ -71,6 +85,15 @@ type
     //JavaScript 내에서 해당 ID들을 순회하며 element.innerText를 가져와 ;로 연결
     //console.log를 사용하여 GETMULTIPLEVALUES: 프리앰블과 함께 인코딩된 결과 문자열을 출력하는 스크립트를 실행
     class procedure GetElementInnerTextByIDAry(const aFrame: ICefFrame; const aElementIDs: array of string); static;
+    class function GetFrameByElementID(const AElementID: string): ICefFrame; static;
+    //DOM 접근은 JavaScript 실행을 통해서만 가능
+    //JavaScript 실행 결과는 비동기 콜백으로만 받을 수 있음
+    //ICefFrame 은 JS 객체가 아니라 브라우저 프레임 객체
+    //1. 브라우저의 모든 Frame 열거
+    //2. 각 Frame 에서 JavaScript 실행
+    //3. document.getElementById(id) 존재 여부 확인
+    //4. 발견된 Frame 을 콜백으로 반환
+    class function GetFrameById(AChromium: TChromium; const ATagId: string): ICefFrame;
 
     class procedure ClickButtonByID(const aFrame: ICefFrame; const aElementID: string); static;
     class procedure ClickButtonByText(const aFrame: ICefFrame; const aButtonText: string); static;
@@ -152,6 +175,19 @@ begin
   end;
 end;
 
+class procedure TCefUtil.GetElementInnerTextByID(const aFrame: ICefFrame;
+  const aElementID: string);
+var
+  TempJSCode: string;
+begin
+  if (aFrame <> nil) and aFrame.IsValid then
+  begin
+    // Use encodeURIComponent to handle special characters safely
+    TempJSCode := 'console.log("' + GET_INNERTEXT_PREAMBLE + '" + encodeURIComponent(document.getElementById("' + aElementID + '").innerText));';
+    aFrame.ExecuteJavaScript(TempJSCode, aFrame.Url, 0);
+  end;
+end;
+
 class procedure TCefUtil.GetElementInnerTextByIDAry(const aFrame: ICefFrame;
   const aElementIDs: array of string);
 var
@@ -179,9 +215,45 @@ begin
       '  if (i > 0) result += ";";' +
       '  if (el) result += el.innerText;' +
       '}' +
-      'console.log("' + GET_MULTIPLE_INNERTEXT_PREAMBLE + ';' + TempIDs + ';' + '" + encodeURIComponent(result));';
+      'console.log("' + GET_MULTIPLE_INNERTEXT_PREAMBLE + ';' + '" + encodeURIComponent(result));';
+//      'console.log("' + GET_MULTIPLE_INNERTEXT_PREAMBLE + ';' + '" + ids[1]);';
 
-    aFrame.ExecuteJavaScript(TempJSCode, aFrame.Url, 0);
+    aFrame.ExecuteJavaScript(TempJSCode, aFrame.Url, 0);   //+ TempIDs + ';' +
+  end;
+end;
+
+class procedure TCefUtil.GetElementInnerTextByIDFromBrowser(const AChromium: TChromium;
+  const AElementID: string);
+var
+  LFrameIDs: TStrings;
+  i: Integer;
+  LFrame: ICefFrame;
+  LJSCode: string;
+begin
+  if (AChromium = nil) or (AChromium.Browser = nil) then Exit;
+
+  LFrameIDs := TStringList.Create;
+  try
+    if AChromium.Browser.GetFrameIdentifiers(LFrameIDs) then
+    begin
+      // JavaScript to check existence and send value
+      LJSCode :=
+        'var el = document.getElementById("' + AElementID + '");' +
+        'if (el) {' +
+        '  console.log("' + GET_INNERTEXT_PREAMBLE + AElementID + ';" + encodeURIComponent(el.innerText));' +
+        '}';
+
+      for i := 0 to LFrameIDs.Count - 1 do
+      begin
+        LFrame := AChromium.Browser.GetFrameByIdentifier(LFrameIDs[i]);
+        if (LFrame <> nil) and LFrame.IsValid then
+        begin
+          LFrame.ExecuteJavaScript(LJSCode, LFrame.Url, 0);
+        end;
+      end;
+    end;
+  finally
+    LFrameIDs.Free;
   end;
 end;
 
@@ -195,6 +267,41 @@ begin
     // Use encodeURIComponent to handle special characters safely
     TempJSCode := 'console.log("' + GET_VALUE_PREAMBLE + ';' + aElementID + ';' + '" + encodeURIComponent(document.getElementById("' + aElementID + '").value));';
     aFrame.ExecuteJavaScript(TempJSCode, aFrame.Url, 0);
+  end;
+end;
+
+class procedure TCefUtil.GetElementValueByIDFromBrowser(
+  const AChromium: TChromium; const AElementID: string);
+var
+  LFrameIDs: TStrings;
+  i: Integer;
+  LFrame: ICefFrame;
+  LJSCode: string;
+begin
+  if (AChromium = nil) or (AChromium.Browser = nil) then Exit;
+
+  LFrameIDs := TStringList.Create;
+  try
+    if AChromium.Browser.GetFrameIdentifiers(LFrameIDs) then
+    begin
+      // JavaScript to check existence and send value
+      LJSCode :=
+        'var el = document.getElementById("' + AElementID + '");' +
+        'if (el) {' +
+        '  console.log("' + GET_VALUE_PREAMBLE + AElementID + ';" + encodeURIComponent(el.value));' +
+        '}';
+
+      for i := 0 to LFrameIDs.Count - 1 do
+      begin
+        LFrame := AChromium.Browser.GetFrameByIdentifier(LFrameIDs[i]);
+        if (LFrame <> nil) and LFrame.IsValid then
+        begin
+          LFrame.ExecuteJavaScript(LJSCode, LFrame.Url, 0);
+        end;
+      end;
+    end;
+  finally
+    LFrameIDs.Free;
   end;
 end;
 
@@ -254,6 +361,22 @@ begin
 
     aFrame.ExecuteJavaScript(TempJSCode, aFrame.Url, 0);
   end;
+end;
+
+class function TCefUtil.GetFrameByElementID(
+  const AElementID: string): ICefFrame;
+begin
+
+end;
+
+class function TCefUtil.GetFrameById(AChromium: TChromium;
+  const ATagId: string): ICefFrame;
+var
+  JSCode: string;
+begin
+  // JavaScript를 통해 해당 ID를 가진 IFrame 내부에 명령을 내림
+  JSCode := Format('document.getElementById("%s").contentWindow.postMessage("hello", "*");', [ATagId]);
+  AChromium.Browser.MainFrame.ExecuteJavaScript(JSCode, '', 0);
 end;
 
 class function TCefUtil.GetMainFrameFromChromium(

@@ -15,12 +15,25 @@ uses classes, SysUtils, //Vcl.Dialogs,
   mormot.core.json,
   mormot.core.buffers;
 
-//AModelName = gemini-2.5-flash
-function CallGeminiApiWithMormot_generateContent(const ApiKey, AModelName: string; const Prompt: string; out ARespond: string): integer;
-//Gemini Respond로 수신한 Json에서 '#$A', '\n' 및 '\'를 제거함
-function AdjustJsonOfJeminiRespond(var ARespond: string): integer;
-//Jemini Respond에서 candidates[content{parts[text]}]의 value를 반환함
-function GetJsonOfTextNameFromJeminiRespond(const ARespond: string): string;
+const
+  GEMINI_API_KEY = 'AIzaSyB68wmGA7hW4NelxJuHeXHS2BOW9k5ibXI';
+
+type
+  TGeminiUtil = class
+
+    class function GeminiAPIKey: string;
+
+    class function CallApiWithMormot_generateContent(const APrompt: string;
+      out ARespond: string; ApiKey: string=GEMINI_API_KEY; AModelName: string='gemini-2.5-flash'): integer; static;
+    //AModelName = gemini-2.5-flash
+    //Gemini Respond로 수신한 Json에서 '#$A', '\n' 및 '\'를 제거함
+    class function AdjustJsonOfRespond(var ARespond: string): integer; static;
+    //Jemini Respond에서 candidates[content{parts[text]}]의 value를 반환함
+    class function GetTextValueFromRespond(const ARespond: string): string; static;
+    class function GetTextValueFromRespond2(const ARespond: string): string; static;
+    //Jemini Respond에서 candidates[content{parts[text]}] 에서 Json('''json 과 ''' 사이의 String)을 반환함
+    class function GetJsonOfTextFromRespond(const ARespond: string): string; static;
+  end;
 
 procedure test();
 
@@ -37,7 +50,50 @@ begin
 //  ShowMessage(LDocList.Json);
 end;
 
-function CallGeminiApiWithMormot_generateContent(const ApiKey, AModelName: string; const Prompt: string; out ARespond: string): integer;
+(* ARespond :=
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "```json[  {    "Idx": 9,    "HullNo": "2366",    "ClaimNo": "125",    "Subject": "RE: HLS FLUORITE(Hull No. 2366), GCR-125 MPM/OWS/FBM (ECC,CCR,WH) CAN1, 2 COMM. ERROR",    "Description": "고객 독촉",    "ExistInDB": false  }]```"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 122,
+    "candidatesTokenCount": 116,
+    "totalTokenCount": 238,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 122
+      }
+    ]
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "9TCAaPmzG-HOz7IPy77GuQE"
+}
+*)
+
+class function TGeminiUtil.AdjustJsonOfRespond(var ARespond: string): integer;
+begin
+  ARespond := StringReplace(ARespond, ''#$A'', '', [rfReplaceAll]);
+//  ARespond := replaceString(ARespond, ''#$A'', '');
+  ARespond := StringReplace(ARespond, '\n', '', [rfReplaceAll]);
+  ARespond := StringReplace(ARespond, '\', '', [rfReplaceAll]);
+  ARespond := StringReplace(ARespond, '"```json', '', [rfReplaceAll]);
+  ARespond := StringReplace(ARespond, '```"', '', [rfReplaceAll]);
+end;
+
+class function TGeminiUtil.CallApiWithMormot_generateContent(const APrompt: string;
+  out ARespond: string; ApiKey, AModelName: string): integer;
 const
   DEFAULT_TIMEOUT_MS = 5000;
 var
@@ -83,7 +139,7 @@ begin
       LHttpClient.Open(LHost, LPort, nlTcp, 20000, True);
 
       // 3. JSON 요청 본문 생성
-      LDictText.S['text'] := StringToUtf8(Prompt);
+      LDictText.S['text'] := StringToUtf8(APrompt);
       LListParts.AppendDoc(LDictText);
       LDictParts.A['parts'] := LListParts;
       LListContents.AppendDoc(LDictParts);
@@ -119,51 +175,15 @@ begin
       ARespond := '에러 발생: ' + E.Message;
     end;
   end;
-
 end;
 
-function AdjustJsonOfJeminiRespond(var ARespond: string): integer;
+class function TGeminiUtil.GeminiAPIKey: string;
 begin
-  ARespond := StringReplace(ARespond, ''#$A'', '', [rfReplaceAll]);
-//  ARespond := replaceString(ARespond, ''#$A'', '');
-  ARespond := StringReplace(ARespond, '\n', '', [rfReplaceAll]);
-  ARespond := StringReplace(ARespond, '\', '', [rfReplaceAll]);
-  ARespond := StringReplace(ARespond, '"```json', '', [rfReplaceAll]);
-  ARespond := StringReplace(ARespond, '```"', '', [rfReplaceAll]);
+  Result := GEMINI_API_KEY;
 end;
 
-(* ARespond :=
-{
-  "candidates": [
-    {
-      "content": {
-        "parts": [
-          {
-            "text": "```json[  {    "Idx": 9,    "HullNo": "2366",    "ClaimNo": "125",    "Subject": "RE: HLS FLUORITE(Hull No. 2366), GCR-125 MPM/OWS/FBM (ECC,CCR,WH) CAN1, 2 COMM. ERROR",    "Description": "고객 독촉",    "ExistInDB": false  }]```"
-          }
-        ],
-        "role": "model"
-      },
-      "finishReason": "STOP",
-      "index": 0
-    }
-  ],
-  "usageMetadata": {
-    "promptTokenCount": 122,
-    "candidatesTokenCount": 116,
-    "totalTokenCount": 238,
-    "promptTokensDetails": [
-      {
-        "modality": "TEXT",
-        "tokenCount": 122
-      }
-    ]
-  },
-  "modelVersion": "gemini-2.5-flash",
-  "responseId": "9TCAaPmzG-HOz7IPy77GuQE"
-}
-*)
-function GetJsonOfTextNameFromJeminiRespond(const ARespond: string): string;
+class function TGeminiUtil.GetTextValueFromRespond(
+  const ARespond: string): string;
 var
   LList: IDocList;
   LDict: IDocDict;
@@ -182,6 +202,35 @@ begin
   LRawUtf8 := LList[0].text;
   Result := Utf8ToString(LRawUtf8);
 //  Result := ExtractTextBetweenDelim(Result, '"```json', '```"');
+end;
+
+class function TGeminiUtil.GetTextValueFromRespond2(
+  const ARespond: string): string;
+var
+  LList: IDocList;
+  LDict: IDocDict;
+  LRawUtf8: RawUtf8;
+begin
+  LDict := DocDict(StringToUtf8(ARespond));
+  LList := LDict.L['candidates'];
+  LRawUtf8 := LList[0].content;
+  LDict.Clear;
+  LDict := DocDict(LRawUtf8);
+  LList.Clear;
+  LList := LDict.L['parts'];
+  LRawUtf8 := LList[0].text;
+  Result := Utf8ToString(LRawUtf8);
+end;
+
+class function TGeminiUtil.GetJsonOfTextFromRespond(
+  const ARespond: string): string;
+var
+  LList: IDocList;
+  LDict: IDocDict;
+  LRawUtf8: RawUtf8;
+begin
+  Result := GetTextValueFromRespond2(ARespond);
+  Result := ExtractTextBetweenDelim(Result, '```json', '```');
 end;
 
 end.

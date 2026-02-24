@@ -28,6 +28,7 @@ type
     function DestroyFormFromHandleQ(): integer;
 
     function HandleIsExistInList(const AHandle: THandle): Boolean;
+    function GetFormByHandle(const AHandle: THandle): TForm;
   end;
 
 var
@@ -123,6 +124,13 @@ begin
   finally
     Safe.UnLock;
   end;
+end;
+
+function TGPFormManager.GetFormByHandle(const AHandle: THandle): TForm;
+begin
+  Result := nil;
+
+  FFormList.TryGetValue(AHandle, Result);
 end;
 
 function TGPFormManager.HandleIsExistInList(const AHandle: THandle): Boolean;

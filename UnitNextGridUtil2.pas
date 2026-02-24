@@ -16,6 +16,7 @@ type
     function AsVariant: variant;
   end;
 
+function NextGridToCsvList(ANextGrid: TNextGrid; ASkipHideRow: Boolean=True): TStringList;
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean=True);
 //ADoc : {Column Name: Caption} 형식임
 //ACaptionIsFromValue : True = Caption 위치 지정
@@ -104,9 +105,15 @@ function GetRowIndexByColIndexAryFromFindStrAry(const ANextGrid: TNextGrid; AFin
   AColIdxAry: TArray<integer>; AIgnoreCase: Boolean=false): TArray<integer>;
 function GetSelectedIndexFromNextGrid(ANextGrid: TNextGrid): integer;
 function ChangeRowColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor): TColor;
-function ChangeRowColorByRowAry(AGrid: TNextGrid; ARowAry: TArray<integer>; AColor: TColor): TColor;
+//AColAry의 모든 내용이 같은 Row의 Color를 파스텔 랜덤 색상으로 변경함
+function ChangeRowColorByColAry(AGrid: TNextGrid; AColAry: TArray<integer>): integer;
+//SortDataList 내용이 같은 Row의 Color를 파스텔 랜덤 색상으로 변경함
+function ChangeRowColorBySortDataList(AGrid: TNextGrid; ASortDataList: IDocList): integer;
 function ChangeRowFontColorByIndex(AGrid: TNextGrid; ARowIndex: integer; AColor: TColor;
   AIsBold: Boolean=True; AIsStrikeThrough : Boolean=False): TColor;
+
+procedure CsvList2NextGrid(ANextGrid: TNextGrid; ACsvList: TStringList; AIsCreateCol: Boolean=True);
+procedure CsvFile2NextGrid2(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean=True);
 procedure CsvFile2NextGrid(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean=True);
 
 //AJson은 한개의 레코드에 대한 Json임
@@ -127,47 +134,63 @@ function GetColIdxByColCaptionFromGrid(AGrid: TNextGrid; ACaption: string): inte
 procedure SetColVisibleByColNameFromGrid(AGrid: TNextGrid; const AColName: string; AIsVisible: Boolean);
 procedure SetColWidthByColNameFromGrid(AGrid: TNextGrid; const AColName: string; AWidth: integer);
 
+//AColIdxAry에 있는 칼럼만 DocList로 반환함
+function GetNextGridRows2DocListByColIdxs(AGrid: TNextGrid; const AColIdxAry: TArray<integer>): IDocList;
+procedure SortNextGridRowsByColIdxs(AGrid: TNextGrid; const AColIdxAry: TArray<integer>; const AIsChangeRowColor: Boolean = False);
+function GetSortVar2DocListFromNextGridByColIdxs(AGrid: TNextGrid; const AColIdxAry: TArray<integer>): IDocList;
+
 var
   FNXGrid_Header_Color : TColor;
 
 implementation
 
-uses UnitStringUtil, UnitVariantUtil, UnitJsonUtil, UnitComponentUtil, UnitIMEUtil;
+uses UnitStringUtil, UnitVariantUtil, UnitJsonUtil, UnitComponentUtil, UnitIMEUtil,
+  UnitSortAryUtil, UnitColorUtil;
+
+function NextGridToCsvList(ANextGrid: TNextGrid; ASkipHideRow: Boolean=True): TStringList;
+var
+  LColCount, i, j: integer;
+  LCsv, LHeader, LStr: string;
+begin
+  Result := TStringList.Create;
+
+  for j := 0 to ANextGrid.RowCount - 1 do
+  begin
+    if ASkipHideRow and (not ANextGrid.Row[j].Visible) then
+    begin
+      continue;
+    end;
+
+    for i := 0 to ANextGrid.Columns.Count - 1 do
+    begin
+      if j = 0 then
+        LHeader := LHeader + ANextGrid.Columns.Item[i].Header.Caption + ',';
+
+      LStr := ANextGrid.Cells[i,j];
+      LStr := StringReplace(LStr, ',', '|', [rfReplaceAll]);
+
+      LCsv := LCsv + LStr + ',';
+    end;
+
+    if j = 0 then
+    begin
+      LHeader := LHeader.Remove(LHeader.Length-1);
+      Result.Add(LHeader);
+    end;
+
+    LCsv := LCsv.Remove(LCsv.Length-1); //맨 뒤 콤마 삭제
+
+    Result.Add(LCsv);
+    LCsv := '';
+  end;
+end;
 
 procedure NextGridToCsv(AFileName: string; ANextGrid: TNextGrid; ASkipHideRow: Boolean);
 var
-  LColCount, i, j: integer;
-  LCsv, LHeader: string;
   LStrList: TStringList;
 begin
-  LStrList := TStringList.Create;
+  LStrList := NextGridToCsvList(ANextGrid, ASkipHideRow);
   try
-    for j := 0 to ANextGrid.RowCount - 1 do
-    begin
-      if ASkipHideRow and (not ANextGrid.Row[j].Visible) then
-      begin
-        continue;
-      end;
-
-      for i := 0 to ANextGrid.Columns.Count - 1 do
-      begin
-        if j = 0 then
-          LHeader := LHeader + ANextGrid.Columns.Item[i].Header.Caption + ',';
-
-        LCsv := LCsv + ANextGrid.Cells[i,j] + ',';
-      end;
-
-      if j = 0 then
-      begin
-        LHeader := LHeader.Remove(LHeader.Length-1);
-        LStrList.Add(LHeader);
-      end;
-
-      LCsv := LCsv.Remove(LCsv.Length-1);
-      LStrList.Add(LCsv);
-      LCsv := '';
-    end;
-
     LStrList.SaveToFile(AFileName);
   finally
     LStrList.Free;
@@ -1326,6 +1349,46 @@ begin
   end;
 end;
 
+function ChangeRowColorByColAry(AGrid: TNextGrid; AColAry: TArray<integer>): integer;
+var
+  LDocList: IDocList;
+begin
+  LDocList := GetSortVar2DocListFromNextGridByColIdxs(AGrid, AColAry);
+  Result := ChangeRowColorBySortDataList(AGrid, LDocList);
+end;
+
+function ChangeRowColorBySortDataList(AGrid: TNextGrid; ASortDataList: IDocList): integer;
+var
+  LUniqList: TStringList;
+  LDocDict: IDocDict;
+  i, LRow: integer;
+  LStr: string;
+  LColor: TColor;
+begin
+  LUniqList := TSortAryUtil.GetUniqListSortDataList(ASortDataList);
+
+  if Assigned(LUniqList) then
+  begin
+    try
+      for i := 0 to LUniqList.Count - 1 do
+      begin
+        LStr := LUniqList.Strings[i];
+        LColor := RandomPastelColor();
+
+        //SortData를 Filtering 함
+        for LDocDict in ASortDataList.Objects('SortData=', LStr) do
+        begin
+          LRow := LDocDict.I['RowNo'];
+
+          ChangeRowColorByIndex(AGrid, LRow, LColor);
+        end; //for LDocDict
+      end; //for LStr
+    finally
+      LUniqList.Free;
+    end;
+  end;
+end;
+
 function ChangeRowColorByRowAry(AGrid: TNextGrid; ARowAry: TArray<integer>; AColor: TColor): TColor;
 var
   i: integer;
@@ -1356,6 +1419,88 @@ begin
       AGrid.Cell[i, ARowIndex].FontStyle := AGrid.Cell[i, ARowIndex].FontStyle + [fsStrikeOut]
     else
       AGrid.Cell[i, ARowIndex].FontStyle := AGrid.Cell[i, ARowIndex].FontStyle - [fsStrikeOut]
+  end;
+end;
+
+
+procedure CsvList2NextGrid(ANextGrid: TNextGrid; ACsvList: TStringList; AIsCreateCol: Boolean=True);
+var
+  csvLine, LColName, LColCaption: String;
+  iy, icnt, ix, i, idx: Integer;
+  LnxIncrementColumn: TnxCustomColumn;
+  vList: TStringList;
+begin
+  iy := 0;
+  ix := 0;
+  idx := 0;
+
+  vList := TStringList.Create;
+  try
+    with ANextGrid do
+    begin
+      BeginUpdate;
+      ClearRows;
+
+      if AIsCreateCol then
+      begin
+        Columns.Clear;
+
+        LnxIncrementColumn := Columns.Add(TnxIncrementColumn,'No');
+        LnxIncrementColumn.Alignment := taCenter;
+        LnxIncrementColumn.Header.Alignment := taCenter;
+        LnxIncrementColumn.Width := 30;
+
+        csvLine := ACsvList.Strings[0];
+        icnt := 1;
+        idx := 1;
+
+        while csvLine <> '' do
+        begin
+          LColName := 'Col' + IntToStr(icnt);
+          LColCaption := StrToken(csvLine,',');
+          AddNextGridColumnByVarType(ANextGrid, varString, LColCaption, LColName);
+          Inc(icnt);
+        end;//while
+      end;
+
+      for i := idx to RowCount - 1 do
+      Begin
+        csvLine :=  ACsvList.Strings[i];
+        csvLine := StringReplace(csvLine, ',', '","', [rfReplaceAll]);
+        csvLine := '"' + csvLine;
+
+        if csvLine[Length(csvLine)] <> '"' Then
+          csvLine := csvLine + '"';
+
+        vList.CommaText := csvLine;
+
+        if (vLIst.Count+1) > ix Then
+          ix := vLIst.Count+1;
+
+        for icnt := 0 to vLIst.Count - 1 do
+          Cells[icnt+1, iy] := vLIst.Strings[icnt];
+        inc(iy);
+      end;
+    end;
+  finally
+    vList.Free;
+  end;
+end;
+
+procedure CsvFile2NextGrid2(ACsvFileName: string; ANextGrid: TNextGrid; AIsCreateCol: Boolean=True);
+var
+  vList: TStringList;
+begin
+  if not FileExists(ACsvFileName) then
+    exit;
+
+  vList := TStringList.Create;
+  try
+    vList.LoadFromFile(ACsvFileName);
+
+    CsvList2NextGrid(ANextGrid, vList, AIsCreateCol);
+  finally
+    vList.Free;
   end;
 end;
 
@@ -1585,6 +1730,199 @@ begin
   begin
     AGrid.ColumnByName[AColName].Width := AWidth;
   end;
+end;
+
+function GetNextGridRows2DocListByColIdxs(AGrid: TNextGrid; const AColIdxAry: TArray<integer>): IDocList;
+var
+  LDocDict: IDocDict;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
+  LRow, LCol, LColIdx, LOldRow: integer;
+  LVar, LDocVar: variant;
+begin
+  Result := DocList('[]');
+  LDocDict := DocDict('{}');
+
+  with AGrid do
+  begin
+    BeginUpdate;
+    try
+      for LRow := 0 to RowCount - 1 do
+      begin
+        for LCol := Low(AColIdxAry) to High(AColIdxAry) do
+        begin
+          LColIdx := AColIdxAry[LCol];
+
+          if LColIdx >= Columns.Count then
+            Continue;
+
+          LColumn := AGrid.Columns.Item[LColIdx];
+
+          if Columns.IndexOf(LColumn) > -1 then
+          begin
+            LCell := Cell[LColIdx, LRow];
+            SetNxGridCellValue2Var(LColumn, LCell, LVar); //{"HulNo":"HHI3333", "ClaimN0":"333"}
+            LDocDict.Item[LColumn.Name] := TDocVariantData(LVar).Value[LColumn.Name];//Value(HHI333)만 복사
+          end;
+        end; //for LCol
+
+        Result.Append(LDocDict.AsVariant);
+        LDocDict.Clear;        ;
+      end; //for LRow
+
+    finally
+      EndUpdate;
+    end;
+  end;//with
+end;
+
+procedure SortNextGridRowsByColIdxs(AGrid: TNextGrid; const AColIdxAry: TArray<integer>;
+  const AIsChangeRowColor: Boolean);
+var
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
+  LRow, LCol, LColIdx, LOldRow: integer;
+  LVar, LSortVar: variant; //LDocVar,
+  LDocList: IDocList;
+  LDocDict: IDocDict;
+  LUtf8: RawUtf8;
+
+  N, newidx, j, CurPos, temp, k: Integer;
+  CurrentAry, TargetPos: array of Integer;
+
+  procedure InitTargetPosAry();
+  var
+    Li: integer;
+  begin
+    for Li := 0 to LDocList.Len - 1 do
+    begin
+      LVar := LDocList[Li];
+      //LVar은 한글 깨짐
+      LUtf8 := VariantToUTF8(LVar);
+      LDocDict := DocDict(LUtf8);
+      LOldRow := LDocDict.I['RowNo'];  //현재 Row No
+      TargetPos[Li] := LOldRow;
+    end;
+  end;
+begin
+//  LDocList := DocList('[]');
+//  TDocVariant.New(LDocVar);
+
+  with AGrid do
+  begin
+    BeginUpdate;
+    try
+//      for LRow := 0 to RowCount - 1 do
+//      begin
+//        for LCol := Low(AColIdxAry) to High(AColIdxAry) do
+//        begin
+//          LColIdx := AColIdxAry[LCol];
+//
+//          if LColIdx >= Columns.Count then
+//            Continue;
+//
+//          LColumn := AGrid.Columns.Item[LColIdx];
+//
+//          if Columns.IndexOf(LColumn) > -1 then
+//          begin
+//            LCell := Cell[LColIdx, LRow];
+//            SetNxGridCellValue2Var(LColumn, LCell, LVar); //{"HulNo":"HHI3333", "ClaimN0":"333"}
+//            LSortVar := LSortVar + VarToStr(TDocVariantData(LVar).Value[LColumn.Name]) + ';';//Value(HHI333)만 복사
+//          end;
+//        end; //for LCol
+//
+//        LDocVar.RowNo := LRow;     //첫번째 데이터는 기존 Grid의 Row No
+//        LDocVar.SortData := LSortVar;  //각 칼럼별 데이터를 Json으로 저장함: {"SortData":"HHI3333;333;"}
+//
+//  //      LDocList.Append(TDocVariantData(LDocVar).ToJson);          ;
+//        LDocList.Append(_JSON(LDocVar));          ;
+//        LUtf8 := LDocList.Json;
+//
+//        TDocVariantData(LSortVar).Clear;
+//      end; //for LRow
+      LDocList := GetSortVar2DocListFromNextGridByColIdxs(AGrid, AColIdxAry);
+
+      LDocList.SortByKeyValue(['SortData']);  //오름차순으로 정렬됨
+
+      N := LDocList.Len;
+      SetLength(CurrentAry, N);
+      SetLength(TargetPos, N);
+      TSortAryUtil.InitOrder(CurrentAry);
+      InitTargetPosAry();
+      // 0번 인덱스부터 차례대로 목표 값으로 채움
+      for newidx := 0 to High(TargetPos) do
+      begin
+        // 1. 현재 배열에서 목표 값(TargetAry[i])이 어디에 있는지 인덱스를 찾음
+        CurPos := -1;
+        for j := newidx to High(CurrentAry) do // 이미 맞춘 앞부분(i 이전)은 검색 제외
+        begin
+          if CurrentAry[j] = TargetPos[newidx] then
+          begin
+            CurPos := j;
+            Break;
+          end;
+        end; //fpr j
+
+        // 2. 찾은 위치에서 현재 목표 위치(i)로 이동
+        if (CurPos <> -1) and (CurPos <> newidx) then
+        begin
+          AGrid.MoveRow(CurPos, newidx);
+          TSortAryUtil.ApplyMove(CurrentAry, CurPos, newidx);
+        end;
+      end;//for i
+
+      if AIsChangeRowColor then
+        ChangeRowColorBySortDataList(AGrid, LDocList);
+
+      LDocList.Clear;
+    finally
+      EndUpdate;
+    end;
+  end;//with
+end;
+
+function GetSortVar2DocListFromNextGridByColIdxs(AGrid: TNextGrid; const AColIdxAry: TArray<integer>): IDocList;
+var
+  LRow, LCol, LColIdx: integer;
+  LColumn: TnxCustomColumn;
+  LCell: TCell;
+  LVar, LDocVar, LSortVar: variant;
+begin
+  Result := DocList();
+
+  with AGrid do
+  begin
+    for LRow := 0 to RowCount - 1 do
+    begin
+      for LCol := Low(AColIdxAry) to High(AColIdxAry) do
+      begin
+        LColIdx := AColIdxAry[LCol];
+
+        if LColIdx >= Columns.Count then
+          Continue;
+
+        LColumn := AGrid.Columns.Item[LColIdx];
+
+        if Columns.IndexOf(LColumn) > -1 then
+        begin
+          LCell := Cell[LColIdx, LRow];
+          SetNxGridCellValue2Var(LColumn, LCell, LVar); //{"HulNo":"HHI3333", "ClaimN0":"333"}
+          TDocVariantData(LDocVar).AddFrom(LVar);
+          LSortVar := LSortVar + VarToStr(TDocVariantData(LVar).Value[LColumn.Name]) + ';';//Value(HHI333)만 복사
+          TDocVariantData(LVar).Reset;
+        end;
+      end; //for LCol
+
+      LDocVar.RowNo := LRow;        //첫번째 데이터는 기존 Grid의 Row No
+      LDocVar.Color := clWhite;     //Grid의 Row Color
+      LDocVar.SortData := LSortVar; //각 칼럼별 데이터를 Json으로 저장함: {"SortData":"HHI3333;333;"}
+
+      Result.Append(_JSON(LDocVar));          ;
+
+      TDocVariantData(LSortVar).Reset;
+      TDocVariantData(LDocVar).Reset;
+    end; //for LRow
+  end;//with
 end;
 
 initialization

@@ -5,13 +5,17 @@ interface
 uses Winapi.Windows, System.Classes, System.SysUtils, System.DateUtils,
   System.IOUtils, Winapi.ShlObj, Math, System.Zip,
   mormot.core.base, mormot.core.os, mormot.core.variants,
+{$IFDEF USE_ZIPMASTER}
   ZipMstr,
+{$ENDIF}
   UnitFileInfoUtil;
 
 //AList : Full Path FileName List
 //결과값은 [{"Name": "", "Path": "", "Version": ""},...]
 function GetFileVersion2JsonAryByPJVerInfoFromList(AList: TStringList): string;
+{$IFDEF USE_ZIPMASTER}
 function CopyOrZipFileUsingZipMaster(const ASourceFile, ATargetFile: string; AIsCompress: Boolean): Int64;
+{$ENDIF}
 function CopyOrZipFileUsingSystemZip(const ASourceFile, ATargetFile: string; AIsCompress: Boolean): Int64;
 function TFile_GetSize(const Path: string): Int64;
 {
@@ -69,6 +73,7 @@ begin
   end;
 end;
 
+{$IFDEF USE_ZIPMASTER}
 function CopyOrZipFileUsingZipMaster(const ASourceFile, ATargetFile: string; AIsCompress: Boolean): Int64;
 var
   Zip: TZipMaster;
@@ -156,6 +161,7 @@ begin
   if FileExists(ATargetFile) then
     Result := TFile_GetSize(ATargetFile) div 1024;
 end;
+{$ENDIF}
 
 function CopyOrZipFileUsingSystemZip(const ASourceFile, ATargetFile: string; AIsCompress: Boolean): Int64;
 var
@@ -255,6 +261,58 @@ begin
   else
     Result := -1;
 end;
+
+procedure ZipFileUsingZipMaster(const ASourceFile, ATargetFile: string);
+var
+  Zip: TZipMaster;
+begin
+  Zip := TZipMaster.Create(nil);
+  try
+    // 1. 항상 FSpecArgs 목록을 초기화하여 이전 실행의 잔여물이 남지 않도록 함
+    Zip.FSpecArgs.Clear;
+    Zip.ZipFileName := ATargetFile;
+
+    if FileExists(ATargetFile) then
+    begin
+      // A. 기존 ZIP에 파일 추가 (TargetFile이 .zip인 경우)
+      if SameText(ExtractFileExt(ATargetFile), '.zip') then
+      begin
+        // FSpecArgs.Clear는 이미 상단에서 처리됨
+        Zip.FSpecArgs.Add(ASourceFile);
+        Zip.Add; // 파일 추가 실행
+      end
+      else
+      begin
+        // B. TargetFile이 ZIP이 아니지만 파일이 존재하는 경우 → 확장자를 변경하여 새로운 ZIP 생성
+        Zip.ZipFileName := ChangeFileExt(ATargetFile, '.zip');
+        // FSpecArgs.Clear는 이미 상단에서 처리됨
+        Zip.FSpecArgs.Add(ASourceFile);
+        Zip.Add; // 새로운 ZIP 파일 생성 및 파일 추가 실행
+      end;
+    end
+    else
+    begin
+      // C. 새로운 ZIP 생성 (TargetFile이 존재하지 않는 경우)
+      // FSpecArgs.Clear는 이미 상단에서 처리됨
+      Zip.FSpecArgs.Add(ASourceFile);
+      Zip.Add; // 새로운 ZIP 파일 생성 및 파일 추가 실행
+    end;
+
+    // 2. 중요: Zip 작업을 완료하고 파일을 디스크에 기록(저장)하는 메서드 호출
+    // TZipMaster에서 'Add' 작업 후 명시적으로 파일을 닫아주어야 작업이 완료됨
+//    Zip.Close;
+
+    // 3. 작업 성공 여부 확인 (옵션: 필요 시 예외 발생 또는 로그 기록)
+    if Zip.ErrCode <> 0 then
+    begin
+      // 예: 오류 메시지 표시
+      raise Exception.Create(Format('압축 작업 실패: 오류 코드 %d', [Zip.ErrCode]));
+    end;
+
+  finally
+    Zip.Free;
+  end;
+end;
 {$ENDIF}
 
 function PathRelativePathToEx(const BasePath: string; const BaseIsDir: Boolean;
@@ -352,58 +410,6 @@ begin
 
   // 경로 정규화
   Result := TPath.GetFullPath(Result);
-end;
-
-procedure ZipFileUsingZipMaster(const ASourceFile, ATargetFile: string);
-var
-  Zip: TZipMaster;
-begin
-  Zip := TZipMaster.Create(nil);
-  try
-    // 1. 항상 FSpecArgs 목록을 초기화하여 이전 실행의 잔여물이 남지 않도록 함
-    Zip.FSpecArgs.Clear;
-    Zip.ZipFileName := ATargetFile;
-
-    if FileExists(ATargetFile) then
-    begin
-      // A. 기존 ZIP에 파일 추가 (TargetFile이 .zip인 경우)
-      if SameText(ExtractFileExt(ATargetFile), '.zip') then
-      begin
-        // FSpecArgs.Clear는 이미 상단에서 처리됨
-        Zip.FSpecArgs.Add(ASourceFile);
-        Zip.Add; // 파일 추가 실행
-      end
-      else
-      begin
-        // B. TargetFile이 ZIP이 아니지만 파일이 존재하는 경우 → 확장자를 변경하여 새로운 ZIP 생성
-        Zip.ZipFileName := ChangeFileExt(ATargetFile, '.zip');
-        // FSpecArgs.Clear는 이미 상단에서 처리됨
-        Zip.FSpecArgs.Add(ASourceFile);
-        Zip.Add; // 새로운 ZIP 파일 생성 및 파일 추가 실행
-      end;
-    end
-    else
-    begin
-      // C. 새로운 ZIP 생성 (TargetFile이 존재하지 않는 경우)
-      // FSpecArgs.Clear는 이미 상단에서 처리됨
-      Zip.FSpecArgs.Add(ASourceFile);
-      Zip.Add; // 새로운 ZIP 파일 생성 및 파일 추가 실행
-    end;
-
-    // 2. 중요: Zip 작업을 완료하고 파일을 디스크에 기록(저장)하는 메서드 호출
-    // TZipMaster에서 'Add' 작업 후 명시적으로 파일을 닫아주어야 작업이 완료됨
-//    Zip.Close;
-
-    // 3. 작업 성공 여부 확인 (옵션: 필요 시 예외 발생 또는 로그 기록)
-    if Zip.ErrCode <> 0 then
-    begin
-      // 예: 오류 메시지 표시
-      raise Exception.Create(Format('압축 작업 실패: 오류 코드 %d', [Zip.ErrCode]));
-    end;
-
-  finally
-    Zip.Free;
-  end;
 end;
 
 end.

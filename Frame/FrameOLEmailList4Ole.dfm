@@ -986,6 +986,8 @@ object OutlookEmailListFr: TOutlookEmailListFr
         TabOrder = 2
         TabStop = True
         OnCellDblClick = grid_MailCellDblClick
+        OnKeyDown = grid_MailKeyDown
+        OnKeyUp = grid_MailKeyUp
         OnMouseDown = grid_MailMouseDown
         object Incremental: TNxIncrementColumn
           Alignment = taCenter
@@ -1060,11 +1062,15 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Header.Font.Height = -11
           Header.Font.Name = 'Tahoma'
           Header.Font.Style = []
+          Options = [coCanClick, coCanInput, coCanSort, coEditing, coPublicUsing, coShowTextFitHint]
           Position = 4
           SortType = stAlphabetic
           Width = 50
         end
         object ExistInDB: TNxCheckBoxColumn
+          Alignment = taCenter
+          Header.Caption = 'Exist In DB'
+          Header.Alignment = taCenter
           Header.Font.Charset = DEFAULT_CHARSET
           Header.Font.Color = clWindowText
           Header.Font.Height = -11
@@ -1258,6 +1264,8 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Font.Height = -11
           Font.Name = 'Tahoma'
           Font.Style = []
+          Header.Caption = 'EntryID'
+          Header.Alignment = taCenter
           Header.Font.Charset = DEFAULT_CHARSET
           Header.Font.Color = clWindowText
           Header.Font.Height = -11
@@ -1274,6 +1282,8 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Font.Height = -11
           Font.Name = 'Tahoma'
           Font.Style = []
+          Header.Caption = 'StoreID'
+          Header.Alignment = taCenter
           Header.Font.Charset = DEFAULT_CHARSET
           Header.Font.Color = clWindowText
           Header.Font.Height = -11
@@ -1390,6 +1400,24 @@ object OutlookEmailListFr: TOutlookEmailListFr
           Position = 25
           SortType = stAlphabetic
           Width = 150
+        end
+        object LatestContents: TNxMemoColumn
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          Header.Caption = #44032#51109' '#52572#44540' '#47700#51068' '#45236#50857
+          Header.Alignment = taCenter
+          Header.Font.Charset = DEFAULT_CHARSET
+          Header.Font.Color = clWindowText
+          Header.Font.Height = -11
+          Header.Font.Name = 'Tahoma'
+          Header.Font.Style = []
+          ParentFont = False
+          Position = 26
+          SortType = stAlphabetic
+          Visible = False
         end
       end
     end
@@ -1674,7 +1702,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 93
     Top = 141
     object CreateEMail1: TMenuItem
-      Caption = 'Create EMail'
+      Caption = 'Create Email'
       Visible = False
       object N3: TMenuItem
         Tag = 2
@@ -1770,13 +1798,20 @@ object OutlookEmailListFr: TOutlookEmailListFr
         Caption = #44592#49457#52376#47532' '#50836#52397
       end
     end
-    object EditMailInfo1: TMenuItem
-      Caption = 'Edit Mail Info'
-      OnClick = EditMailInfo1Click
-    end
-    object CopyHullNoClaimNoSubject1: TMenuItem
-      Caption = 'Copy HullNo+ClaimNo+Subject'
-      OnClick = CopyHullNoClaimNoSubject1Click
+    object Edit1: TMenuItem
+      Caption = 'Edit'
+      object EditMailInfo1: TMenuItem
+        Caption = 'Mail Info'
+        OnClick = EditMailInfo1Click
+      end
+      object MailSubject1: TMenuItem
+        Caption = 'Mail Subject 4 Claim No'
+        OnClick = MailSubject1Click
+      end
+      object MailContents1: TMenuItem
+        Caption = 'Lstest Mail Contents'
+        OnClick = MailContents1Click
+      end
     end
     object N1: TMenuItem
       Caption = '-'
@@ -1793,11 +1828,18 @@ object OutlookEmailListFr: TOutlookEmailListFr
       OnClick = MoveSelectedEmail2MoveFolder1Click
     end
     object DeleteMail1: TMenuItem
-      Caption = 'Delete Mail'
+      Caption = 'Delete Mail From Grid'
       OnClick = DeleteMail1Click
     end
     object N8: TMenuItem
       Caption = '-'
+    end
+    object Sortby1: TMenuItem
+      Caption = 'Sort by'
+      object HullNoClaimNo1: TMenuItem
+        Caption = 'Hull No + Claim No'
+        OnClick = HullNoClaimNo1Click
+      end
     end
     object ShowMailInfo1: TMenuItem
       Caption = 'Show Mail Info'
@@ -1807,6 +1849,10 @@ object OutlookEmailListFr: TOutlookEmailListFr
       end
       object ShowStoreID1: TMenuItem
         Caption = 'Show Store ID'
+      end
+      object LatestContents1: TMenuItem
+        Caption = 'Latest Contents'
+        OnClick = LatestContents1Click
       end
     end
     object estRemote1: TMenuItem
@@ -1822,6 +1868,10 @@ object OutlookEmailListFr: TOutlookEmailListFr
         Caption = 'Send Dropped Mail 2 MQ'
         OnClick = Send2MQCheckClick
       end
+    end
+    object CopyHullNoClaimNoSubject1: TMenuItem
+      Caption = 'Copy HullNo+ClaimNo+Subject'
+      OnClick = CopyHullNoClaimNoSubject1Click
     end
     object Save2JsonAryFromSelected1: TMenuItem
       Caption = 'Get JsonAry From Selected'
@@ -1851,7 +1901,7 @@ object OutlookEmailListFr: TOutlookEmailListFr
     Left = 155
     Top = 136
     Bitmap = {
-      494C0101030098007C0710001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010103009800A40710001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
       0000000000000000000000000000000000000000000001010101010101070303
       03190B0B0B331717174C2020205B2121215C1919194F0D0D0D38734319BD7B58
